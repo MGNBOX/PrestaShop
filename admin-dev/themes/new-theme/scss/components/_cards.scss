@@ -56,19 +56,19 @@
 
 .card-header {
   padding: 1rem;
+  font-size: var(--#{$cdk}size-18);
   font-weight: 600;
   line-height: 1.5rem;
   background-color: $card-cap-bg;
-  font-size: var(--#{$cdk}size-18);
 
   .badge {
     vertical-align: middle;
   }
 
   .card-header-title {
+    font-size: var(--#{$cdk}size-18);
     font-weight: 600;
     line-height: 1.5rem;
-    font-size: var(--#{$cdk}size-18);
   }
 
   &:not(:has(.dropdown-item)) {
