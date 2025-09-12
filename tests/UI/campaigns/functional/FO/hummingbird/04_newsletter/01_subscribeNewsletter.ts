@@ -60,7 +60,7 @@ describe('FO - Newsletter : Subscribe to Newsletter', async () => {
 
   describe('Go to FO to subscribe to the newsletter', async () => {
     it('should open the shop page', async function () {
-      await testContext.addContextItem(this, 'testIdentifier', 'goToFOToSubscribeToNewsletter', baseContext);
+      await testContext.addContextItem(this, 'testIdentifier', 'goToFOForSubscribingToNewsletter', baseContext);
 
       await foHummingbirdHomePage.goTo(page, global.FO.URL);
 
