@@ -74,6 +74,11 @@ class ProductControllerCore extends ProductPresentingFrontControllerCore
      */
     protected $isPreview = false;
 
+    /**
+     * @var bool
+     */
+    protected $hasCustomizationError = false;
+
     public function canonicalRedirection(string $canonical_url = ''): void
     {
         // This is there to prevent error, because this function is also called
@@ -316,7 +321,7 @@ class ProductControllerCore extends ProductPresentingFrontControllerCore
      */
     public function initContent(): void
     {
-        if (!$this->errors) {
+        if (!$this->errors || $this->hasCustomizationError) {
             // Assign template vars related to the category + execute hooks related to the category
             $this->assignCategory();
 
@@ -942,8 +947,10 @@ class ProductControllerCore extends ProductPresentingFrontControllerCore
                 /* Original file */
                 if (!ImageManager::resize($tmp_name, _PS_UPLOAD_DIR_ . $file_name)) {
                     $this->errors[] = $this->trans('An error occurred during the image upload process.', [], 'Shop.Notifications.Error');
+                    $this->hasCustomizationError = true;
                 } elseif (!ImageManager::resize($tmp_name, _PS_UPLOAD_DIR_ . $file_name . '_small', $product_picture_width, $product_picture_height)) {
                     $this->errors[] = $this->trans('An error occurred during the image upload process.', [], 'Shop.Notifications.Error');
+                    $this->hasCustomizationError = true;
                 } else {
                     $this->context->cart->addPictureToProduct($this->product->id, $indexes[$field_name], Product::CUSTOMIZE_FILE, $file_name);
                 }
@@ -970,6 +977,7 @@ class ProductControllerCore extends ProductPresentingFrontControllerCore
             if (in_array($field_name, $authorized_text_fields) && $value != '') {
                 if (!Validate::isMessage($value)) {
                     $this->errors[] = $this->trans('Invalid message.', [], 'Shop.Notifications.Error');
+                    $this->hasCustomizationError = true;
                 } else {
                     $this->context->cart->addTextFieldToProduct($this->product->id, $indexes[$field_name], Product::CUSTOMIZE_TEXTFIELD, $value);
                 }
