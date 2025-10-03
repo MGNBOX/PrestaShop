@@ -42,11 +42,6 @@ final class AttachmentQueryBuilder extends AbstractDoctrineQueryBuilder
     private $searchCriteriaApplicator;
 
     /**
-     * @var int
-     */
-    private $contextLanguageId;
-
-    /**
      * @param Connection $connection
      * @param string $dbPrefix
      * @param DoctrineSearchCriteriaApplicatorInterface $searchCriteriaApplicator
@@ -56,12 +51,11 @@ final class AttachmentQueryBuilder extends AbstractDoctrineQueryBuilder
         Connection $connection,
         string $dbPrefix,
         DoctrineSearchCriteriaApplicatorInterface $searchCriteriaApplicator,
-        LanguageContext $languageContext
+        private LanguageContext $languageContext
     ) {
         parent::__construct($connection, $dbPrefix);
 
         $this->searchCriteriaApplicator = $searchCriteriaApplicator;
-        $this->contextLanguageId = $languageContext->getId();
     }
 
     /**
@@ -127,7 +121,7 @@ final class AttachmentQueryBuilder extends AbstractDoctrineQueryBuilder
             'a.`id_attachment` = virtual_product_attachment.`id_attachment`');
 
         $qb->andWhere('al.`id_lang` = :employee_id_lang');
-        $qb->setParameter('employee_id_lang', $this->contextLanguageId);
+        $qb->setParameter('employee_id_lang', $this->languageContext->getId());
         $this->applyFilters($qb, $filters);
 
         return $qb;

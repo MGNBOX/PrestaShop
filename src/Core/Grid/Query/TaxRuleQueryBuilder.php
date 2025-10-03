@@ -39,11 +39,6 @@ use PrestaShop\PrestaShop\Core\Grid\Search\SearchCriteriaInterface;
 class TaxRuleQueryBuilder extends AbstractDoctrineQueryBuilder
 {
     /**
-     * @var int
-     */
-    private $contextLanguageId;
-
-    /**
      * @var DoctrineSearchCriteriaApplicatorInterface
      */
     private $searchCriteriaApplicator;
@@ -58,12 +53,11 @@ class TaxRuleQueryBuilder extends AbstractDoctrineQueryBuilder
         Connection $connection,
         $dbPrefix,
         DoctrineSearchCriteriaApplicatorInterface $searchCriteriaApplicator,
-        LanguageContext $languageContext
+        private LanguageContext $languageContext
     ) {
         parent::__construct($connection, $dbPrefix);
 
         $this->searchCriteriaApplicator = $searchCriteriaApplicator;
-        $this->contextLanguageId = $languageContext->getId();
     }
 
     /**
@@ -143,7 +137,7 @@ class TaxRuleQueryBuilder extends AbstractDoctrineQueryBuilder
                 'tr.`id_tax` = t.`id_tax`'
             )
             ->andWhere('tr.`id_tax_rules_group` = :idTaxRulesGroup')
-            ->setParameter('idLang', $this->contextLanguageId)
+            ->setParameter('idLang', $this->languageContext->getId())
             ->setParameter('idTaxRulesGroup', $filters['taxRulesGroupId']);
     }
 }

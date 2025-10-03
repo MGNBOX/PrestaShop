@@ -42,11 +42,6 @@ final class ManufacturerAddressQueryBuilder extends AbstractDoctrineQueryBuilder
     private $searchCriteriaApplicator;
 
     /**
-     * @var int
-     */
-    private $contextLangId;
-
-    /**
      * @param Connection $connection
      * @param string $dbPrefix
      * @param DoctrineSearchCriteriaApplicatorInterface $searchCriteriaApplicator
@@ -56,12 +51,11 @@ final class ManufacturerAddressQueryBuilder extends AbstractDoctrineQueryBuilder
         Connection $connection,
         $dbPrefix,
         DoctrineSearchCriteriaApplicatorInterface $searchCriteriaApplicator,
-        LanguageContext $languageContext
+        private LanguageContext $languageContext
     ) {
         parent::__construct($connection, $dbPrefix);
 
         $this->searchCriteriaApplicator = $searchCriteriaApplicator;
-        $this->contextLangId = $languageContext->getId();
     }
 
     /**
@@ -109,7 +103,7 @@ final class ManufacturerAddressQueryBuilder extends AbstractDoctrineQueryBuilder
                 'cl',
                 'cl.id_country = a.id_country AND cl.id_lang = :lang'
             )
-            ->setParameter('lang', $this->contextLangId)
+            ->setParameter('lang', $this->languageContext->getId())
             ->leftJoin(
                 'a',
                 $this->dbPrefix . 'manufacturer',

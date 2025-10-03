@@ -42,11 +42,6 @@ final class TaxQueryBuilder extends AbstractDoctrineQueryBuilder
     private $searchCriteriaApplicator;
 
     /**
-     * @var int
-     */
-    private $contextLanguageId;
-
-    /**
      * @param Connection $connection
      * @param string $dbPrefix
      * @param DoctrineSearchCriteriaApplicatorInterface $searchCriteriaApplicator
@@ -56,12 +51,11 @@ final class TaxQueryBuilder extends AbstractDoctrineQueryBuilder
         Connection $connection,
         $dbPrefix,
         DoctrineSearchCriteriaApplicatorInterface $searchCriteriaApplicator,
-        LanguageContext $languageContext
+        private LanguageContext $languageContext
     ) {
         parent::__construct($connection, $dbPrefix);
 
         $this->searchCriteriaApplicator = $searchCriteriaApplicator;
-        $this->contextLanguageId = $languageContext->getId();
     }
 
     /**
@@ -116,7 +110,7 @@ final class TaxQueryBuilder extends AbstractDoctrineQueryBuilder
         $qb->andWhere('tl.`id_lang` = :employee_id_lang');
         $qb->andWhere('t.`deleted` = 0');
 
-        $qb->setParameter('employee_id_lang', $this->contextLanguageId);
+        $qb->setParameter('employee_id_lang', $this->languageContext->getId());
         $this->applyFilters($qb, $filters);
 
         return $qb;
