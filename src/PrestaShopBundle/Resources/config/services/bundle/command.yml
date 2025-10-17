@@ -19,6 +19,8 @@ services:
       - 'console.command'
 
   PrestaShopBundle\Command\GenerateHtaccessCommand:
+    arguments:
+      - '@prestashop.adapter.file.htaccess_file_generator'
     tags:
       - 'console.command'
 
