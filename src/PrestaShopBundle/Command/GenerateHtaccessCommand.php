@@ -71,7 +71,7 @@ class GenerateHtaccessCommand extends Command
         if (file_exists($path) && !$force) {
             $output->writeln('<comment>.htaccess already exists. Use --force to overwrite.</comment>');
 
-            return Command::FAILURE;
+            return Command::SUCCESS;
         }
 
         try {
