@@ -37,7 +37,7 @@ docker-down: ## Stop the docker hub
 docker-logs: ## Show live logs
 	$(DOCKER_COMP) logs --follow
 
-docker-sh: ## Connect to the PHP container via bash interactif
+docker-sh: ## Open an interactive bash session inside the PHP container
 	@$(DOCKER_COMP) exec -it prestashop-git bash
 
 ## —— PrestaShop 🛒 ———————————————————————————————————————————————————————————
