@@ -112,7 +112,7 @@ class CQRSOpenApiFactory implements OpenApiFactoryInterface
                     $this->adaptDecimalNumbers($resourceMetadata->getClass(), $resourceSchema);
                     $this->adaptDateProperties($resourceMetadata->getClass(), $resourceSchema);
                     // NEW: Synchronize schema with actual resource properties
-                    $this->synchronizeSchemaWithResource($resourceMetadata->getClass(), $resourceSchema);
+                    $this->synchronizeSchemaWithResource($resourceMetadata->getClass(), $resourceSchema, null);
                 }
 
                 /** @var Operation $operation */
@@ -133,14 +133,23 @@ class CQRSOpenApiFactory implements OpenApiFactoryInterface
                         continue;
                     }
 
+                    // Get the input class (command class) for synchronization
+                    $inputClass = $this->findOutputClass($operation->getClass(), Schema::TYPE_INPUT, $operation, []);
+                    $classToUse = $inputClass ?? $operation->getClass();
+                    // Use resource class for adaptations (LocalizedValue attributes are on resource, not command)
+                    $resourceClass = $operation->getClass();
+
                     $this->adaptMultiParametersSetters($operation, $definition);
                     $this->applyCommandMapping($operation, $definition);
-                    // Adapt localized value schema for operation definition (for valid input example)
-                    $this->adaptLocalizedValues($operation->getClass(), $definition);
-                    $this->adaptDecimalNumbers($operation->getClass(), $definition);
-                    $this->synchronizeSchemaWithResource($operation->getClass(), $definition);
-                    // Adapt DateImmutable properties last to ensure examples are correctly set
-                    $this->adaptDateProperties($operation->getClass(), $definition);
+                    // Synchronize with input class (command) for input schemas, resource class for output schemas
+                    $this->synchronizeSchemaWithResource($classToUse, $definition, $operation);
+                    // Apply ApiProperty openapiContext first to set base schema information (use resource class for attributes)
+                    $this->applyApiPropertyOpenApiContext($resourceClass, $definition);
+                    // Adapt localized value schema for operation definition (use resource class where LocalizedValue attributes are)
+                    $this->adaptLocalizedValues($resourceClass, $definition);
+                    $this->adaptDecimalNumbers($resourceClass, $definition);
+                    // Adapt date properties for operation definition (use classToUse to check command properties)
+                    $this->adaptDateProperties($classToUse, $definition);
                 }
             }
         }
@@ -203,12 +212,17 @@ class CQRSOpenApiFactory implements OpenApiFactoryInterface
 
     /**
      * Synchronizes the OpenAPI schema with the actual properties available in the resource
-     * This removes fields that are documented but don't exist in the actual resource
+     * This removes fields that are documented but don't exist in the actual resource,
+     * and ensures properties from the resource are present in the schema
      */
-    protected function synchronizeSchemaWithResource(string $resourceClass, ArrayObject $definition): void
+    protected function synchronizeSchemaWithResource(string $resourceClass, ArrayObject $definition, ?Operation $operation = null): void
     {
-        if (empty($definition['properties']) || !class_exists($resourceClass)) {
+        if (!class_exists($resourceClass)) {
             return;
+        }
+
+        if (empty($definition['properties'])) {
+            $definition['properties'] = new ArrayObject();
         }
 
         $actualProperties = $this->getResourceProperties($resourceClass);
@@ -216,19 +230,81 @@ class CQRSOpenApiFactory implements OpenApiFactoryInterface
             return;
         }
 
+        // Build reverse mapping from API property names to command property names
+        $reverseMapping = [];
+        if ($operation && !empty($operation->getExtraProperties()['CQRSCommandMapping'])) {
+            foreach ($operation->getExtraProperties()['CQRSCommandMapping'] as $apiPath => $cqrsPath) {
+                // Skip context properties
+                if (str_starts_with($apiPath, '[_context]')) {
+                    continue;
+                }
+                $apiPropertyName = trim($apiPath, '[]');
+                $cqrsPropertyName = trim($cqrsPath, '[]');
+                $reverseMapping[$apiPropertyName] = $cqrsPropertyName;
+            }
+        }
+
+        // Get multi-parameter setter property names (these are handled separately by adaptMultiParametersSetters)
+        $multiParameterSetterProperties = [];
+        if ($operation && class_exists($resourceClass) && $this->classMetadataFactory->hasMetadataFor($resourceClass) && $this->domainObjectDetector->isDomainObject($resourceClass)) {
+            $operationClassMetadata = $this->classMetadataFactory->getMetadataFor($resourceClass);
+            $operationReflectionClass = $operationClassMetadata->getReflectionClass();
+            $methodsWithMultipleArguments = $this->findMethodsWithMultipleArguments($operationReflectionClass);
+            foreach ($methodsWithMultipleArguments as $methodPropertyName => $setterMethod) {
+                $multiParameterSetterProperties[] = $methodPropertyName;
+            }
+        }
+
+        // Get API resource class properties to ensure we only keep properties that exist in the API resource
+        $apiResourceProperties = [];
+        if ($operation) {
+            $apiResourceClass = $operation->getClass();
+            if (class_exists($apiResourceClass)) {
+                $apiResourceProperties = $this->getResourceProperties($apiResourceClass);
+            }
+        }
+
         $currentProperties = $definition['properties'];
         $synchronizedProperties = [];
 
+        // First, keep existing properties that correspond to properties in the command class AND exist in the API resource
         foreach ($currentProperties as $propertyName => $propertySchema) {
-            if (in_array($propertyName, $actualProperties)) {
+            // Keep multi-parameter setter properties (they're handled by adaptMultiParametersSetters and should be preserved)
+            if (in_array($propertyName, $multiParameterSetterProperties)) {
+                $synchronizedProperties[$propertyName] = $propertySchema;
+                continue;
+            }
+
+            // Only keep properties that exist in the API resource class (if we have one)
+            if (!empty($apiResourceProperties) && !in_array($propertyName, $apiResourceProperties)) {
+                continue;
+            }
+
+            // Check if this property name (after mapping) corresponds to a command property
+            $commandPropertyName = isset($reverseMapping[$propertyName]) ? $reverseMapping[$propertyName] : $propertyName;
+            // Keep the property if:
+            // 1. The mapped command property exists in the command class, OR
+            // 2. There's a mapping defined for it (meaning it's an API property that gets transformed, even if the command property doesn't exist as a class property)
+            if (in_array($commandPropertyName, $actualProperties) || isset($reverseMapping[$propertyName])) {
                 $synchronizedProperties[$propertyName] = $propertySchema;
             }
         }
 
+        // Don't add new properties - only keep existing ones that match the command class
+        // New properties should be added by ApiPlatform's schema generation, not here
+
         $definition['properties'] = $synchronizedProperties;
 
         if (!empty($definition['required'])) {
-            $definition['required'] = array_values(array_intersect($definition['required'], $actualProperties));
+            // Map required properties to their API names
+            $mappedRequired = [];
+            foreach ($definition['required'] as $requiredProperty) {
+                $commandPropertyName = isset($reverseMapping[$requiredProperty]) ? $reverseMapping[$requiredProperty] : $requiredProperty;
+                if (in_array($commandPropertyName, $actualProperties)) {
+                    $mappedRequired[] = $requiredProperty;
+                }
+            }
+            $definition['required'] = array_values($mappedRequired);
         }
     }
 
@@ -343,10 +419,6 @@ class CQRSOpenApiFactory implements OpenApiFactoryInterface
      *      PrestaShop\Module\APIResources\ApiPlatform\Resources\ApiClient\ApiClientList => ApiClient
      *      PrestaShop\Module\APIResources\ApiPlatform\Resources\Product\Product => Product
      *      PrestaShop\Module\APIResources\ApiPlatform\Resources\Product\ProductList => Product
-     *
-     * @param HttpOperation $operation
-     *
-     * @return string|null
      */
     protected function getOperationDomain(HttpOperation $operation): ?string
     {
@@ -375,11 +447,6 @@ class CQRSOpenApiFactory implements OpenApiFactoryInterface
     /**
      * Localized values are arrays indexed by locales (or objects with properties matching the locale in JSON), this
      * method adapts the expected format along with an example to indicate the user that the key to use is the locale.
-     *
-     * @param string $class
-     * @param ArrayObject $definition
-     *
-     * @return void
      */
     protected function adaptLocalizedValues(string $class, ArrayObject $definition): void
     {
@@ -399,12 +466,61 @@ class CQRSOpenApiFactory implements OpenApiFactoryInterface
             foreach ($property->getAttributes() as $attribute) {
                 // Adapt the schema of localized values, they must be an object index by the Language's locale (not an array)
                 if ($attribute->getName() === LocalizedValue::class || is_subclass_of($attribute->getName(), LocalizedValue::class)) {
+                    // Ensure the property schema is an ArrayObject if it's not already
+                    if (!($propertySchema instanceof ArrayObject)) {
+                        $definition['properties'][$propertyName] = new ArrayObject();
+                    }
+                    // Force the type to object and remove any incorrect type information
+                    // Clear any existing type that might be wrong (like 'string' or 'array')
+                    unset($definition['properties'][$propertyName]['type']);
                     $definition['properties'][$propertyName]['type'] = 'object';
-                    $definition['properties'][$propertyName]['example'] = [
-                        'en-US' => 'value',
-                        'fr-FR' => 'valeur',
-                    ];
+                    // Only set default example if no custom example was provided via ApiProperty openapiContext
+                    if (!isset($definition['properties'][$propertyName]['example'])) {
+                        $definition['properties'][$propertyName]['example'] = [
+                            'en-US' => 'value',
+                            'fr-FR' => 'valeur',
+                        ];
+                    }
+                    // Remove properties that shouldn't be there for objects
                     unset($definition['properties'][$propertyName]['items']);
+                    unset($definition['properties'][$propertyName]['format']);
+                    // Remove any enum or other array-related properties
+                    if (isset($definition['properties'][$propertyName]['enum'])) {
+                        unset($definition['properties'][$propertyName]['enum']);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Applies ApiProperty openapiContext to the schema properties to ensure correct type, example, and description.
+     */
+    protected function applyApiPropertyOpenApiContext(string $class, ArrayObject $definition): void
+    {
+        if (empty($definition['properties']) || !class_exists($class)) {
+            return;
+        }
+
+        $resourceClassMetadata = $this->classMetadataFactory->getMetadataFor($class);
+        $resourceReflectionClass = $resourceClassMetadata->getReflectionClass();
+
+        foreach ($definition['properties'] as $propertyName => $propertySchema) {
+            if (!$resourceReflectionClass->hasProperty($propertyName)) {
+                continue;
+            }
+
+            $property = $resourceReflectionClass->getProperty($propertyName);
+            foreach ($property->getAttributes() as $attribute) {
+                // Check for ApiProperty attribute with openapiContext
+                if ($attribute->getName() === \ApiPlatform\Metadata\ApiProperty::class) {
+                    $openapiContext = $attribute->getArguments()['openapiContext'] ?? null;
+                    if (is_array($openapiContext) && !empty($openapiContext)) {
+                        // Merge openapiContext into the property schema, ensuring it overrides existing values
+                        foreach ($openapiContext as $key => $value) {
+                            $definition['properties'][$propertyName][$key] = $value;
+                        }
+                    }
                 }
             }
         }
@@ -413,11 +529,6 @@ class CQRSOpenApiFactory implements OpenApiFactoryInterface
     /**
      * Internally we rely on DecimalNumber for float values because they are more accurate, but in the JSON format
      * they should be considered as float, so we update the schema for these types.
-     *
-     * @param string $class
-     * @param ArrayObject $definition
-     *
-     * @return void
      */
     protected function adaptDecimalNumbers(string $class, ArrayObject $definition): void
     {
@@ -489,9 +600,20 @@ class CQRSOpenApiFactory implements OpenApiFactoryInterface
                 }
             }
 
-            // If property type is DateImmutable, change format from date-time to date and update example
-            if ($propertyType === DateImmutable::class || is_subclass_of($propertyType, DateImmutable::class)) {
-                // Always set format to 'date' for DateImmutable properties
+            // Check if property should be treated as a date (not datetime)
+            $isDateProperty = false;
+            if ($propertyType === DateImmutable::class || (class_exists($propertyType) && is_subclass_of($propertyType, DateImmutable::class))) {
+                $isDateProperty = true;
+            } elseif ($propertyType === DateTimeInterface::class || (class_exists($propertyType) && in_array(DateTimeInterface::class, class_implements($propertyType) ?: []))) {
+                // For DateTimeInterface, check if property name suggests it's a date (not datetime)
+                // Properties ending with "Date" (but not "DateTime") should be treated as date format
+                if (preg_match('/Date$/', $propertyName) && !preg_match('/DateTime$/', $propertyName)) {
+                    $isDateProperty = true;
+                }
+            }
+
+            if ($isDateProperty) {
+                // Always set format to 'date' for date properties
                 $definition['properties'][$propertyName]['format'] = 'date';
 
                 // Always update example to use date format (Y-m-d) - overwrite any existing example
@@ -523,11 +645,6 @@ class CQRSOpenApiFactory implements OpenApiFactoryInterface
      * Example:
      *   UpdateProductCommand::setRedirectOption(string $redirectType, int $redirectTarget)
      *      => expected input ['redirectOption' => ['redirectType' => '301-category', 'redirectTarget' => 42]]
-     *
-     * @param Operation $operation
-     * @param ArrayObject $definition
-     *
-     * @return void
      */
     protected function adaptMultiParametersSetters(Operation $operation, ArrayObject $definition): void
     {
@@ -614,8 +731,6 @@ class CQRSOpenApiFactory implements OpenApiFactoryInterface
     }
 
     /**
-     * @param ReflectionClass $reflectionClass
-     *
      * @return array<string, ReflectionMethod>
      */
     protected function findMethodsWithMultipleArguments(ReflectionClass $reflectionClass): array
@@ -650,11 +765,6 @@ class CQRSOpenApiFactory implements OpenApiFactoryInterface
      * Updates the schema property names based on the mapping specified, if for example the CQRS commands has a localizedNames
      * property that was renamed via the mapping into names then the schema won't use localizedNames but names for the final
      * schema output so that it matches the actual expected format.
-     *
-     * @param Operation $operation
-     * @param ArrayObject $definition
-     *
-     * @return void
      */
     protected function applyCommandMapping(Operation $operation, ArrayObject $definition): void
     {
@@ -672,6 +782,15 @@ class CQRSOpenApiFactory implements OpenApiFactoryInterface
                 // Use property path to set null, the null values will then be cleaned in a second loop (because unset cannot use property path as an input)
                 if ($this->propertyAccessor->isWritable($definition['properties'], $cqrsPath)) {
                     $this->propertyAccessor->setValue($definition['properties'], $cqrsPath, null);
+                }
+            } elseif (!str_starts_with($apiPath, '[_context]')) {
+                // If the command property doesn't exist but the API property should, create a placeholder
+                // Extract property name from apiPath (e.g., '[names]' -> 'names')
+                $apiPropertyName = trim($apiPath, '[]');
+                if (!isset($definition['properties'][$apiPropertyName])) {
+                    // Create a basic schema entry for the missing property
+                    // The schema will be properly filled by adaptLocalizedValues and synchronizeSchemaWithResource later
+                    $definition['properties'][$apiPropertyName] = new ArrayObject();
                 }
             }
         }
