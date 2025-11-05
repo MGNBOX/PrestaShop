@@ -128,7 +128,7 @@ class CustomerFormCore extends AbstractForm
          * We only do this if we have a valid customer in the context (logged in user) and if it's not a guest account.
          * We cannot just check for is_guest only, because an empty customer object will return false for is_guest.
          */
-        /** @phpstan-ignore-next-line */
+        /* @phpstan-ignore-next-line */
         if (!empty($this->context->customer->id) && !$this->context->customer->is_guest) {
             // We check if there is a customer with the same email, registered only
             $id_customer = Customer::customerExists($this->getField('email')->getValue(), true);
