@@ -181,29 +181,29 @@ describe('API : Check endpoints', async () => {
         '/modules/uninstall: PUT',
         // tests/UI/campaigns/functional/API/02_endpoints/07_module/11_getModules.ts
         '/modules: GET',
-        // @todo: add tests for delete and shopIds
+        // tests/UI/campaigns/functional/API/02_endpoints/08_product/01_deleteProductImageId.ts
         '/product/image/{imageId}: DELETE',
-        // tests/UI/campaigns/functional/API/02_endpoints/08_product/01_getProductImageId.ts
+        // tests/UI/campaigns/functional/API/02_endpoints/08_product/02_getProductImageId.ts
         '/product/image/{imageId}: GET',
-        // tests/UI/campaigns/functional/API/02_endpoints/08_product/02_postProductImageId.ts
+        // tests/UI/campaigns/functional/API/02_endpoints/08_product/03_postProductImageId.ts
         '/product/image/{imageId}: POST',
-        // tests/UI/campaigns/functional/API/02_endpoints/08_product/03_postProductIdImage.ts
+        // tests/UI/campaigns/functional/API/02_endpoints/08_product/04_postProductIdImage.ts
         '/product/{productId}/image: POST',
-        // tests/UI/campaigns/functional/API/02_endpoints/08_product/04_getProductIdImages.ts
+        // tests/UI/campaigns/functional/API/02_endpoints/08_product/05_getProductIdImages.ts
         '/product/{productId}/images: GET',
-        // tests/UI/campaigns/functional/API/02_endpoints/08_product/05_patchProductIdShops.ts
+        // tests/UI/campaigns/functional/API/02_endpoints/08_product/06_patchProductIdShops.ts
         '/product/{productId}/shops: PATCH',
-        // tests/UI/campaigns/functional/API/02_endpoints/08_product/06_deleteProductId.ts
+        // tests/UI/campaigns/functional/API/02_endpoints/08_product/07_deleteProductId.ts
         '/product/{productId}: DELETE',
-        // tests/UI/campaigns/functional/API/02_endpoints/08_product/07_getProductId.ts
+        // tests/UI/campaigns/functional/API/02_endpoints/08_product/08_getProductId.ts
         '/product/{productId}: GET',
-        // tests/UI/campaigns/functional/API/02_endpoints/08_product/08_patchProductId.ts
+        // tests/UI/campaigns/functional/API/02_endpoints/08_product/09_patchProductId.ts
         '/product/{productId}: PATCH',
-        // tests/UI/campaigns/functional/API/02_endpoints/08_product/09_postProduct.ts
+        // tests/UI/campaigns/functional/API/02_endpoints/08_product/10_postProduct.ts
         '/product: POST',
-        // tests/UI/campaigns/functional/API/02_endpoints/08_product/10_getProductsSearch.ts
+        // tests/UI/campaigns/functional/API/02_endpoints/08_product/11_getProductsSearch.ts
         '/products/search/{phrase}/{resultsLimit}/{isoCode}: GET',
-        // tests/UI/campaigns/functional/API/02_endpoints/08_product/11_getProducts.ts
+        // tests/UI/campaigns/functional/API/02_endpoints/08_product/12_getProducts.ts
         '/products: GET',
         // tests/UI/campaigns/functional/API/02_endpoints/09_searchAlias/01_deleteSearch.ts
         '/search-alias/{search}: DELETE',
