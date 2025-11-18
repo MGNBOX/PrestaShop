@@ -85,6 +85,18 @@ describe('API : Check endpoints', async () => {
       // Dear developers, the CI is broken when you update the module ps_apiresources on the Core.
       // It's normal : it's time to add them UI Tests.
       expect(endpoints).to.deep.equals([
+        // @todo: add tests
+        '/addresses/customer/{addressId}: GET',
+        // @todo: add tests
+        '/addresses/customer/{addressId}: PATCH',
+        // @todo: add tests
+        '/addresses/customer: POST',
+        // @todo: add tests
+        '/addresses/delete: PUT',
+        // @todo: add tests
+        '/addresses/{addressId}: DELETE',
+        // @todo: add tests
+        '/addresses: GET',
         // tests/UI/campaigns/functional/API/02_endpoints/01_apiClient/01_getApiClientInfos.ts
         '/api-client/infos: GET',
         // tests/UI/campaigns/functional/API/02_endpoints/01_apiClient/02_deleteApiClientId.ts
@@ -122,7 +134,7 @@ describe('API : Check endpoints', async () => {
         // tests/UI/campaigns/functional/API/02_endpoints/02_attribute/12_getAttributesGroups.ts
         '/attributes/groups: GET',
         // @todo: add tests
-        '/categories/delete: PUT',
+        '/categories/batch/{mode}: DELETE',
         // @todo: add tests
         '/categories/toggle-status: PUT',
         // tests/UI/campaigns/functional/API/02_endpoints/03_category/01_getCategories.ts
@@ -134,13 +146,22 @@ describe('API : Check endpoints', async () => {
         // @todo: add tests
         '/category/{categoryId}/thumbnail: DELETE',
         // tests/UI/campaigns/functional/API/02_endpoints/03_category/05_deleteCategoryId.ts
-        '/category/{categoryId}: DELETE',
+        // @todo: add tests for mode
+        '/category/{categoryId}/{mode}: DELETE',
         // @todo: add tests
         '/category/{categoryId}: GET',
         // @todo: add tests
         '/category/{categoryId}: PATCH',
         // @todo: add tests
         '/category: POST',
+        // @todo: add tests
+        '/contacts/{contactId}: GET',
+        // @todo: add tests
+        '/contacts/{contactId}: PATCH',
+        // @todo: add tests
+        '/contacts: GET',
+        // @todo: add tests
+        '/contacts: POST',
         // tests/UI/campaigns/functional/API/02_endpoints/04_customerGroup/01_deleteCustomerGroupsId.ts
         '/customers/group/{customerGroupId}: DELETE',
         // tests/UI/campaigns/functional/API/02_endpoints/04_customerGroup/02_getCustomerGroupsId.ts
@@ -151,6 +172,32 @@ describe('API : Check endpoints', async () => {
         '/customers/group: POST',
         // tests/UI/campaigns/functional/API/02_endpoints/04_customerGroup/05_getCustomersGroups.ts
         '/customers/groups: GET',
+        // @todo: add tests
+        '/features/batch: DELETE',
+        // @todo: add tests
+        '/features/value/{featureValueId}: DELETE',
+        // @todo: add tests
+        '/features/value/{featureValueId}: GET',
+        // @todo: add tests
+        '/features/value/{featureValueId}: PATCH',
+        // @todo: add tests
+        '/features/value: POST',
+        // @todo: add tests
+        '/features/values/batch: DELETE',
+        // @todo: add tests
+        '/features/{featureId}/values: GET',
+        // @todo: add tests
+        '/features/{featureId}: DELETE',
+        // @todo: add tests
+        '/features/{featureId}: GET',
+        // @todo: add tests
+        '/features/{featureId}: PATCH',
+        // @todo: add tests
+        '/features: GET',
+        // @todo: add tests
+        '/features: POST',
+        // @todo: add tests
+        '/hook/{hookId}/status: GET',
         // tests/UI/campaigns/functional/API/02_endpoints/05_hook/01_putHookIdStatus.ts
         '/hook/{hookId}/status: PUT',
         // tests/UI/campaigns/functional/API/02_endpoints/05_hook/02_getHookId.ts
@@ -202,7 +249,7 @@ describe('API : Check endpoints', async () => {
         // tests/UI/campaigns/functional/API/02_endpoints/08_product/10_postProduct.ts
         '/product: POST',
         // tests/UI/campaigns/functional/API/02_endpoints/08_product/11_getProductsSearch.ts
-        '/products/search/{phrase}/{resultsLimit}/{isoCode}: GET',
+        '/products/search: GET',
         // tests/UI/campaigns/functional/API/02_endpoints/08_product/12_getProducts.ts
         '/products: GET',
         // tests/UI/campaigns/functional/API/02_endpoints/09_searchAlias/01_deleteSearch.ts
