@@ -6,6 +6,9 @@ on:
 
 jobs:
   update-prestashop-packages:
+    permissions:
+      contents: write
+      pull-requests: write
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -22,6 +25,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ env.GH_BRANCH }}
+          token: ${{ secrets.JARVIS_TOKEN }}
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -119,10 +124,10 @@ jobs:
         if: steps.outdated.outputs.has_updates == 'true'
         uses: peter-evans/create-pull-request@v7
         with:
-          token: ${{ secrets.JARVIS_TOKEN }}
           commit-message: "Update prestashop/* composer packages"
           title: "Update prestashop/* composer packages"
           body: ${{ steps.outdated.outputs.body }}
           branch: chore/update-prestashop-packages-${{ env.GH_BRANCH }}
           base: ${{ env.GH_BRANCH }}
           delete-branch: true
+          token: ${{ secrets.JARVIS_TOKEN }}
