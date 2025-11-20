@@ -99,10 +99,10 @@ jobs:
             | (if $ignore == "" then . else map(select(.name as $n |
                 ($ignore | split(" ") | index($n)) | not)) end)
             | .[]
-            | "Package `\(.name)`: `\(.version)` → `\(.latest)`<br />"
+            | "Package `\(.name)`: `\(.version)` → `\(.latest)`"
           ')
 
-          body="$body$details"
+          body="$body\n\n$details"
 
           {
             echo "body<<EOF"
