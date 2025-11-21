@@ -213,7 +213,6 @@ describe('API : Check endpoints', async () => {
         // @todo: add tests
         '/hook/{hookId}/status: GET',
         // tests/UI/campaigns/functional/API/02_endpoints/05_hook/01_putHookIdStatus.ts
-        // tests/UI/campaigns/functional/API/02_endpoints/04_hook/01_putHookIdStatus.ts
         '/hook/{hookId}/status: PUT',
         // tests/UI/campaigns/functional/API/02_endpoints/05_hook/02_getHookId.ts
         '/hook/{hookId}: GET',
