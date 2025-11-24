@@ -22,7 +22,7 @@ import {
 
 const baseContext: string = 'functional_API_endpoints_product_getProductId';
 
-describe('API : GET /product/{productId}', async () => {
+describe('API : GET /products/{productId}', async () => {
   let apiContext: APIRequestContext;
   let browserContext: BrowserContext;
   let page: Page;
@@ -134,10 +134,10 @@ describe('API : GET /product/{productId}', async () => {
   });
 
   describe('API : Check Data', async () => {
-    it('should request the endpoint /product/{productId}', async function () {
+    it('should request the endpoint /products/{productId}', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'requestEndpoint', baseContext);
 
-      const apiResponse = await apiContext.get(`product/${idProduct}`, {
+      const apiResponse = await apiContext.get(`products/${idProduct}`, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
