@@ -67,6 +67,7 @@ admin_discount_bulk_disable_status:
     _legacy_controller: AdminCartRules
     _legacy_feature_flag: discount
     _legacy_link: AdminCartRules:statuscart_rule
+
 admin_discounts_delete:
   path: /{discountId}/delete
   methods: [ POST, DELETE ]
