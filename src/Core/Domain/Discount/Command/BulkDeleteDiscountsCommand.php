@@ -59,8 +59,6 @@ class BulkDeleteDiscountsCommand
     /**
      * @param int[] $discountIds
      *
-     * @return self
-     *
      * @throws DiscountConstraintException
      * @throws DiscountException
      */
