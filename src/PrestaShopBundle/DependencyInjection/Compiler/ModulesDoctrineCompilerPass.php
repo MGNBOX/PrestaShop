@@ -120,17 +120,14 @@ class ModulesDoctrineCompilerPass implements CompilerPassInterface
     private function getModuleNamespace(SplFileInfo $moduleFolder)
     {
         $finder = new Finder();
-        $finder->files()->in($moduleFolder->getRealPath() . '/src/Entity')->name('*.php');
+        $finder->files()->in($moduleFolder)->name('*.php');
         foreach ($finder as $phpFile) {
-            $phpContent = file_get_contents($phpFile->getRealPath());
-            if (preg_match('~namespace[ \t]+(.+)[ \t]*;~Um', $phpContent, $matches)) {
-                $namespace = trim($matches[1]);
-                if ($namespace === '') {
+            if (preg_match('~namespace[ \t]+(.*)[ \t]*;~Um', $phpFile->getContents(), $matches)) {
+                if (($namespace = trim($matches[1])) === '') {
                     continue;
                 }
 
-                $pos = strpos($namespace, '\\Entity');
-                if ($pos !== false) {
+                if (($pos = strpos($namespace, '\\Entity')) !== false) {
                     return substr($namespace, 0, $pos + strlen('\\Entity'));
                 }
 
