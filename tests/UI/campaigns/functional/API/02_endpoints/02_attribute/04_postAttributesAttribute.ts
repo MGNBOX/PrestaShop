@@ -54,6 +54,9 @@ describe('API : POST /admin-api/attributes/attributes', async () => {
     it('should request the endpoint /admin-api/attributes/attributes', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'requestEndpoint', baseContext);
 
+      // @todo : https://github.com/PrestaShop/PrestaShop/issues/39827
+      this.skip();
+
       const apiResponse = await apiContext.post('attributes/attributes', {
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -64,8 +67,7 @@ describe('API : POST /admin-api/attributes/attributes', async () => {
           shopIds: [1],
         },
       });
-      // @todo : https://github.com/PrestaShop/PrestaShop/issues/39827
-      this.skip();
+
       expect(apiResponse.status()).to.eq(201);
       expect(utilsAPI.hasResponseHeader(apiResponse, 'Content-Type')).to.eq(true);
       expect(utilsAPI.getResponseHeader(apiResponse, 'Content-Type')).to.contains('application/json');
