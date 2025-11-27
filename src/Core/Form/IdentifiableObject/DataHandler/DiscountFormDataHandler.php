@@ -136,6 +136,8 @@ class DiscountFormDataHandler implements FormDataHandlerInterface
 
         $command->setActive(true);
 
+        $command->setDescription($data['information']['description'] ?? '');
+
         if ($data['usability']['mode']['children_selector'] === DiscountUsabilityModeType::CODE_MODE) {
             $command->setCode($data['usability']['mode']['code'] ?? '');
         } else {
@@ -239,6 +241,7 @@ class DiscountFormDataHandler implements FormDataHandlerInterface
                 throw new RuntimeException('Unknown discount type ' . $discountType);
         }
         $command->setLocalizedNames($data['information']['names']);
+        $command->setDescription($data['information']['description'] ?? '');
 
         if ($data['usability']['mode']['children_selector'] === DiscountUsabilityModeType::CODE_MODE) {
             $command->setCode($data['usability']['mode']['code'] ?? '');

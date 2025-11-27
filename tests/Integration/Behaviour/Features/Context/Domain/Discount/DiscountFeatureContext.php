@@ -39,6 +39,7 @@ use PrestaShop\PrestaShop\Core\Domain\CartRule\Exception\CartRuleValidityExcepti
 use PrestaShop\PrestaShop\Core\Domain\Discount\Command\AddDiscountCommand;
 use PrestaShop\PrestaShop\Core\Domain\Discount\Command\DeleteDiscountCommand;
 use PrestaShop\PrestaShop\Core\Domain\Discount\Command\UpdateDiscountCommand;
+use PrestaShop\PrestaShop\Core\Domain\Discount\DiscountSettings;
 use PrestaShop\PrestaShop\Core\Domain\Discount\Exception\DiscountConstraintException;
 use PrestaShop\PrestaShop\Core\Domain\Discount\Exception\DiscountException;
 use PrestaShop\PrestaShop\Core\Domain\Discount\Exception\DiscountNotFoundException;
@@ -62,6 +63,7 @@ class DiscountFeatureContext extends AbstractDomainFeatureContext
         $errorCode = match ($field) {
             'name' => DiscountConstraintException::INVALID_NAME,
             'gift_product' => DiscountConstraintException::INVALID_GIFT_PRODUCT,
+            'description' => DiscountConstraintException::INVALID_DESCRIPTION,
             default => null,
         };
 
@@ -168,7 +170,9 @@ class DiscountFeatureContext extends AbstractDomainFeatureContext
             $command->setQuantityPerUser((int) $data['quantity_per_user']);
         }
 
-        $command->setDescription($data['description'] ?? '');
+        if (isset($data['description'])) {
+            $command->setDescription($data['description']);
+        }
         if (!empty($data['code'])) {
             $command->setCode($data['code']);
         }
@@ -217,6 +221,23 @@ class DiscountFeatureContext extends AbstractDomainFeatureContext
                 $command->setCombinationId($this->referenceToId($data['gift_combination']));
             }
         }
+
+        try {
+            /** @var DiscountId $discountId */
+            $discountId = $this->getCommandBus()->handle($command);
+            $this->getSharedStorage()->set($discountReference, $discountId->getValue());
+        } catch (DiscountConstraintException $e) {
+            $this->setLastException($e);
+        }
+    }
+
+    /**
+     * @When I create a :discountType discount :discountReference with a very large description
+     */
+    public function createDiscountWithVeryLargeDescription(string $discountReference, string $discountType): void
+    {
+        $command = new AddDiscountCommand($discountType, ['en-US' => 'Test Discount']);
+        $command->setDescription(str_repeat('A', DiscountSettings::MAX_DESCRIPTION_LENGTH + 1));
 
         try {
             /** @var DiscountId $discountId */
@@ -288,7 +309,9 @@ class DiscountFeatureContext extends AbstractDomainFeatureContext
             $command->setQuantityPerUser((int) $data['quantity_per_user']);
         }
 
-        $command->setDescription($data['description'] ?? '');
+        if (isset($data['description'])) {
+            $command->setDescription($data['description']);
+        }
         if (!empty($data['code'])) {
             $command->setCode($data['code']);
         }

@@ -26,9 +26,12 @@
 
 namespace PrestaShop\PrestaShop\Core\Domain\Discount;
 
+use PrestaShopBundle\Form\Admin\Type\FormattedTextareaType;
+
 class DiscountSettings
 {
     public const MAX_NAME_LENGTH = 255;
+    public const MAX_DESCRIPTION_LENGTH = FormattedTextareaType::LIMIT_MEDIUMTEXT_UTF8_MB4;
     public const AMOUNT = 'amount';
     public const PERCENT = 'percentage';
 
