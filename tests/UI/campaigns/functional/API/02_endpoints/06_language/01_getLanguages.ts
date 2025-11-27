@@ -83,7 +83,7 @@ describe('API : GET /languages', async () => {
           'dateFormat',
           'dateTimeFormat',
           'isRtl',
-          'active',
+          'enabled',
           'flag',
         );
       }
@@ -160,7 +160,7 @@ describe('API : GET /languages', async () => {
         expect(langDateTimeFormat).to.equal(jsonResponse.items[idxItem].dateTimeFormat);
 
         const langActive = await boLanguagesPage.getStatus(page, 1);
-        expect(langActive).to.equal(jsonResponse.items[idxItem].active);
+        expect(langActive).to.equal(jsonResponse.items[idxItem].enabled);
 
         const langFlag = await boLanguagesPage.getImgSrc(page, 1);
         expect(langFlag.split('?')[0]).to.equal(jsonResponse.items[idxItem].flag.split('?')[0]);
