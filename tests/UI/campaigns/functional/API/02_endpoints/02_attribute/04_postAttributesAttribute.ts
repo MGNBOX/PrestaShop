@@ -198,7 +198,7 @@ describe('API : POST /admin-api/attributes/attributes', async () => {
     });
 
     it('should view attribute group', async function () {
-      await testContext.addContextItem(this, 'testIdentifier', 'viewAttributeGroup', baseContext);
+      await testContext.addContextItem(this, 'testIdentifier', 'viewAttributeGroupForDelete', baseContext);
 
       await boAttributesPage.viewAttribute(page, 1);
 
@@ -207,7 +207,7 @@ describe('API : POST /admin-api/attributes/attributes', async () => {
     });
 
     it('should reset all filters and get the id of last attribute value', async function () {
-      await testContext.addContextItem(this, 'testIdentifier', 'resetFilterLast', baseContext);
+      await testContext.addContextItem(this, 'testIdentifier', 'resetFilterLastForDelete', baseContext);
 
       numberOfAttributes = await boAttributesViewPage.resetAndGetNumberOfLines(page);
       expect(numberOfAttributes).to.be.above(0);
