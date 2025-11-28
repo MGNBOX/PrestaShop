@@ -101,6 +101,7 @@ class DiscountFormDataProvider implements FormDataProviderInterface
             'customer_eligibility' => [
                 'eligibility' => [
                     'children_selector' => DiscountCustomerEligibilityChoiceType::ALL_CUSTOMERS,
+                    DiscountCustomerEligibilityChoiceType::CUSTOMER_GROUPS => [],
                     DiscountCustomerEligibilityChoiceType::SINGLE_CUSTOMER => [],
                 ],
             ],
@@ -448,39 +449,39 @@ class DiscountFormDataProvider implements FormDataProviderInterface
     private function getCustomerEligibilityData(DiscountForEditing $discountForEditing): array
     {
         $customerId = $discountForEditing->getCustomerId();
+        $customerGroupIds = $discountForEditing->getCustomerGroupIds();
 
-        if (!$customerId) {
-            return [
-                'children_selector' => DiscountCustomerEligibilityChoiceType::ALL_CUSTOMERS,
-                DiscountCustomerEligibilityChoiceType::SINGLE_CUSTOMER => [],
-            ];
-        }
-
-        try {
-            $customer = $this->customerRepository->get(new CustomerId($customerId));
-        } catch (CustomerNotFoundException $e) {
-            return [
-                'children_selector' => DiscountCustomerEligibilityChoiceType::ALL_CUSTOMERS,
-                DiscountCustomerEligibilityChoiceType::SINGLE_CUSTOMER => [],
-            ];
-        }
-
-        $fullnameAndEmail = sprintf(
-            '%s %s - %s',
-            $customer->firstname,
-            $customer->lastname,
-            $customer->email
-        );
-
-        return [
-            'children_selector' => DiscountCustomerEligibilityChoiceType::SINGLE_CUSTOMER,
-            DiscountCustomerEligibilityChoiceType::SINGLE_CUSTOMER => [
-                [
-                    'id_customer' => $customerId,
-                    'fullname_and_email' => $fullnameAndEmail,
-                ],
-            ],
+        $data = [
+            'children_selector' => DiscountCustomerEligibilityChoiceType::ALL_CUSTOMERS,
+            DiscountCustomerEligibilityChoiceType::CUSTOMER_GROUPS => [],
+            DiscountCustomerEligibilityChoiceType::SINGLE_CUSTOMER => [],
         ];
+
+        if (!empty($customerGroupIds)) {
+            $data['children_selector'] = DiscountCustomerEligibilityChoiceType::CUSTOMER_GROUPS;
+            $data[DiscountCustomerEligibilityChoiceType::CUSTOMER_GROUPS] = $customerGroupIds;
+        } elseif ($customerId) {
+            try {
+                $customer = $this->customerRepository->get(new CustomerId($customerId));
+                $fullnameAndEmail = sprintf(
+                    '%s %s - %s',
+                    $customer->firstname,
+                    $customer->lastname,
+                    $customer->email
+                );
+
+                $data['children_selector'] = DiscountCustomerEligibilityChoiceType::SINGLE_CUSTOMER;
+                $data[DiscountCustomerEligibilityChoiceType::SINGLE_CUSTOMER] = [
+                    [
+                        'id_customer' => $customerId,
+                        'fullname_and_email' => $fullnameAndEmail,
+                    ],
+                ];
+            } catch (CustomerNotFoundException $e) {
+            }
+        }
+
+        return $data;
     }
 
     /**

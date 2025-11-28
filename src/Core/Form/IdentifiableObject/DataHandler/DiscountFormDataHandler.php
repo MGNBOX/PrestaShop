@@ -385,6 +385,19 @@ class DiscountFormDataHandler implements FormDataHandlerInterface
             $conditionsCommand->setCountryIds($data['conditions'][DiscountConditionsType::DELIVERY_CONDITIONS][DeliveryConditionsType::COUNTRY]);
         }
 
+        // Customer eligibility conditions
+        if (isset($data['customer_eligibility']['eligibility'])) {
+            $customerEligibility = $data['customer_eligibility']['eligibility'];
+            $selectedOption = $customerEligibility['children_selector'] ?? DiscountCustomerEligibilityChoiceType::ALL_CUSTOMERS;
+
+            if ($selectedOption === DiscountCustomerEligibilityChoiceType::CUSTOMER_GROUPS) {
+                $groupIds = $this->extractCustomerGroupIds($customerEligibility[DiscountCustomerEligibilityChoiceType::CUSTOMER_GROUPS] ?? []);
+                $conditionsCommand->setCustomerGroupIds($groupIds);
+            } else {
+                $conditionsCommand->setCustomerGroupIds([]);
+            }
+        }
+
         $this->commandBus->handle($conditionsCommand);
     }
 
@@ -455,5 +468,19 @@ class DiscountFormDataHandler implements FormDataHandlerInterface
                 $command->setCustomerId((int) $customerData[0]['id_customer']);
             }
         }
+    }
+
+    /**
+     * Extract customer group IDs from the form data.
+     * MaterialChoiceTableType returns a flat array of selected group IDs.
+     *
+     * @param array $groupData
+     *
+     * @return int[]
+     */
+    private function extractCustomerGroupIds(array $groupData): array
+    {
+        // MaterialChoiceTableType returns a flat array like [3, 4, 5]
+        return array_map('intval', array_filter($groupData, 'is_numeric'));
     }
 }

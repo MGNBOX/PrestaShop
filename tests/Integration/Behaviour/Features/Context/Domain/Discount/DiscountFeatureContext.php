@@ -40,6 +40,7 @@ use PrestaShop\PrestaShop\Core\Domain\Discount\Command\AddDiscountCommand;
 use PrestaShop\PrestaShop\Core\Domain\Discount\Command\BulkUpdateDiscountsStatusCommand;
 use PrestaShop\PrestaShop\Core\Domain\Discount\Command\DeleteDiscountCommand;
 use PrestaShop\PrestaShop\Core\Domain\Discount\Command\UpdateDiscountCommand;
+use PrestaShop\PrestaShop\Core\Domain\Discount\Command\UpdateDiscountConditionsCommand;
 use PrestaShop\PrestaShop\Core\Domain\Discount\DiscountSettings;
 use PrestaShop\PrestaShop\Core\Domain\Discount\Exception\DiscountConstraintException;
 use PrestaShop\PrestaShop\Core\Domain\Discount\Exception\DiscountException;
@@ -227,6 +228,13 @@ class DiscountFeatureContext extends AbstractDomainFeatureContext
             /** @var DiscountId $discountId */
             $discountId = $this->getCommandBus()->handle($command);
             $this->getSharedStorage()->set($discountReference, $discountId->getValue());
+
+            // Handle customer groups using conditions command
+            if (isset($data['customer_groups'])) {
+                $conditionsCommand = new UpdateDiscountConditionsCommand($discountId->getValue());
+                $conditionsCommand->setCustomerGroupIds($this->referencesToIds($data['customer_groups']));
+                $this->getCommandBus()->handle($conditionsCommand);
+            }
         } catch (DiscountConstraintException $e) {
             $this->setLastException($e);
         }
@@ -361,6 +369,13 @@ class DiscountFeatureContext extends AbstractDomainFeatureContext
         try {
             /* @var DiscountId $discountId */
             $this->getCommandBus()->handle($command);
+
+            // Handle customer groups using conditions command
+            if (isset($data['customer_groups'])) {
+                $conditionsCommand = new UpdateDiscountConditionsCommand($discountId);
+                $conditionsCommand->setCustomerGroupIds($this->referencesToIds($data['customer_groups']));
+                $this->getCommandBus()->handle($conditionsCommand);
+            }
         } catch (DiscountConstraintException $e) {
             $this->setLastException($e);
         }
@@ -426,6 +441,18 @@ class DiscountFeatureContext extends AbstractDomainFeatureContext
                 $expectedCustomerId,
                 $actualCustomerId,
                 'Unexpected customer id'
+            );
+        }
+
+        if (isset($expectedData['customer_groups'])) {
+            $expectedGroupIds = $this->referencesToIds($expectedData['customer_groups']);
+            $actualGroupIds = $discountForEditing->getCustomerGroupIds();
+            sort($expectedGroupIds);
+            sort($actualGroupIds);
+            Assert::assertSame(
+                $expectedGroupIds,
+                $actualGroupIds,
+                'Unexpected customer group ids'
             );
         }
         if (isset($expectedData['priority'])) {

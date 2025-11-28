@@ -38,6 +38,7 @@ $(() => {
       'ToggleChildrenChoice',
       'GeneratableInput',
       'ChoiceTree',
+      'ChoiceTable',
       'EventEmitter',
     ],
   );
