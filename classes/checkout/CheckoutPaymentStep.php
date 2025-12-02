@@ -105,6 +105,19 @@ class CheckoutPaymentStepCore extends AbstractCheckoutStep
         $productsCarrierMapping = $this->getCheckoutSession()->getProductsByCarrier();
         $deliveryOptionKeys = array_filter(explode(',', $deliveryOptionKey));
         $productsCarrierMapping = array_intersect_key($productsCarrierMapping, array_flip($deliveryOptionKeys));
+        $mapping = [
+            'physical_products' => [],
+            'virtual_products' => [],
+        ];
+
+        foreach ($productsCarrierMapping as $product) {
+            if (!empty($product['physical_products'])) {
+                $mapping['physical_products'][] = $product['physical_products'];
+            }
+            if (!empty($product['virtual_products'])) {
+                $mapping['virtual_products'] = $product['virtual_products'];
+            }
+        }
 
         $assignedVars = [
             'is_free' => $isFree,
@@ -114,7 +127,7 @@ class CheckoutPaymentStepCore extends AbstractCheckoutStep
             'selected_delivery_option' => $selectedDeliveryOption,
             'show_final_summary' => Configuration::get('PS_FINAL_SUMMARY_ENABLED'),
             'is_multishipment_enabled' => $featureFlagManager->isEnabled(FeatureFlagSettings::FEATURE_FLAG_IMPROVED_SHIPMENT),
-            'products_carrier_mapping' => $productsCarrierMapping,
+            'products_carrier_mapping' => $mapping,
             'is_recyclable_packaging' => $this->getCheckoutSession()->isRecyclable(),
         ];
 
