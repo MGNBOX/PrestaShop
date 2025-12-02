@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "77e46e6c4d78a80f2a010570465a8582",
+    "content-hash": "1a13aa5c0005767cb149fb1730fce71c",
     "packages": [
         {
             "name": "api-platform/core",
@@ -5210,16 +5210,16 @@
         },
         {
             "name": "prestashop/ps_apiresources",
-            "version": "dev-Issue-39827-fix-documentation-for-attribute-endpoint",
+            "version": "v0.2.0",
             "source": {
                 "type": "git",
-                "url": "https://github.com/tleon/ps_apiresources.git",
-                "reference": "5b56615b0492b8c2a77e85162dd1b4be4c6a9cf3"
+                "url": "https://github.com/PrestaShop/ps_apiresources.git",
+                "reference": "7c99f0bfccf0226ac13ffc424092e8fe2d7330c0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/tleon/ps_apiresources/zipball/5b56615b0492b8c2a77e85162dd1b4be4c6a9cf3",
-                "reference": "5b56615b0492b8c2a77e85162dd1b4be4c6a9cf3",
+                "url": "https://api.github.com/repos/PrestaShop/ps_apiresources/zipball/7c99f0bfccf0226ac13ffc424092e8fe2d7330c0",
+                "reference": "7c99f0bfccf0226ac13ffc424092e8fe2d7330c0",
                 "shasum": ""
             },
             "require": {
@@ -5283,9 +5283,9 @@
             "description": "PrestaShop - API Resources",
             "homepage": "https://github.com/PrestaShop/ps_apiresources",
             "support": {
-                "source": "https://github.com/tleon/ps_apiresources/tree/Issue-39827-fix-documentation-for-attribute-endpoint"
+                "source": "https://github.com/PrestaShop/ps_apiresources/tree/v0.2.0"
             },
-            "time": "2025-11-26T10:27:29+00:00"
+            "time": "2025-11-28T16:38:53+00:00"
         },
         {
             "name": "prestashop/ps_banner",
@@ -18250,9 +18250,7 @@
     ],
     "aliases": [],
     "minimum-stability": "dev",
-    "stability-flags": {
-        "prestashop/ps_apiresources": 20
-    },
+    "stability-flags": {},
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {
