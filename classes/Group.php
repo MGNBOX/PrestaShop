@@ -445,10 +445,6 @@ class GroupCore extends ObjectModel
      * Delete all specific prices associated to this group.
      *
      * @return void
-     *
-     * @throws PrestaShopDatabaseException
-     *
-     * @throws PrestaShopException
      */
     public function deleteAssociatedSpecificPrices(): void
     {
@@ -464,10 +460,6 @@ class GroupCore extends ObjectModel
      * Delete all specific price rules associated to this group.
      *
      * @return void
-     *
-     * @throws PrestaShopDatabaseException
-     *
-     * @throws PrestaShopException
      */
     public function deleteAssociatedSpecificPriceRules(): void
     {
