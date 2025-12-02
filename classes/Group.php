@@ -228,9 +228,13 @@ class GroupCore extends ObjectModel
             $this->truncateModulesRestrictions($this->id);
 
             // Delete specific prices associated to this group
-            $this->deleteAssociatedSpecificPrices();
+            if (!$this->deleteAssociatedSpecificPrices()) {
+                return false;
+            }
             // Delete specific price rules associated to this group
-            $this->deleteAssociatedSpecificPriceRules();
+            if (!$this->deleteAssociatedSpecificPriceRules()) {
+                return false;
+            }
 
             // Add default group (id 3) to customers without groups
             Db::getInstance()->execute('INSERT INTO `' . _DB_PREFIX_ . 'customer_group` (
@@ -444,30 +448,24 @@ class GroupCore extends ObjectModel
     /**
      * Delete all specific prices associated to this group.
      *
-     * @return void
+     * @return bool
      */
-    public function deleteAssociatedSpecificPrices(): void
+    public function deleteAssociatedSpecificPrices(): bool
     {
-        $specific_price_ids = Db::getInstance()->executeS('SELECT sp.id_specific_price FROM `' . _DB_PREFIX_ . 'specific_price` sp WHERE sp.id_group = ' . (int) $this->id);
-
-        foreach ($specific_price_ids as $specific_price_id) {
-            $specific_price = new SpecificPrice((int) $specific_price_id['id_specific_price']);
-            $specific_price->delete();
-        }
+        return Db::getInstance()->delete('specific_price', 'id_group = ' . (int) $this->id);
     }
 
     /**
      * Delete all specific price rules associated to this group.
      *
-     * @return void
+     * @return bool
      */
-    public function deleteAssociatedSpecificPriceRules(): void
+    public function deleteAssociatedSpecificPriceRules(): bool
     {
-        $specific_price_rule_ids = Db::getInstance()->executeS('SELECT spr.id_specific_price_rule FROM `' . _DB_PREFIX_ . 'specific_price_rule` spr WHERE spr.id_group = ' . (int) $this->id);
+        $result_price_rule = Db::getInstance()->delete('specific_price_rule', 'id_group = ' . (int) $this->id);
+        $result_price_rule_condition_group = Db::getInstance()->delete('specific_price_rule_condition_group', 'id_specific_price_rule NOT IN (SELECT id_specific_price_rule FROM `' . _DB_PREFIX_ . 'specific_price_rule`)');
+        $result_price_rule_condition = Db::getInstance()->delete('specific_price_rule_condition', 'id_specific_price_rule_condition_group NOT IN (SELECT id_specific_price_rule_condition_group FROM `' . _DB_PREFIX_ . 'specific_price_rule_condition_group`)');
 
-        foreach ($specific_price_rule_ids as $specific_price_rule_id) {
-            $specific_price_rule = new SpecificPriceRule((int) $specific_price_rule_id['id_specific_price_rule']);
-            $specific_price_rule->delete();
-        }
+        return $result_price_rule && $result_price_rule_condition_group && $result_price_rule_condition;
     }
 }
