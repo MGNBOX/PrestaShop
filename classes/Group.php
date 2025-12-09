@@ -228,11 +228,11 @@ class GroupCore extends ObjectModel
             $this->truncateModulesRestrictions($this->id);
 
             // Delete specific prices associated to this group
-            if (!$this->deleteAssociatedSpecificPrices()) {
+            if (!$this->truncateSpecificPrices()) {
                 return false;
             }
             // Delete specific price rules associated to this group
-            if ((int) $this->id > 0 && !$this->deleteAssociatedSpecificPriceRules()) {
+            if (!$this->truncateSpecificPriceRules()) {
                 return false;
             }
 
@@ -450,8 +450,12 @@ class GroupCore extends ObjectModel
      *
      * @return bool
      */
-    public function deleteAssociatedSpecificPrices(): bool
+    public function truncateSpecificPrices(): bool
     {
+        if (empty($this->id)) {
+            return false;
+        }
+
         return Db::getInstance()->delete('specific_price', 'id_group = ' . (int) $this->id);
     }
 
@@ -460,8 +464,12 @@ class GroupCore extends ObjectModel
      *
      * @return bool
      */
-    public function deleteAssociatedSpecificPriceRules(): bool
+    public function truncateSpecificPriceRules(): bool
     {
+        if (empty($this->id)) {
+            return false;
+        }
+
         $result_price_rule = Db::getInstance()->delete('specific_price_rule', 'id_group = ' . (int) $this->id);
         $result_price_rule_condition_group = Db::getInstance()->delete('specific_price_rule_condition_group', 'id_specific_price_rule NOT IN (SELECT id_specific_price_rule FROM `' . _DB_PREFIX_ . 'specific_price_rule`)');
         $result_price_rule_condition = Db::getInstance()->delete('specific_price_rule_condition', 'id_specific_price_rule_condition_group NOT IN (SELECT id_specific_price_rule_condition_group FROM `' . _DB_PREFIX_ . 'specific_price_rule_condition_group`)');
