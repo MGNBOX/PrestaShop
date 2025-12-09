@@ -1,5 +1,7 @@
 # Executables (local)
 DOCKER_COMP = docker compose
+PHP_CONT =
+PHP_CONT_WITH_LOGIN = bash -l
 
 # Determine if we are using docker
 DOCKER_RUNNING := $(shell docker compose ps -q)
@@ -112,12 +114,12 @@ phpstan: ## Run phpstan analysis
 	$(COMPOSER) run phpstan
 
 scss-fixer: ## Run scss-fix
-	$(PHP_CONT_WITH_LOGIN) -c "cd admin-dev/themes/new-theme && npm run scss-fix"
+	$(PHP_CONT_WITH_LOGIN) -c "cd admin-dev/themes/new-theme && (test -d node_modules || npm install) && npm run scss-fix"
 	$(PHP_CONT_WITH_LOGIN) -c "cd admin-dev/themes/default && (test -d node_modules || npm install) && npm run scss-fix"
-	$(PHP_CONT_WITH_LOGIN) -c "cd themes/classic/_dev && npm run scss-fix"
+	$(PHP_CONT_WITH_LOGIN) -c "cd themes/classic/_dev && (test -d node_modules || npm install) && npm run scss-fix"
 
 es-linter: ## Run lint-fix
-	$(PHP_CONT_WITH_LOGIN) -c "cd admin-dev/themes/new-theme && npm run lint-fix"
+	$(PHP_CONT_WITH_LOGIN) -c "cd admin-dev/themes/new-theme && (test -d node_modules || npm install) && npm run lint-fix"
 	$(PHP_CONT_WITH_LOGIN) -c "cd admin-dev/themes/default && (test -d node_modules || npm install) && npm run lint-fix"
-	$(PHP_CONT_WITH_LOGIN) -c "cd themes/classic/_dev && npm run lint-fix"
-	$(PHP_CONT_WITH_LOGIN) -c "cd themes && npm run lint-fix"
+	$(PHP_CONT_WITH_LOGIN) -c "cd themes/classic/_dev && (test -d node_modules || npm install) && npm run lint-fix"
+	$(PHP_CONT_WITH_LOGIN) -c "cd themes && (test -d node_modules || npm install) && npm run lint-fix"
