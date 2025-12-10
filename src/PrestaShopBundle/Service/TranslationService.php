@@ -27,6 +27,7 @@
 namespace PrestaShopBundle\Service;
 
 use Exception;
+use PrestaShop\PrestaShop\Core\Addon\Theme\Theme;
 use PrestaShop\PrestaShop\Core\Translation\Storage\Provider\Definition\ProviderDefinitionInterface;
 use PrestaShopBundle\Entity\Lang;
 use PrestaShopBundle\Entity\Translation;
@@ -116,7 +117,7 @@ class TranslationService
         $factory = $this->container->get('ps.translations_factory');
 
         if ($this->requiresThemeTranslationsFactory($theme, $type)) {
-            if ('classic' === $theme) {
+            if (in_array($theme, Theme::CORE_THEMES)) {
                 $type = 'front';
             } else {
                 $type = $theme;
