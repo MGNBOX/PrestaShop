@@ -449,7 +449,7 @@ class ProductControllerCore extends ProductPresentingFrontControllerCore
 
         $this->ajaxRender(json_encode([
             'quickview_html' => $this->render('catalog/_partials/quickview', $productForTemplate->jsonSerialize()),
-            'product' => $productForTemplate,
+            'product' => $this->filterAjaxSensitiveAttributes($productForTemplate),
         ]));
     }
 
@@ -1582,5 +1582,25 @@ class ProductControllerCore extends ProductPresentingFrontControllerCore
     public function setPreviewMode(bool $enabled = true)
     {
         $this->isPreview = $enabled;
+    }
+
+    /**
+     * Filters out sensitive attributes to ensure they are not exposed.
+     *
+     * These fields are removed to prevent any leakage of sensitive
+     * information that could be exploited for security or OSINT purposes.
+     *
+     * @return ProductLazyArray
+     */
+    private function filterAjaxSensitiveAttributes(ProductLazyArray $lazyArray)
+    {
+        $lazyArray->__unset('wholesale_price');
+
+        if (empty($lazyArray['show_quantities'])) {
+            $lazyArray->__unset('quantity');
+            $lazyArray->__unset('quantity_all_versions');
+        }
+
+        return $lazyArray;
     }
 }
