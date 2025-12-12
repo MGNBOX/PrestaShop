@@ -827,21 +827,22 @@ class CartRuleCore extends ObjectModel
                     // in for example), these cart rules are not taken into account by the query above:
                     // so we count cart rules that are already linked to the current cart but not attached to an order yet.
 
-                $quantityUsed += (int) Db::getInstance()->getValue('
-                    SELECT count(*)
-                    FROM `' . _DB_PREFIX_ . 'cart_cart_rule` ccr
-                    INNER JOIN `' . _DB_PREFIX_ . 'cart` c ON c.id_cart = ccr.id_cart
-                    LEFT JOIN `' . _DB_PREFIX_ . 'orders` o ON o.id_cart = c.id_cart
-                    WHERE c.id_customer = ' . $cart->id_customer . ' AND c.id_cart = ' . (int) $cart->id . ' AND ccr.id_cart_rule = ' . (int) $this->id . ' AND o.id_order IS NULL
-                ');
-            } else {
-                // When checking the cart rules present in that cart the request result is accurate
-                // When we check if using the cart rule one more time is valid then we increment this value
-                ++$quantityUsed;
-            }
+                    $quantityUsed += (int) Db::getInstance()->getValue('
+                        SELECT count(*)
+                        FROM `' . _DB_PREFIX_ . 'cart_cart_rule` ccr
+                        INNER JOIN `' . _DB_PREFIX_ . 'cart` c ON c.id_cart = ccr.id_cart
+                        LEFT JOIN `' . _DB_PREFIX_ . 'orders` o ON o.id_cart = c.id_cart
+                        WHERE c.id_customer = ' . $cart->id_customer . ' AND c.id_cart = ' . (int) $cart->id . ' AND ccr.id_cart_rule = ' . (int) $this->id . ' AND o.id_order IS NULL
+                    ');
+                } else {
+                    // When checking the cart rules present in that cart the request result is accurate
+                    // When we check if using the cart rule one more time is valid then we increment this value
+                    ++$quantityUsed;
+                }
 
-            if ($quantityUsed > $this->quantity_per_user) {
-                return (!$display_error) ? false : $this->trans('You cannot use this voucher anymore (usage limit reached)', [], 'Shop.Notifications.Error');
+                if ($quantityUsed > $this->quantity_per_user) {
+                    return (!$display_error) ? false : $this->trans('You cannot use this voucher anymore (usage limit reached)', [], 'Shop.Notifications.Error');
+                }
             }
         }
 
