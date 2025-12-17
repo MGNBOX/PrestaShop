@@ -10,12 +10,12 @@
       <trans-unit id="e532954941a2469e3b3ae35ce44885d6">
         <source>%price% tax excl.</source>
         <target>%price% tax excl.</target>
-        <note>File: classes/checkout/DeliveryOptionsFinder.php [Line: 110]</note>
+        <note>File: classes/checkout/DeliveryOptionsFinder.php [Line: 111]</note>
       </trans-unit>
       <trans-unit id="464f47d6975750e4cbd91c90ccf1791e">
         <source>%price% tax incl.</source>
         <target>%price% tax incl.</target>
-        <note>File: classes/checkout/DeliveryOptionsFinder.php [Line: 101]</note>
+        <note>File: classes/checkout/DeliveryOptionsFinder.php [Line: 102]</note>
       </trans-unit>
       <trans-unit id="4c4cfffa1e5022b41e4871b27ede1f25">
         <source>%productName% product quantity field</source>
@@ -130,7 +130,7 @@
       <trans-unit id="d350478ea9dc7f1f8ae3c78a41630f1d">
         <source>Delivery address %alias%</source>
         <target>Delivery address %alias%</target>
-        <note>File: themes/classic/templates/customer/order-detail.tpl [Line: 134]</note>
+        <note>File: themes/classic/templates/customer/order-detail.tpl [Line: 136]</note>
       </trans-unit>
       <trans-unit id="0be0e4234878f25304eb845f4fb47135">
         <source>Delivery address: %alias%</source>
@@ -230,7 +230,7 @@
       <trans-unit id="7d0244dc42acadee967bf9d8e612bffb">
         <source>Invoice address %alias%</source>
         <target>Invoice address %alias%</target>
-        <note>File: themes/classic/templates/customer/order-detail.tpl [Line: 142]</note>
+        <note>File: themes/classic/templates/customer/order-detail.tpl [Line: 144]</note>
       </trans-unit>
       <trans-unit id="65e19edc54c7984234fc1a43dba1bcba">
         <source>Invoice address: %alias%</source>
@@ -285,7 +285,7 @@
       <trans-unit id="fb077ecba55e5552916bde26d8b9e794">
         <source>Order confirmation</source>
         <target>Order confirmation</target>
-        <note>File: controllers/front/OrderConfirmationController.php [Line: 331]</note>
+        <note>File: controllers/front/OrderConfirmationController.php [Line: 338]</note>
       </trans-unit>
       <trans-unit id="f5d74ea75357b5e139854c14f8e24fe3">
         <source>Order details</source>
@@ -335,7 +335,7 @@
       <trans-unit id="f0aaaae189e9c7711931a65ffcd22543">
         <source>Payment method</source>
         <target>Payment method</target>
-        <note>File: themes/classic/templates/customer/order-detail.tpl [Line: 59]</note>
+        <note>File: themes/classic/templates/customer/order-detail.tpl [Line: 61]</note>
       </trans-unit>
       <trans-unit id="e120387480bc284c5347ae1baa480670">
         <source>Payment method: %method%</source>
@@ -535,22 +535,22 @@
       <trans-unit id="96b0141273eabab320119c467cdcaf17">
         <source>Total</source>
         <target>Total</target>
-        <note>File: src/Adapter/Presenter/Order/OrderLazyArray.php [Line: 236]</note>
+        <note>File: src/Adapter/Presenter/Order/OrderLazyArray.php [Line: 319]</note>
       </trans-unit>
       <trans-unit id="8faf99e02e4d0ccb4dd933404f87a4ea">
         <source>Total (tax excl.)</source>
         <target>Total (tax excl.)</target>
-        <note>File: src/Adapter/Presenter/Order/OrderLazyArray.php [Line: 263]</note>
+        <note>File: src/Adapter/Presenter/Order/OrderLazyArray.php [Line: 346]</note>
       </trans-unit>
       <trans-unit id="adc852563bca51fb6b10c7905010406d">
         <source>Total (tax incl.)</source>
         <target>Total (tax incl.)</target>
-        <note>File: src/Adapter/Presenter/Order/OrderLazyArray.php [Line: 253]</note>
+        <note>File: src/Adapter/Presenter/Order/OrderLazyArray.php [Line: 336]</note>
       </trans-unit>
       <trans-unit id="ea067eb37801c5aab1a1c685eb97d601">
         <source>Total paid</source>
         <target>Total paid</target>
-        <note>File: src/Adapter/Presenter/Order/OrderLazyArray.php [Line: 243]</note>
+        <note>File: src/Adapter/Presenter/Order/OrderLazyArray.php [Line: 326]</note>
       </trans-unit>
       <trans-unit id="0eede552438475bdfe820c13f24c9399">
         <source>Total price</source>
