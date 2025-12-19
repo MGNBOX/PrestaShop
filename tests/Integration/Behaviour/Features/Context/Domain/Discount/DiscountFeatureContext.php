@@ -42,7 +42,6 @@ use PrestaShop\PrestaShop\Core\Domain\Discount\Command\BulkUpdateDiscountsStatus
 use PrestaShop\PrestaShop\Core\Domain\Discount\Command\DeleteDiscountCommand;
 use PrestaShop\PrestaShop\Core\Domain\Discount\Command\DuplicateDiscountCommand;
 use PrestaShop\PrestaShop\Core\Domain\Discount\Command\UpdateDiscountCommand;
-use PrestaShop\PrestaShop\Core\Domain\Discount\Command\UpdateDiscountConditionsCommand;
 use PrestaShop\PrestaShop\Core\Domain\Discount\DiscountSettings;
 use PrestaShop\PrestaShop\Core\Domain\Discount\Exception\DiscountConstraintException;
 use PrestaShop\PrestaShop\Core\Domain\Discount\Exception\DiscountException;
@@ -256,17 +255,14 @@ class DiscountFeatureContext extends AbstractDomainFeatureContext
             }
         }
 
+        if (isset($data['customer_groups'])) {
+            $command->setCustomerGroupIds($this->referencesToIds($data['customer_groups']));
+        }
+
         try {
             /** @var DiscountId $discountId */
             $discountId = $this->getCommandBus()->handle($command);
             $this->getSharedStorage()->set($discountReference, $discountId->getValue());
-
-            // Handle customer groups using conditions command
-            if (isset($data['customer_groups'])) {
-                $conditionsCommand = new UpdateDiscountConditionsCommand($discountId->getValue());
-                $conditionsCommand->setCustomerGroupIds($this->referencesToIds($data['customer_groups']));
-                $this->getCommandBus()->handle($conditionsCommand);
-            }
         } catch (DiscountConstraintException $e) {
             $this->setLastException($e);
         }
@@ -405,16 +401,13 @@ class DiscountFeatureContext extends AbstractDomainFeatureContext
             $command->setCombinationId($this->referenceToId($data['gift_combination']));
         }
 
+        if (isset($data['customer_groups'])) {
+            $command->setCustomerGroupIds($this->referencesToIds($data['customer_groups']));
+        }
+
         try {
             /* @var DiscountId $discountId */
             $this->getCommandBus()->handle($command);
-
-            // Handle customer groups using conditions command
-            if (isset($data['customer_groups'])) {
-                $conditionsCommand = new UpdateDiscountConditionsCommand($discountId);
-                $conditionsCommand->setCustomerGroupIds($this->referencesToIds($data['customer_groups']));
-                $this->getCommandBus()->handle($conditionsCommand);
-            }
         } catch (DiscountConstraintException $e) {
             $this->setLastException($e);
         }

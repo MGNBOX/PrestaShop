@@ -35,7 +35,6 @@ use PrestaShop\PrestaShop\Core\Context\LanguageContext;
 use PrestaShop\PrestaShop\Core\Domain\Currency\Exception\CurrencyException;
 use PrestaShop\PrestaShop\Core\Domain\Discount\Command\AddDiscountCommand;
 use PrestaShop\PrestaShop\Core\Domain\Discount\Command\UpdateDiscountCommand;
-use PrestaShop\PrestaShop\Core\Domain\Discount\Command\UpdateDiscountConditionsCommand;
 use PrestaShop\PrestaShop\Core\Domain\Discount\DiscountSettings;
 use PrestaShop\PrestaShop\Core\Domain\Discount\Exception\DiscountConstraintException;
 use PrestaShop\PrestaShop\Core\Domain\Discount\ProductRule;
@@ -162,23 +161,15 @@ class DiscountFormDataHandler implements FormDataHandlerInterface
         }
 
         $this->handleCustomerEligibility($command, $data);
-        $command->setTotalQuantity(100);
 
         if (isset($data['usability']['priority']) && $data['usability']['priority'] > 0) {
             $command->setPriority((int) $data['usability']['priority']);
         }
 
-        if (array_key_exists('quantity_total', $data['usability'])) {
-            $command->setTotalQuantity($data['usability']['quantity_total']);
-        }
-
-        if (array_key_exists('quantity_per_customer', $data['usability'])) {
-            $command->setQuantityPerUser($data['usability']['quantity_per_customer']);
-        }
+        $this->updateDiscountConditions($command, $data);
 
         /** @var DiscountId $discountId */
         $discountId = $this->commandBus->handle($command);
-        $this->updateDiscountConditions($discountId->getValue(), $data);
         $this->updateDiscountCompatibility($discountId->getValue(), $data);
 
         return $discountId->getValue();
@@ -282,28 +273,19 @@ class DiscountFormDataHandler implements FormDataHandlerInterface
             $command->setPriority((int) $data['usability']['priority']);
         }
 
-        if (array_key_exists('quantity_total', $data['usability'])) {
-            $command->setTotalQuantity($data['usability']['quantity_total']);
-        }
-
-        if (array_key_exists('quantity_per_customer', $data['usability'])) {
-            $command->setQuantityPerUser($data['usability']['quantity_per_customer']);
-        }
-
+        $this->updateDiscountConditions($command, $data);
         $this->commandBus->handle($command);
-        $this->updateDiscountConditions($id, $data);
         $this->updateDiscountCompatibility($id, $data);
     }
 
-    private function updateDiscountConditions(int $discountId, array $data): void
+    private function updateDiscountConditions(AddDiscountCommand|UpdateDiscountCommand $command, array $data): void
     {
-        $conditionsCommand = new UpdateDiscountConditionsCommand($discountId);
-
-        // If no setter is called and the UpdateDiscountConditionsCommand is left empty, this will result in removing all
-        // the conditions, that's because DiscountConditionsUpdater::update starts by removing/resetting all the conditions
-        // and then apply new ones Since there are no conditions specified it is equivalent to removing all
+        // If no setter is called and the conditions are left left empty, this will result in removing all
+        // the conditions, that's because DiscountConditionsUpdater::update starts by removing/resetting all
+        // the conditions and then apply new ones Since there are no conditions specified it is equivalent to
+        // removing all
         // It works for now, but it may cause unstability or unexpected behaviour, hence:
-        // todo: we should force UpdateDiscountConditionsCommand to have at least one condition, alternatively we'll need
+        // todo: we should apply conditions only when we have at least one condition, alternatively we'll need
         //       a ClearDiscountConditionsCommand to clean everything on purpose
 
         // Products conditions
@@ -329,7 +311,7 @@ class DiscountFormDataHandler implements FormDataHandlerInterface
                 }
             }
 
-            $conditionsCommand->setProductConditions($productRuleGroups);
+            $command->setProductConditions($productRuleGroups);
         } elseif ($data['conditions'][DiscountConditionsType::PRODUCT_CONDITIONS]['children_selector'] === ProductConditionsType::PRODUCT_SEGMENT) {
             $manufacturer = $data['conditions'][DiscountConditionsType::PRODUCT_CONDITIONS]['product_segment']['manufacturer'] ?? [];
             $category = $data['conditions'][DiscountConditionsType::PRODUCT_CONDITIONS]['product_segment']['category'] ?? '';
@@ -369,7 +351,7 @@ class DiscountFormDataHandler implements FormDataHandlerInterface
             }
 
             if (!empty($productRules)) {
-                $conditionsCommand->setProductConditions([
+                $command->setProductConditions([
                     new ProductRuleGroup(
                         $data['conditions'][DiscountConditionsType::PRODUCT_CONDITIONS]['product_segment']['quantity'],
                         $productRules,
@@ -383,9 +365,9 @@ class DiscountFormDataHandler implements FormDataHandlerInterface
 
         // Cart conditions
         if ($data['conditions'][DiscountConditionsType::CART_CONDITIONS]['children_selector'] === CartConditionsType::MINIMUM_PRODUCT_QUANTITY) {
-            $conditionsCommand->setMinimumProductsQuantity($data['conditions'][DiscountConditionsType::CART_CONDITIONS]['minimum_product_quantity']);
+            $command->setMinimumProductsQuantity($data['conditions'][DiscountConditionsType::CART_CONDITIONS]['minimum_product_quantity']);
         } elseif ($data['conditions'][DiscountConditionsType::CART_CONDITIONS]['children_selector'] === CartConditionsType::MINIMUM_AMOUNT) {
-            $conditionsCommand->setMinimumAmount(
+            $command->setMinimumAmount(
                 new DecimalNumber((string) $data['conditions'][DiscountConditionsType::CART_CONDITIONS]['minimum_amount']['value']),
                 $data['conditions'][DiscountConditionsType::CART_CONDITIONS]['minimum_amount']['currency'],
                 $data['conditions'][DiscountConditionsType::CART_CONDITIONS]['minimum_amount']['tax_included'],
@@ -395,10 +377,10 @@ class DiscountFormDataHandler implements FormDataHandlerInterface
 
         // Delivery conditions
         if ($data['conditions'][DiscountConditionsType::DELIVERY_CONDITIONS]['children_selector'] === DeliveryConditionsType::CARRIERS) {
-            $conditionsCommand->setCarrierIds($data['conditions'][DiscountConditionsType::DELIVERY_CONDITIONS][DeliveryConditionsType::CARRIERS]);
+            $command->setCarrierIds($data['conditions'][DiscountConditionsType::DELIVERY_CONDITIONS][DeliveryConditionsType::CARRIERS]);
         }
         if ($data['conditions'][DiscountConditionsType::DELIVERY_CONDITIONS]['children_selector'] === DeliveryConditionsType::COUNTRY) {
-            $conditionsCommand->setCountryIds($data['conditions'][DiscountConditionsType::DELIVERY_CONDITIONS][DeliveryConditionsType::COUNTRY]);
+            $command->setCountryIds($data['conditions'][DiscountConditionsType::DELIVERY_CONDITIONS][DeliveryConditionsType::COUNTRY]);
         }
 
         // Customer eligibility conditions
@@ -408,13 +390,20 @@ class DiscountFormDataHandler implements FormDataHandlerInterface
 
             if ($selectedOption === DiscountCustomerEligibilityChoiceType::CUSTOMER_GROUPS) {
                 $groupIds = $this->extractCustomerGroupIds($customerEligibility[DiscountCustomerEligibilityChoiceType::CUSTOMER_GROUPS] ?? []);
-                $conditionsCommand->setCustomerGroupIds($groupIds);
+                $command->setCustomerGroupIds($groupIds);
             } else {
-                $conditionsCommand->setCustomerGroupIds([]);
+                $command->setCustomerGroupIds([]);
             }
         }
 
-        $this->commandBus->handle($conditionsCommand);
+        // Quantity conditions
+        if (array_key_exists('quantity_total', $data['usability'])) {
+            $command->setTotalQuantity($data['usability']['quantity_total']);
+        }
+
+        if (array_key_exists('quantity_per_customer', $data['usability'])) {
+            $command->setQuantityPerUser($data['usability']['quantity_per_customer']);
+        }
     }
 
     private function updateDiscountCompatibility(int $discountId, array $data): void

@@ -28,8 +28,12 @@ namespace PrestaShop\PrestaShop\Adapter\Discount\CommandHandler;
 
 use PrestaShop\PrestaShop\Adapter\CartRule\CartRuleBuilder;
 use PrestaShop\PrestaShop\Adapter\Discount\Repository\DiscountRepository;
+use PrestaShop\PrestaShop\Adapter\Discount\Update\DiscountConditionsUpdater;
 use PrestaShop\PrestaShop\Adapter\Discount\Validate\DiscountValidator;
 use PrestaShop\PrestaShop\Core\CommandBus\Attributes\AsCommandHandler;
+use PrestaShop\PrestaShop\Core\Domain\Carrier\ValueObject\CarrierId;
+use PrestaShop\PrestaShop\Core\Domain\Country\ValueObject\CountryId;
+use PrestaShop\PrestaShop\Core\Domain\Customer\Group\ValueObject\GroupId;
 use PrestaShop\PrestaShop\Core\Domain\Discount\Command\AddDiscountCommand;
 use PrestaShop\PrestaShop\Core\Domain\Discount\CommandHandler\AddDiscountHandlerInterface;
 use PrestaShop\PrestaShop\Core\Domain\Discount\Exception\DiscountConstraintException;
@@ -42,6 +46,7 @@ class AddDiscountHandler implements AddDiscountHandlerInterface
         private readonly DiscountRepository $discountRepository,
         private readonly CartRuleBuilder $cartRuleBuilder,
         private readonly DiscountValidator $discountValidator,
+        private readonly DiscountConditionsUpdater $updater,
     ) {
     }
 
@@ -54,7 +59,19 @@ class AddDiscountHandler implements AddDiscountHandlerInterface
         $this->discountValidator->validateDiscountPropertiesForType($discountType, $command);
         $BuiltCartRule = $this->cartRuleBuilder->build($command);
         $discount = $this->discountRepository->add($BuiltCartRule);
+        $newDiscountId = new DiscountId((int) $discount->id);
 
-        return new DiscountId((int) $discount->id);
+        $this->updater->update(
+            $newDiscountId,
+            $command->getMinimumProductsQuantity(),
+            $command->getProductConditions(),
+            $command->getMinimumAmount(),
+            $command->getMinimumAmountShippingIncluded(),
+            $command->getCarrierIds() ? array_map(fn (CarrierId $carrierId) => $carrierId->getValue(), $command->getCarrierIds()) : null,
+            $command->getCountryIds() ? array_map(fn (CountryId $countryId) => $countryId->getValue(), $command->getCountryIds()) : null,
+            $command->getCustomerGroupIds() ? array_map(fn (GroupId $groupId) => $groupId->getValue(), $command->getCustomerGroupIds()) : null,
+        );
+
+        return $newDiscountId;
     }
 }

@@ -28,9 +28,13 @@ namespace PrestaShop\PrestaShop\Core\Domain\Discount\Command;
 
 use DateTimeImmutable;
 use PrestaShop\Decimal\DecimalNumber;
+use PrestaShop\PrestaShop\Core\Domain\Carrier\ValueObject\CarrierId;
+use PrestaShop\PrestaShop\Core\Domain\Country\ValueObject\CountryId;
 use PrestaShop\PrestaShop\Core\Domain\Currency\ValueObject\CurrencyId;
+use PrestaShop\PrestaShop\Core\Domain\Customer\Group\ValueObject\GroupId;
 use PrestaShop\PrestaShop\Core\Domain\Customer\ValueObject\CustomerId;
 use PrestaShop\PrestaShop\Core\Domain\Discount\Exception\DiscountConstraintException;
+use PrestaShop\PrestaShop\Core\Domain\Discount\ProductRuleGroup;
 use PrestaShop\PrestaShop\Core\Domain\Discount\ValueObject\DiscountType;
 use PrestaShop\PrestaShop\Core\Domain\Exception\DomainConstraintException;
 use PrestaShop\PrestaShop\Core\Domain\Language\ValueObject\LanguageId;
@@ -60,6 +64,25 @@ class AddDiscountCommand
     private ?ProductId $productId = null;
     private ?CombinationIdInterface $combinationId = null;
     private int $reductionProduct = 0;
+    private ?int $minimumProductsQuantity = null;
+
+    private ?array $productConditions = null;
+
+    private ?Money $minimumAmount = null;
+
+    private ?bool $minimumAmountShippingIncluded = null;
+
+    /**
+     * @var CarrierId[]|null
+     */
+    private ?array $carrierIds = null;
+
+    private ?array $countryIds = null;
+
+    /**
+     * @var GroupId[]|null
+     */
+    private ?array $customerGroupIds = null;
 
     public function __construct(
         string $type,
@@ -324,6 +347,137 @@ class AddDiscountCommand
     public function setReductionProduct(int $reductionProduct): self
     {
         $this->reductionProduct = $reductionProduct;
+
+        return $this;
+    }
+
+    public function getMinimumProductsQuantity(): ?int
+    {
+        return $this->minimumProductsQuantity;
+    }
+
+    public function setMinimumProductsQuantity(int $minimumProductsQuantity): self
+    {
+        if ($minimumProductsQuantity < 0) {
+            throw new DiscountConstraintException('Minimum products quantity must be greater than 0', DiscountConstraintException::INVALID_MINIMUM_PRODUCT_QUANTITY);
+        }
+
+        $this->minimumProductsQuantity = $minimumProductsQuantity;
+
+        return $this;
+    }
+
+    public function getMinimumAmount(): ?Money
+    {
+        return $this->minimumAmount;
+    }
+
+    public function getMinimumAmountShippingIncluded(): ?bool
+    {
+        return $this->minimumAmountShippingIncluded;
+    }
+
+    public function setMinimumAmount(DecimalNumber $amountDiscount, int $currencyId, bool $taxIncluded, bool $minimumAmountShippingIncluded): self
+    {
+        if ($amountDiscount->isLowerThanZero()) {
+            throw new DiscountConstraintException(sprintf('Money amount cannot be lower than zero, %s given', $amountDiscount), DiscountConstraintException::INVALID_DISCOUNT_VALUE_CANNOT_BE_NEGATIVE);
+        }
+
+        $this->minimumAmount = new Money($amountDiscount, new CurrencyId($currencyId), $taxIncluded);
+        $this->minimumAmountShippingIncluded = $minimumAmountShippingIncluded;
+
+        return $this;
+    }
+
+    public function getProductConditions(): ?array
+    {
+        return $this->productConditions;
+    }
+
+    /**
+     * @param ProductRuleGroup[] $productConditions
+     *
+     * @return self
+     *
+     * @throws DiscountConstraintException
+     */
+    public function setProductConditions(array $productConditions): self
+    {
+        foreach ($productConditions as $productCondition) {
+            if (!$productCondition instanceof ProductRuleGroup) {
+                throw new DiscountConstraintException(sprintf('Product conditions must be an array of %s', ProductRuleGroup::class), DiscountConstraintException::INVALID_PRODUCTS_CONDITIONS);
+            }
+            if (empty($productCondition->getRules())) {
+                throw new DiscountConstraintException(sprintf('Product conditions rules cannot be empty'), DiscountConstraintException::INVALID_PRODUCTS_CONDITIONS);
+            }
+
+            foreach ($productCondition->getRules() as $rule) {
+                if (empty($rule->getItemIds())) {
+                    throw new DiscountConstraintException(sprintf('Product conditions rule items cannot be empty'), DiscountConstraintException::INVALID_PRODUCTS_CONDITIONS);
+                }
+
+                foreach ($rule->getItemIds() as $itemId) {
+                    if (!is_int($itemId)) {
+                        throw new DiscountConstraintException(sprintf('Product conditions rule item ID must be an integer'), DiscountConstraintException::INVALID_PRODUCTS_CONDITIONS);
+                    }
+                    if ((int) $itemId <= 0) {
+                        throw new DiscountConstraintException(sprintf('Product conditions rule item ID must be strictly positive'), DiscountConstraintException::INVALID_PRODUCTS_CONDITIONS);
+                    }
+                }
+            }
+        }
+
+        $this->productConditions = $productConditions;
+
+        return $this;
+    }
+
+    /**
+     * @return CarrierId[]|null
+     */
+    public function getCarrierIds(): ?array
+    {
+        return $this->carrierIds;
+    }
+
+    /**
+     * @param int[]|null $carrierIds
+     *
+     * @return $this
+     */
+    public function setCarrierIds(?array $carrierIds): self
+    {
+        $this->carrierIds = array_map(fn (int $carrierId) => new CarrierId($carrierId), $carrierIds);
+
+        return $this;
+    }
+
+    public function getCountryIds(): ?array
+    {
+        return $this->countryIds;
+    }
+
+    public function setCountryIds(?array $countryIds): self
+    {
+        $this->countryIds = array_map(fn (int $countryId) => new CountryId($countryId), $countryIds);
+
+        return $this;
+    }
+
+    /**
+     * @return GroupId[]|null
+     */
+    public function getCustomerGroupIds(): ?array
+    {
+        return $this->customerGroupIds;
+    }
+
+    /**
+     * @return $this
+     */
+    public function setCustomerGroupIds(?array $customerGroupIds): self
+    {
+        $this->customerGroupIds = $customerGroupIds ? array_map(fn (int $groupId) => new GroupId($groupId), $customerGroupIds) : null;
 
         return $this;
     }

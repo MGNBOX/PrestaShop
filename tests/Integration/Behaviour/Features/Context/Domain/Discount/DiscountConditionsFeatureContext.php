@@ -29,7 +29,7 @@ namespace Tests\Integration\Behaviour\Features\Context\Domain\Discount;
 use Behat\Gherkin\Node\TableNode;
 use PHPUnit\Framework\Assert;
 use PrestaShop\Decimal\DecimalNumber;
-use PrestaShop\PrestaShop\Core\Domain\Discount\Command\UpdateDiscountConditionsCommand;
+use PrestaShop\PrestaShop\Core\Domain\Discount\Command\UpdateDiscountCommand;
 use PrestaShop\PrestaShop\Core\Domain\Discount\ProductRule;
 use PrestaShop\PrestaShop\Core\Domain\Discount\ProductRuleGroup;
 use PrestaShop\PrestaShop\Core\Domain\Discount\ProductRuleGroupType;
@@ -52,7 +52,7 @@ class DiscountConditionsFeatureContext extends AbstractDomainFeatureContext
     public function updateDiscountConditionMinimalAmount(string $discountReference, TableNode $tableNode): void
     {
         $data = $tableNode->getRowsHash();
-        $command = new UpdateDiscountConditionsCommand($this->referenceToId($discountReference));
+        $command = new UpdateDiscountCommand($this->referenceToId($discountReference));
         $command->setMinimumAmount(
             new DecimalNumber($data['minimum_amount']),
             $this->referenceToId($data['minimum_amount_currency']),
@@ -72,7 +72,7 @@ class DiscountConditionsFeatureContext extends AbstractDomainFeatureContext
      */
     public function updateDiscountConditionMinimalProductQuantity(string $discountReference, int $quantity): void
     {
-        $command = new UpdateDiscountConditionsCommand($this->referenceToId($discountReference));
+        $command = new UpdateDiscountCommand($this->referenceToId($discountReference));
         $command->setMinimumProductsQuantity($quantity);
         $this->getCommandBus()->handle($command);
     }
@@ -88,7 +88,7 @@ class DiscountConditionsFeatureContext extends AbstractDomainFeatureContext
      */
     public function updateDiscountProductConditions(string $discountReference, int $quantity, TableNode $tableNode): void
     {
-        $command = new UpdateDiscountConditionsCommand($this->referenceToId($discountReference));
+        $command = new UpdateDiscountCommand($this->referenceToId($discountReference));
 
         $conditions = $tableNode->getColumnsHash();
 
@@ -130,7 +130,7 @@ class DiscountConditionsFeatureContext extends AbstractDomainFeatureContext
      */
     public function updateDiscountCarrierConditions(string $discountReference, string $carrierReferences): void
     {
-        $command = new UpdateDiscountConditionsCommand($this->referenceToId($discountReference));
+        $command = new UpdateDiscountCommand($this->referenceToId($discountReference));
         $command->setCarrierIds($this->referencesToIds($carrierReferences));
         $this->getCommandBus()->handle($command);
     }
@@ -145,7 +145,7 @@ class DiscountConditionsFeatureContext extends AbstractDomainFeatureContext
      */
     public function updateDiscountCountryConditions(string $discountReference, string $countryReferences): void
     {
-        $command = new UpdateDiscountConditionsCommand($this->referenceToId($discountReference));
+        $command = new UpdateDiscountCommand($this->referenceToId($discountReference));
         $command->setCountryIds($this->referencesToIds($countryReferences));
         $this->getCommandBus()->handle($command);
     }

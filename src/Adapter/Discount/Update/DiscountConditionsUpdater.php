@@ -131,6 +131,21 @@ class DiscountConditionsUpdater
         CartRule $discount,
         array $productRuleGroups,
     ): array {
+        // Check that the product rules really target products, if not we don't apply them to avoid
+        // creating empty rule groups
+        $containsRules = false;
+        foreach ($productRuleGroups as $productRuleGroup) {
+            foreach ($productRuleGroup->getRules() as $productRule) {
+                if (!empty($productRule->getItemIds())) {
+                    $containsRules = true;
+                    break 2;
+                }
+            }
+        }
+        if (!$containsRules) {
+            return [];
+        }
+
         foreach ($productRuleGroups as $productRuleGroup) {
             // First create group
             $this->connection->createQueryBuilder()
@@ -184,11 +199,11 @@ class DiscountConditionsUpdater
             }
         }
         $discount->product_restriction = !empty($productRuleGroups);
-
         $updatedProperties = ['product_restriction'];
 
-        // Product level now uses a condition on a segment of product, we need to update the
-        // reduction_product property with the specific value
+        // Product level discount now uses a condition on a segment of product, we need to update the
+        // reduction_product property with the specific value (only for product level because this property
+        // tells us that the discount applies on the whole segment)
         if ($discount->getType() === DiscountType::PRODUCT_LEVEL) {
             $discount->reduction_product = DiscountSettings::PRODUCT_SEGMENT;
             $updatedProperties[] = 'reduction_product';
@@ -290,7 +305,8 @@ class DiscountConditionsUpdater
 
         $updatedProperties = ['product_restriction'];
 
-        if ($discount->getType() === DiscountType::PRODUCT_LEVEL) {
+        // If the discount was targeting a product segment, since we just removed it we reset the reduction_product property
+        if ($discount->reduction_product === DiscountSettings::PRODUCT_SEGMENT) {
             // No more segment, no more target
             $discount->reduction_product = 0;
             $updatedProperties[] = 'reduction_product';

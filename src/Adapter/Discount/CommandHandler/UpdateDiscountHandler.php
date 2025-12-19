@@ -27,9 +27,13 @@
 namespace PrestaShop\PrestaShop\Adapter\Discount\CommandHandler;
 
 use PrestaShop\PrestaShop\Adapter\Discount\Repository\DiscountRepository;
+use PrestaShop\PrestaShop\Adapter\Discount\Update\DiscountConditionsUpdater;
 use PrestaShop\PrestaShop\Adapter\Discount\Update\Filler\DiscountFiller;
 use PrestaShop\PrestaShop\Adapter\Discount\Validate\DiscountValidator;
 use PrestaShop\PrestaShop\Core\CommandBus\Attributes\AsCommandHandler;
+use PrestaShop\PrestaShop\Core\Domain\Carrier\ValueObject\CarrierId;
+use PrestaShop\PrestaShop\Core\Domain\Country\ValueObject\CountryId;
+use PrestaShop\PrestaShop\Core\Domain\Customer\Group\ValueObject\GroupId;
 use PrestaShop\PrestaShop\Core\Domain\Discount\Command\UpdateDiscountCommand;
 use PrestaShop\PrestaShop\Core\Domain\Discount\CommandHandler\UpdateDiscountCommandHandlerInterface;
 use PrestaShop\PrestaShop\Core\Domain\Discount\Exception\CannotUpdateDiscountException;
@@ -41,6 +45,7 @@ class UpdateDiscountHandler implements UpdateDiscountCommandHandlerInterface
         private readonly DiscountRepository $discountRepository,
         private readonly DiscountFiller $discountFiller,
         private readonly DiscountValidator $discountValidator,
+        private readonly DiscountConditionsUpdater $updater,
     ) {
     }
 
@@ -50,11 +55,21 @@ class UpdateDiscountHandler implements UpdateDiscountCommandHandlerInterface
         $this->discountValidator->validateDiscountPropertiesForType($cartRule->getType(), $command);
 
         $updatableProperties = $this->discountFiller->fillUpdatableProperties($cartRule, $command);
-
         $this->discountRepository->partialUpdate(
             $cartRule,
             $updatableProperties,
             CannotUpdateDiscountException::FAILED_UPDATE_DISCOUNT
+        );
+
+        $this->updater->update(
+            $command->getDiscountId(),
+            $command->getMinimumProductsQuantity(),
+            $command->getProductConditions(),
+            $command->getMinimumAmount(),
+            $command->getMinimumAmountShippingIncluded(),
+            $command->getCarrierIds() ? array_map(fn (CarrierId $carrierId) => $carrierId->getValue(), $command->getCarrierIds()) : null,
+            $command->getCountryIds() ? array_map(fn (CountryId $countryId) => $countryId->getValue(), $command->getCountryIds()) : null,
+            $command->getCustomerGroupIds() ? array_map(fn (GroupId $groupId) => $groupId->getValue(), $command->getCustomerGroupIds()) : null,
         );
     }
 }

@@ -92,11 +92,6 @@ class CartRuleBuilder
             } elseif ($command->getReductionProduct() === DiscountSettings::CHEAPEST_PRODUCT) {
                 // Cheapest product is the target
                 $cartRule->reduction_product = DiscountSettings::CHEAPEST_PRODUCT;
-            } else {
-                // In other case no target is defined, if the discount aims at targetting a product segment
-                // it will be via the UpdateDiscountConditionsCommand which will automatically update this
-                // property
-                $cartRule->reduction_product = 0;
             }
         }
 
