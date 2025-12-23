@@ -1,8 +1,6 @@
 import testContext from '@utils/testContext';
 import {expect} from 'chai';
 
-import {enableTheme, disableTheme} from '@commonTests/BO/design/hummingbird';
-
 import {
   boCustomerServicePage,
   boCustomerServiceViewPage,
@@ -52,9 +50,7 @@ describe('FO - Order confirmation : Contact us', async () => {
     reference: '',
   });
 
-  // Pre-condition : Install Hummingbird
-  enableTheme('hummingbird', `${baseContext}_preTest_0`);
-
+  // before and after functions
   before(async function () {
     browserContext = await utilsPlaywright.createBrowserContext(this.browser);
     page = await utilsPlaywright.newTab(browserContext);
@@ -269,7 +265,4 @@ describe('FO - Order confirmation : Contact us', async () => {
       expect(deleteMessageSuccessText).to.contains(boCustomerServicePage.deleteMessageSuccessAlertText);
     });
   });
-
-  // Post-condition : Uninstall Hummingbird
-  disableTheme('hummingbird', `${baseContext}_postTest_1`);
 });
