@@ -493,7 +493,7 @@ class UpdateDiscountCommand
      */
     public function setCarrierIds(?array $carrierIds): self
     {
-        $this->carrierIds = array_map(fn (int $carrierId) => new CarrierId($carrierId), $carrierIds);
+        $this->carrierIds = $carrierIds !== null ? array_map(fn (int $carrierId) => new CarrierId($carrierId), $carrierIds) : null;
 
         return $this;
     }
@@ -505,7 +505,7 @@ class UpdateDiscountCommand
 
     public function setCountryIds(?array $countryIds): self
     {
-        $this->countryIds = array_map(fn (int $countryId) => new CountryId($countryId), $countryIds);
+        $this->countryIds = $countryIds !== null ? array_map(fn (int $countryId) => new CountryId($countryId), $countryIds) : null;
 
         return $this;
     }
@@ -523,7 +523,7 @@ class UpdateDiscountCommand
      */
     public function setCustomerGroupIds(?array $customerGroupIds): self
     {
-        $this->customerGroupIds = $customerGroupIds ? array_map(fn (int $groupId) => new GroupId($groupId), $customerGroupIds) : null;
+        $this->customerGroupIds = $customerGroupIds !== null ? array_map(fn (int $groupId) => new GroupId($groupId), $customerGroupIds) : null;
 
         return $this;
     }

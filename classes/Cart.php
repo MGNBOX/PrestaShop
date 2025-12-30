@@ -2472,7 +2472,7 @@ class CartCore extends ObjectModel
             $discountsForSort = array_map(function ($cartRule) {
                 return [
                     'id_cart_rule' => $cartRule['id_cart_rule'],
-                    'type' => $cartRule['discount_type'] ?? null,
+                    'discount_type' => $cartRule['discount_type'] ?? null,
                     'priority' => $cartRule['priority'] ?? 0,
                     'date_add' => $cartRule['date_add'] ?? null,
                 ];

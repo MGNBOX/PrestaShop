@@ -1,9 +1,8 @@
 # ./vendor/bin/behat -c tests/Integration/Behaviour/behat.yml -s discount --tags discount-priority-by-type
 @restore-all-tables-before-feature
-@discount-priority-by-type
 @clear-cache-before-feature
 @clear-cache-after-feature
-
+@discount-priority-by-type
 Feature: Discount priority by type
   Test that discounts are sorted by their TYPE priority (product > cart > shipping)
 
