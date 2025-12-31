@@ -2228,9 +2228,4 @@ class FrontControllerCore extends Controller
 
         return Validate::isUrl($data);
     }
-
-    protected function getControllerName(): string
-    {
-        return Tools::toCamelCase($this->php_self, true);
-    }
 }
