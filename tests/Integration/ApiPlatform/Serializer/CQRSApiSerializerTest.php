@@ -45,10 +45,13 @@ use PrestaShop\PrestaShop\Core\Domain\Customer\Group\Command\EditCustomerGroupCo
 use PrestaShop\PrestaShop\Core\Domain\Customer\Group\Query\GetCustomerGroupForEditing;
 use PrestaShop\PrestaShop\Core\Domain\Customer\Group\QueryResult\EditableCustomerGroup;
 use PrestaShop\PrestaShop\Core\Domain\Customer\Group\ValueObject\GroupId;
+use PrestaShop\PrestaShop\Core\Domain\Discount\Command\AddDiscountCommand;
+use PrestaShop\PrestaShop\Core\Domain\Discount\Command\UpdateDiscountCommand;
 use PrestaShop\PrestaShop\Core\Domain\Discount\ProductRule;
 use PrestaShop\PrestaShop\Core\Domain\Discount\ProductRuleGroup;
 use PrestaShop\PrestaShop\Core\Domain\Discount\ProductRuleGroupType;
 use PrestaShop\PrestaShop\Core\Domain\Discount\ProductRuleType;
+use PrestaShop\PrestaShop\Core\Domain\Discount\ValueObject\DiscountType;
 use PrestaShop\PrestaShop\Core\Domain\Module\Command\UploadModuleCommand;
 use PrestaShop\PrestaShop\Core\Domain\Product\Command\AddProductCommand;
 use PrestaShop\PrestaShop\Core\Domain\Product\Command\UpdateProductCommand;
@@ -520,6 +523,67 @@ class CQRSApiSerializerTest extends KernelTestCase
             [
                 '[archive].pathName' => '[source]',
             ],
+        ];
+
+        $updateDiscountCommand = new UpdateDiscountCommand(42);
+        $updateDiscountCommand->setMinimumAmount(
+            new DecimalNumber('42.99'),
+            1,
+            false,
+            true,
+        );
+        $updateDiscountCommand->setReductionAmount(
+            new DecimalNumber('34.89'),
+            2,
+            true,
+        );
+        yield 'update discount command minimum amount' => [
+            [
+                'discountId' => 42,
+                'minimumAmount' => [
+                    'amount' => '42.99',
+                    'currencyId' => 1,
+                    'taxIncluded' => false,
+                    'shippingIncluded' => true,
+                ],
+                'reductionAmount' => [
+                    'amount' => '34.89',
+                    'currencyId' => 2,
+                    'taxIncluded' => true,
+                ],
+            ],
+            $updateDiscountCommand,
+        ];
+
+        $addDiscountCommand = new AddDiscountCommand(DiscountType::CART_LEVEL, [1 => 'name']);
+        $addDiscountCommand->setMinimumAmount(
+            new DecimalNumber('42.99'),
+            1,
+            false,
+            true,
+        );
+        $addDiscountCommand->setReductionAmount(
+            new DecimalNumber('34.89'),
+            2,
+            true,
+        );
+        yield 'add discount command minimum amount' => [
+            [
+                'type' => DiscountType::CART_LEVEL,
+                'localizedNames' => [1 => 'name'],
+                'minimumAmount' => [
+                    'amount' => '42.99',
+                    'currencyId' => 1,
+                    'taxIncluded' => false,
+                    'shippingIncluded' => true,
+                ],
+                'reductionAmount' => [
+                    'amount' => '34.89',
+                    'currencyId' => 2,
+                    'taxIncluded' => true,
+                ],
+            ],
+            $addDiscountCommand,
         ];
     }
 

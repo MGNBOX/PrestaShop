@@ -30,7 +30,6 @@ use DateTimeImmutable;
 use PrestaShop\Decimal\DecimalNumber;
 use PrestaShop\PrestaShop\Core\Domain\Carrier\ValueObject\CarrierId;
 use PrestaShop\PrestaShop\Core\Domain\Country\ValueObject\CountryId;
-use PrestaShop\PrestaShop\Core\Domain\Currency\Exception\CurrencyException;
 use PrestaShop\PrestaShop\Core\Domain\Currency\ValueObject\CurrencyId;
 use PrestaShop\PrestaShop\Core\Domain\Customer\Group\ValueObject\GroupId;
 use PrestaShop\PrestaShop\Core\Domain\Customer\ValueObject\CustomerId;
@@ -39,7 +38,6 @@ use PrestaShop\PrestaShop\Core\Domain\Customer\ValueObject\NoCustomerId;
 use PrestaShop\PrestaShop\Core\Domain\Discount\Exception\DiscountConstraintException;
 use PrestaShop\PrestaShop\Core\Domain\Discount\ProductRuleGroup;
 use PrestaShop\PrestaShop\Core\Domain\Discount\ValueObject\DiscountId;
-use PrestaShop\PrestaShop\Core\Domain\Exception\DomainConstraintException;
 use PrestaShop\PrestaShop\Core\Domain\Product\Combination\Exception\CombinationConstraintException;
 use PrestaShop\PrestaShop\Core\Domain\Product\Combination\ValueObject\CombinationId;
 use PrestaShop\PrestaShop\Core\Domain\Product\Combination\ValueObject\CombinationIdInterface;
@@ -330,16 +328,15 @@ class UpdateDiscountCommand
     }
 
     /**
-     * @throws DomainConstraintException|DiscountConstraintException
-     * @throws CurrencyException
+     * Note: the parameters names are important here for API serialization.
      */
-    public function setReductionAmount(DecimalNumber $reductionAmount, int $reductionAmountCurrencyId, bool $reductionAmountTaxIncluded): self
+    public function setReductionAmount(DecimalNumber $amount, int $currencyId, bool $taxIncluded): self
     {
-        if ($reductionAmount->isLowerThanZero()) {
-            throw new DiscountConstraintException(sprintf('Money amount cannot be lower than zero, %s given', $reductionAmount), DiscountConstraintException::INVALID_DISCOUNT_VALUE_CANNOT_BE_NEGATIVE);
+        if ($amount->isLowerThanZero()) {
+            throw new DiscountConstraintException(sprintf('Money amount cannot be lower than zero, %s given', $amount), DiscountConstraintException::INVALID_DISCOUNT_VALUE_CANNOT_BE_NEGATIVE);
         }
 
-        $this->reductionAmount = new Money($reductionAmount, new CurrencyId($reductionAmountCurrencyId), $reductionAmountTaxIncluded);
+        $this->reductionAmount = new Money($amount, new CurrencyId($currencyId), $taxIncluded);
         $this->markDirty('reductionAmount');
 
         return $this;
@@ -420,14 +417,17 @@ class UpdateDiscountCommand
         return $this->minimumAmountShippingIncluded;
     }
 
-    public function setMinimumAmount(DecimalNumber $minimumAmount, int $minimumAmountCurrencyId, bool $minimumAmountTaxIncluded, bool $minimumAmountShippingIncluded): self
+    /**
+     * Note: the parameters names are important here for API serialization.
+     */
+    public function setMinimumAmount(DecimalNumber $amount, int $currencyId, bool $taxIncluded, bool $shippingIncluded): self
     {
-        if ($minimumAmount->isLowerThanZero()) {
-            throw new DiscountConstraintException(sprintf('Money amount cannot be lower than zero, %s given', $minimumAmount), DiscountConstraintException::INVALID_DISCOUNT_VALUE_CANNOT_BE_NEGATIVE);
+        if ($amount->isLowerThanZero()) {
+            throw new DiscountConstraintException(sprintf('Money amount cannot be lower than zero, %s given', $amount), DiscountConstraintException::INVALID_DISCOUNT_VALUE_CANNOT_BE_NEGATIVE);
         }
 
-        $this->minimumAmount = new Money($minimumAmount, new CurrencyId($minimumAmountCurrencyId), $minimumAmountTaxIncluded);
-        $this->minimumAmountShippingIncluded = $minimumAmountShippingIncluded;
+        $this->minimumAmount = new Money($amount, new CurrencyId($currencyId), $taxIncluded);
+        $this->minimumAmountShippingIncluded = $shippingIncluded;
 
         return $this;
     }

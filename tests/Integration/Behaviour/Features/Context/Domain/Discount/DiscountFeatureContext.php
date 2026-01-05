@@ -482,6 +482,7 @@ class DiscountFeatureContext extends AbstractDomainFeatureContext
         if (null !== $productConditions) {
             $command->setProductConditions($productConditions);
         }
+        // @todo: handle removing this amount
         if (isset(
             $data['minimum_amount'],
             $data['minimum_amount_currency'],
@@ -640,7 +641,7 @@ class DiscountFeatureContext extends AbstractDomainFeatureContext
             if (empty($expectedData['reduction_currency'])) {
                 Assert::assertNull($discountForEditing->getReductionAmount(), 'Unexpected reduction amount currency');
             } else {
-                Assert::assertSame($this->getSharedStorage()->get($expectedData['reduction_currency']), $discountForEditing->getReductionAmount()->getCurrencyId()->getValue(), 'Unexpected reduction currency');
+                Assert::assertSame($this->getSharedStorage()->get($expectedData['reduction_currency']), $discountForEditing->getReductionAmount()->getCurrencyId(), 'Unexpected reduction currency');
             }
         }
         if (isset($expectedData['reduction_tax_included'])) {
@@ -673,7 +674,7 @@ class DiscountFeatureContext extends AbstractDomainFeatureContext
             if (empty($expectedData['minimum_amount_currency'])) {
                 Assert::assertNull($discountForEditing->getMinimumAmount(), 'Unexpected minimum amount currency');
             } else {
-                Assert::assertSame($this->getSharedStorage()->get($expectedData['minimum_amount_currency']), $discountForEditing->getMinimumAmount()->getCurrencyId()->getValue(), 'Unexpected minimum amount currency');
+                Assert::assertSame($this->getSharedStorage()->get($expectedData['minimum_amount_currency']), $discountForEditing->getMinimumAmount()->getCurrencyId(), 'Unexpected minimum amount currency');
             }
         }
         if (isset($expectedData['minimum_amount_tax_included'])) {
@@ -684,11 +685,11 @@ class DiscountFeatureContext extends AbstractDomainFeatureContext
             }
         }
         if (isset($expectedData['minimum_amount_shipping_included'])) {
-            Assert::assertSame(
-                PrimitiveUtils::castStringBooleanIntoBoolean($expectedData['minimum_amount_shipping_included']),
-                $discountForEditing->getMinimumAmountShippingIncluded(),
-                'Unexpected minimum amount shipping included'
-            );
+            if (empty($expectedData['minimum_amount_shipping_included'])) {
+                Assert::assertNull($discountForEditing->getMinimumAmount(), 'Unexpected minimum amount shipping included');
+            } else {
+                Assert::assertSame(PrimitiveUtils::castStringBooleanIntoBoolean($expectedData['minimum_amount_shipping_included']), $discountForEditing->getMinimumAmount()->isShippingIncluded(), 'Unexpected minimum amount shipping included');
+            }
         }
         if (isset($expectedData['carriers'])) {
             Assert::assertSame($this->referencesToIds($expectedData['carriers']), $discountForEditing->getCarrierIds(), 'Unexpected carriers');

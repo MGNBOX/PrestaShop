@@ -28,15 +28,14 @@ namespace PrestaShop\PrestaShop\Core\Domain\Discount\QueryResult;
 
 use DateTimeImmutable;
 use PrestaShop\Decimal\DecimalNumber;
-use PrestaShop\PrestaShop\Core\Domain\Currency\ValueObject\CurrencyId;
 use PrestaShop\PrestaShop\Core\Domain\Discount\ProductRuleGroup;
 use PrestaShop\PrestaShop\Core\Domain\Discount\ValueObject\DiscountType;
-use PrestaShop\PrestaShop\Core\Domain\ValueObject\Money;
+use PrestaShop\PrestaShop\Core\Domain\QueryResult\Money;
 
 class DiscountForEditing
 {
     private ?Money $reductionAmount = null;
-    private ?Money $minimumAmount = null;
+    private ?MinimumAmount $minimumAmount = null;
 
     public function __construct(
         private readonly int $discountId,
@@ -65,17 +64,17 @@ class DiscountForEditing
         ?DecimalNumber $minimumAmount,
         ?int $minimumAmountCurrencyId,
         ?bool $minimumAmountTaxIncluded,
-        private readonly bool $minimumAmountShippingIncluded,
+        ?bool $minimumAmountShippingIncluded,
         private readonly array $carrierIds,
         private readonly array $countryIds,
         private readonly array $customerGroupIds,
         private readonly array $compatibleDiscountTypeIds,
     ) {
         if ($reductionAmount !== null && $reductionAmountCurrencyId !== null && $reductionAmountTaxIncluded !== null) {
-            $this->reductionAmount = new Money($reductionAmount, new CurrencyId($reductionAmountCurrencyId), $reductionAmountTaxIncluded);
+            $this->reductionAmount = new Money($reductionAmount, $reductionAmountCurrencyId, $reductionAmountTaxIncluded);
         }
-        if ($minimumAmount !== null && $minimumAmountCurrencyId !== null && $minimumAmountTaxIncluded !== null) {
-            $this->minimumAmount = new Money($minimumAmount, new CurrencyId($minimumAmountCurrencyId), $minimumAmountTaxIncluded);
+        if ($minimumAmount !== null && $minimumAmountCurrencyId !== null && $minimumAmountTaxIncluded !== null && $minimumAmountShippingIncluded !== null) {
+            $this->minimumAmount = new MinimumAmount($minimumAmount, $minimumAmountCurrencyId, $minimumAmountTaxIncluded, $minimumAmountShippingIncluded);
         }
     }
 
@@ -187,14 +186,9 @@ class DiscountForEditing
         return $this->productConditions;
     }
 
-    public function getMinimumAmount(): ?Money
+    public function getMinimumAmount(): ?MinimumAmount
     {
         return $this->minimumAmount;
-    }
-
-    public function getMinimumAmountShippingIncluded(): bool
-    {
-        return $this->minimumAmountShippingIncluded;
     }
 
     /**
