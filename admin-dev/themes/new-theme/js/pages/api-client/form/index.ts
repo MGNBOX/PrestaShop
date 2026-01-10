@@ -39,12 +39,13 @@ $(() => {
   // Toggle all scopes enable/disable
   document.querySelectorAll<HTMLButtonElement>(ApiClientMap.toggleAllScopes).forEach((button) => {
     button.addEventListener('click', () => {
-      const action = button.dataset.action;
+      const {action} = button.dataset;
       const targetValue = action === 'enable' ? '1' : '0';
       const switches = document.querySelectorAll<HTMLElement>(ApiClientMap.scopesSwitches);
 
       switches.forEach((switchElement) => {
         const radioToSelect = switchElement.querySelector<HTMLInputElement>(`input[type="radio"][value="${targetValue}"]`);
+
         if (radioToSelect && !radioToSelect.checked) {
           radioToSelect.click();
         }
