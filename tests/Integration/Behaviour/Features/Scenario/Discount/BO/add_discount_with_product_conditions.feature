@@ -69,6 +69,21 @@ Feature: Create discount with conditions
       | productConditionQuantity         |               |
       | productCondition                 |               |
 
+  Scenario: Create discount with minimum amount
+    When I create a "free_shipping" discount "discount_without_min_amount" with following properties:
+      | name[en-US]    | Promotion |
+      | minimum_amount |           |
+    Then discount "discount_without_min_amount" should have the following properties:
+      | name[en-US]                      | Promotion     |
+      | type                             | free_shipping |
+      | minimum_product_quantity         | 0             |
+      | minimum_amount                   |               |
+      | minimum_amount_currency          |               |
+      | minimum_amount_tax_included      |               |
+      | minimum_amount_shipping_included |               |
+      | productConditionQuantity         |               |
+      | productCondition                 |               |
+
   Scenario: Create discount with restricted list of combinations
     Given I add product "metal_tshirt" with following information:
       | name[en-US] | metal tshirt |

@@ -37,6 +37,14 @@ Feature: Update discount condition
       | minimum_product_quantity | 23            |
       | productConditionQuantity |               |
       | productCondition         |               |
+    When I update discount "discount_with_min_products" with the following properties:
+      | minimum_product_quantity | 0 |
+    Then discount "discount_with_min_products" should have the following properties:
+      | name[en-US]              | Promotion     |
+      | type                     | free_shipping |
+      | minimum_product_quantity | 0             |
+      | productConditionQuantity |               |
+      | productCondition         |               |
 
   Scenario: Update discount with restricted list of products
     Given I add product "beer_product" with following information:
@@ -88,17 +96,16 @@ Feature: Update discount condition
       | minimum_amount_shipping_included | true          |
       | productConditionQuantity         |               |
       | productCondition                 |               |
-    # @todo: handle removing this amount
-    #When I update discount "discount_with_min_amount" with the following properties:
-    #  | minimum_amount |  |
-    #Then discount "discount_with_min_amount" should have the following properties:
-    #  | name[en-US]                      | Promotion     |
-    #  | type                             | free_shipping |
-    #  | minimum_product_quantity         | 0             |
-    #  | minimum_amount                   |               |
-    #  | minimum_amount_currency          |               |
-    #  | minimum_amount_tax_included      |               |
-    #  | minimum_amount_shipping_included |               |
+    When I update discount "discount_with_min_amount" with the following properties:
+      | minimum_amount |  |
+    Then discount "discount_with_min_amount" should have the following properties:
+      | name[en-US]                      | Promotion     |
+      | type                             | free_shipping |
+      | minimum_product_quantity         | 0             |
+      | minimum_amount                   |               |
+      | minimum_amount_currency          |               |
+      | minimum_amount_tax_included      |               |
+      | minimum_amount_shipping_included |               |
 
   Scenario: Update discount with restricted list of combinations
     Given I add product "metal_tshirt" with following information:

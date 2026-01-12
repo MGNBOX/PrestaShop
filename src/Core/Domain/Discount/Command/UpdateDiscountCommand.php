@@ -407,14 +407,19 @@ class UpdateDiscountCommand
 
     /**
      * Note: the parameters names are important here for API serialization.
+     * To unset the minimum amount set the first parameter to null (the other parameters can remain empty)
      */
-    public function setMinimumAmount(DecimalNumber $amount, int $currencyId, bool $taxIncluded, bool $shippingIncluded): self
+    public function setMinimumAmount(?DecimalNumber $amount, int $currencyId = 0, bool $taxIncluded = true, bool $shippingIncluded = true): self
     {
-        if ($amount->isLowerThanZero()) {
-            throw new DiscountConstraintException(sprintf('Money amount cannot be lower than zero, %s given', $amount), DiscountConstraintException::INVALID_DISCOUNT_VALUE_CANNOT_BE_NEGATIVE);
-        }
+        if (null === $amount) {
+            $this->minimumAmount = null;
+        } else {
+            if ($amount->isLowerThanZero()) {
+                throw new DiscountConstraintException(sprintf('Money amount cannot be lower than zero, %s given', $amount), DiscountConstraintException::INVALID_DISCOUNT_VALUE_CANNOT_BE_NEGATIVE);
+            }
 
-        $this->minimumAmount = new MinimumAmount($amount, new CurrencyId($currencyId), $taxIncluded, $shippingIncluded);
+            $this->minimumAmount = new MinimumAmount($amount, new CurrencyId($currencyId), $taxIncluded, $shippingIncluded);
+        }
         $this->markDirty('minimumAmount');
 
         return $this;

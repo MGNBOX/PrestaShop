@@ -35,7 +35,6 @@ use PrestaShop\PrestaShop\Core\Domain\Discount\Exception\CannotUpdateDiscountExc
 use PrestaShop\PrestaShop\Core\Domain\Discount\ProductRuleGroup;
 use PrestaShop\PrestaShop\Core\Domain\Discount\ValueObject\DiscountId;
 use PrestaShop\PrestaShop\Core\Domain\Discount\ValueObject\DiscountType;
-use PrestaShop\PrestaShop\Core\Domain\Discount\ValueObject\MinimumAmount;
 
 class DiscountConditionsUpdater
 {
@@ -54,9 +53,7 @@ class DiscountConditionsUpdater
      * and no new association is created, so empty array is used to remove all existing associations.
      *
      * @param DiscountId $discountId
-     * @param int|null $minimumProductQuantity
      * @param ProductRuleGroup[]|null $productConditions
-     * @param MinimumAmount|null $minimumAmount
      * @param int[]|null $carrierIds
      * @param int[]|null $countryIds
      * @param int[]|null $customerGroupIds
@@ -65,17 +62,13 @@ class DiscountConditionsUpdater
      */
     public function update(
         DiscountId $discountId,
-        ?int $minimumProductQuantity = null,
         ?array $productConditions = null,
-        ?MinimumAmount $minimumAmount = null,
         ?array $carrierIds = null,
         ?array $countryIds = null,
         ?array $customerGroupIds = null,
     ): void {
         // Nothing to modify we return immediately
-        if ($minimumProductQuantity === null
-            && $productConditions === null
-            && $minimumAmount === null
+        if ($productConditions === null
             && $carrierIds === null
             && $countryIds === null
             && $customerGroupIds === null) {
@@ -84,27 +77,16 @@ class DiscountConditionsUpdater
 
         $discount = $this->discountRepository->get($discountId);
         $updatableProperties = [];
-        if (null !== $minimumProductQuantity) {
-            $updatableProperties = array_merge($updatableProperties, $this->updateMinimalProductQuantity($discount, $minimumProductQuantity));
-        }
-
-        if (null !== $minimumAmount) {
-            $updatableProperties = array_merge($updatableProperties, $this->updateMinimalAmount($discount, $minimumAmount));
-        }
-
         // Product conditions can define product segments or a list of products (which is equivalent to a segment based on a product criteria)
         if (null !== $productConditions) {
             $updatableProperties = array_merge($updatableProperties, $this->applyProductConditions($discount, $productConditions));
         }
-
         if (null !== $carrierIds) {
             $updatableProperties = array_merge($updatableProperties, $this->applyCarrierConditions($discount, $carrierIds));
         }
-
         if (null !== $countryIds) {
             $updatableProperties = array_merge($updatableProperties, $this->applyCountryConditions($discount, $countryIds));
         }
-
         if (null !== $customerGroupIds) {
             $updatableProperties = array_merge($updatableProperties, $this->applyCustomerGroups($discount, $customerGroupIds));
         }
@@ -113,28 +95,6 @@ class DiscountConditionsUpdater
         if (!empty($updatableProperties)) {
             $this->discountRepository->partialUpdate($discount, $updatableProperties, CannotUpdateDiscountException::FAILED_UPDATE_CONDITIONS);
         }
-    }
-
-    private function updateMinimalProductQuantity(CartRule $discount, int $minimumProductQuantity): array
-    {
-        $discount->minimum_product_quantity = $minimumProductQuantity;
-
-        return ['minimum_product_quantity'];
-    }
-
-    private function updateMinimalAmount(CartRule $discount, MinimumAmount $minimumAmount): array
-    {
-        $discount->minimum_amount = (float) (string) $minimumAmount->getAmount();
-        $discount->minimum_amount_currency = $minimumAmount->getCurrencyId()->getValue();
-        $discount->minimum_amount_tax = $minimumAmount->isTaxIncluded();
-        $discount->minimum_amount_shipping = $minimumAmount->isShippingIncluded();
-
-        return [
-            'minimum_amount',
-            'minimum_amount_currency',
-            'minimum_amount_tax',
-            'minimum_amount_shipping',
-        ];
     }
 
     /**

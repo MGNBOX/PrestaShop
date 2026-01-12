@@ -71,9 +71,7 @@ class AddDiscountHandler implements AddDiscountHandlerInterface
 
         $this->discountConditionsUpdater->update(
             $newDiscountId,
-            $command->getMinimumProductQuantity(),
             $command->getProductConditions(),
-            $command->getMinimumAmount(),
             $command->getCarrierIds() ? array_map(fn (CarrierId $carrierId) => $carrierId->getValue(), $command->getCarrierIds()) : null,
             $command->getCountryIds() ? array_map(fn (CountryId $countryId) => $countryId->getValue(), $command->getCountryIds()) : null,
             $command->getCustomerGroupIds() ? array_map(fn (GroupId $groupId) => $groupId->getValue(), $command->getCustomerGroupIds()) : null,

@@ -140,6 +140,29 @@ class DiscountFiller
             $updatableProperties[] = 'gift_product_attribute';
         }
 
+        if ($command->isDirty('minimumProductQuantity')) {
+            $cartRule->minimum_product_quantity = $command->getMinimumProductQuantity() ?? 0;
+            $updatableProperties[] = 'minimum_product_quantity';
+        }
+
+        if ($command->isDirty('minimumAmount')) {
+            if (null !== $command->getMinimumAmount()) {
+                $cartRule->minimum_amount = (float) (string) $command->getMinimumAmount()->getAmount();
+                $cartRule->minimum_amount_currency = $command->getMinimumAmount()->getCurrencyId()->getValue();
+                $cartRule->minimum_amount_tax = $command->getMinimumAmount()->isTaxIncluded();
+                $cartRule->minimum_amount_shipping = $command->getMinimumAmount()->isShippingIncluded();
+            } else {
+                $cartRule->minimum_amount = 0;
+                $cartRule->minimum_amount_currency = 0;
+                $cartRule->minimum_amount_tax = false;
+                $cartRule->minimum_amount_shipping = false;
+            }
+            $updatableProperties[] = 'minimum_amount';
+            $updatableProperties[] = 'minimum_amount_currency';
+            $updatableProperties[] = 'minimum_amount_tax';
+            $updatableProperties[] = 'minimum_amount_shipping';
+        }
+
         return $updatableProperties;
     }
 }

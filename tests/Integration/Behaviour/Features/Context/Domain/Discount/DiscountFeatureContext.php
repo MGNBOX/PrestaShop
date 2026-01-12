@@ -482,19 +482,19 @@ class DiscountFeatureContext extends AbstractDomainFeatureContext
         if (null !== $productConditions) {
             $command->setProductConditions($productConditions);
         }
-        // @todo: handle removing this amount
-        if (isset(
-            $data['minimum_amount'],
-            $data['minimum_amount_currency'],
-            $data['minimum_amount_tax_included'],
-            $data['minimum_amount_shipping_included'])
-        ) {
-            $command->setMinimumAmount(
-                new DecimalNumber($data['minimum_amount']),
-                $this->referenceToId($data['minimum_amount_currency']),
-                PrimitiveUtils::castStringBooleanIntoBoolean($data['minimum_amount_tax_included']),
-                PrimitiveUtils::castStringBooleanIntoBoolean($data['minimum_amount_shipping_included']),
-            );
+        if (isset($data['minimum_amount'])) {
+            if (isset($data['minimum_amount_currency'],
+                $data['minimum_amount_tax_included'],
+                $data['minimum_amount_shipping_included'])) {
+                $command->setMinimumAmount(
+                    new DecimalNumber($data['minimum_amount']),
+                    $this->referenceToId($data['minimum_amount_currency']),
+                    PrimitiveUtils::castStringBooleanIntoBoolean($data['minimum_amount_tax_included']),
+                    PrimitiveUtils::castStringBooleanIntoBoolean($data['minimum_amount_shipping_included']),
+                );
+            } elseif (empty($data['minimum_amount'])) {
+                $command->setMinimumAmount(null);
+            }
         }
         if (isset($data['minimum_product_quantity'])) {
             $command->setMinimumProductQuantity((int) $data['minimum_product_quantity']);
@@ -661,7 +661,7 @@ class DiscountFeatureContext extends AbstractDomainFeatureContext
             Assert::assertSame($expectedData['name'], $discountForEditing->getLocalizedNames());
         }
         if (isset($expectedData['minimum_product_quantity'])) {
-            Assert::assertEquals($expectedData['minimum_product_quantity'], $discountForEditing->getMinimumProductQuantity());
+            Assert::assertEquals($expectedData['minimum_product_quantity'], $discountForEditing->getMinimumProductQuantity(), 'Unexpected minimum quantity');
         }
         if (isset($expectedData['minimum_amount'])) {
             if (empty($expectedData['minimum_amount'])) {

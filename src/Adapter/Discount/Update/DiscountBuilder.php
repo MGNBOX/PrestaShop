@@ -91,6 +91,22 @@ class DiscountBuilder
             $cartRule->reduction_product = DiscountSettings::CHEAPEST_PRODUCT;
         }
 
+        if (null !== $command->getMinimumProductQuantity()) {
+            $cartRule->minimum_product_quantity = $command->getMinimumProductQuantity();
+        }
+
+        if (null !== $command->getMinimumAmount()) {
+            $cartRule->minimum_amount = (float) (string) $command->getMinimumAmount()->getAmount();
+            $cartRule->minimum_amount_currency = $command->getMinimumAmount()->getCurrencyId()->getValue();
+            $cartRule->minimum_amount_tax = $command->getMinimumAmount()->isTaxIncluded();
+            $cartRule->minimum_amount_shipping = $command->getMinimumAmount()->isShippingIncluded();
+        } else {
+            $cartRule->minimum_amount = 0;
+            $cartRule->minimum_amount_currency = 0;
+            $cartRule->minimum_amount_tax = false;
+            $cartRule->minimum_amount_shipping = false;
+        }
+
         return $cartRule;
     }
 }
