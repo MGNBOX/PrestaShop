@@ -530,7 +530,7 @@ class CQRSApiSerializerTest extends KernelTestCase
             new DecimalNumber('42.99'),
             1,
             false,
-            true,
+            false,
         );
         $updateDiscountCommand->setReductionAmount(
             new DecimalNumber('34.89'),
@@ -544,7 +544,7 @@ class CQRSApiSerializerTest extends KernelTestCase
                     'amount' => '42.99',
                     'currencyId' => 1,
                     'taxIncluded' => false,
-                    'shippingIncluded' => true,
+                    'shippingIncluded' => false,
                 ],
                 'reductionAmount' => [
                     'amount' => '34.89',
@@ -560,7 +560,7 @@ class CQRSApiSerializerTest extends KernelTestCase
             new DecimalNumber('42.99'),
             1,
             false,
-            true,
+            false,
         );
         $addDiscountCommand->setReductionAmount(
             new DecimalNumber('34.89'),
@@ -575,7 +575,7 @@ class CQRSApiSerializerTest extends KernelTestCase
                     'amount' => '42.99',
                     'currencyId' => 1,
                     'taxIncluded' => false,
-                    'shippingIncluded' => true,
+                    'shippingIncluded' => false,
                 ],
                 'reductionAmount' => [
                     'amount' => '34.89',

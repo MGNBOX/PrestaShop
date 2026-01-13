@@ -295,7 +295,7 @@ class CQRSApiNormalizer extends ObjectNormalizer
         foreach ($reflectionClass->getMethods(ReflectionMethod::IS_PUBLIC) as $reflectionMethod) {
             // We only look into public method that can be setters with multiple parameters
             if (
-                $reflectionMethod->getNumberOfRequiredParameters() <= 1
+                $reflectionMethod->getNumberOfParameters() <= 1
                 || $reflectionMethod->isStatic()
                 || $reflectionMethod->isConstructor()
                 || $reflectionMethod->isDestructor()
