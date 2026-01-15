@@ -122,42 +122,31 @@ class ShipmentRepository extends EntityRepository
         int $orderId,
         int $orderDetailId
     ): void {
-        $em = $this->getEntityManager();
+        $conn = $this->getEntityManager()->getConnection();
 
-        $qb = $em->createQueryBuilder();
-
-        $qb->delete($this->tablePrefix . 'shipment_product', 'sp')
-            ->where('sp.id_order_detail = :orderDetailId')
+        // Delete shipment products
+        $conn->createQueryBuilder()
+            ->delete($this->tablePrefix . 'shipment_product')
+            ->where('id_order_detail = :orderDetailId')
             ->andWhere(
-                $qb->expr()->in(
-                    'sp.id_shipment',
-                    $em->createQueryBuilder()
-                        ->select('s.id')
-                        ->from($this->tablePrefix . 'shipment', 's')
-                        ->where('s.id_order = :orderId')
-                        ->getDQL()
-                )
+                'id_shipment IN (
+                    SELECT id_shipment FROM ' . $this->tablePrefix . 'shipment WHERE id_order = :orderId
+                )'
             )
             ->setParameter('orderDetailId', $orderDetailId)
             ->setParameter('orderId', $orderId)
-            ->getQuery()
-            ->execute();
+            ->executeStatement();
 
-        $qb = $em->createQueryBuilder();
-
-        $qb->delete($this->tablePrefix . 'shipment', 's')
-            ->where('s.id_order = :orderId')
+        // Delete empty shipments
+        $conn->createQueryBuilder()
+            ->delete($this->tablePrefix . 'shipment')
+            ->where('id_order = :orderId')
             ->andWhere(
-                $qb->expr()->notIn(
-                    's.id',
-                    $em->createQueryBuilder()
-                        ->select('IDENTITY(sp.id_shipment)')
-                        ->from($this->tablePrefix . 'shipment_product', 'sp')
-                        ->getDQL()
-                )
+                'id_shipment NOT IN (
+                    SELECT DISTINCT id_shipment FROM ' . $this->tablePrefix . 'shipment_product
+                )'
             )
             ->setParameter('orderId', $orderId)
-            ->getQuery()
-            ->execute();
+            ->executeStatement();
     }
 }

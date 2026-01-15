@@ -51,7 +51,7 @@ class DeleteShipmentProductFromOrderHandler implements DeleteShipmentProductFrom
         try {
             $this->shipmentRepository->removeShipmentProductByOrderAndOrderDetail($orderId, $orderDetailId);
         } catch (Exception $e) {
-            throw new ShipmentException(sprintf('Failed to delete products from order with id "%s"', $orderId), 0, $e);
+            throw new ShipmentException(sprintf('Failed to delete shipment product from order with id "%s"', $orderId), 0, $e);
         }
     }
 }

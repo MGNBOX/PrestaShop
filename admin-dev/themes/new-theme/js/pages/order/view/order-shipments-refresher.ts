@@ -1,4 +1,3 @@
-<?php
 /**
  * Copyright since 2007 PrestaShop SA and Contributors
  * PrestaShop is an International Registered Trademark & Property of PrestaShop SA
@@ -24,13 +23,23 @@
  * @license   https://opensource.org/licenses/OSL-3.0 Open Software License (OSL 3.0)
  */
 
-declare(strict_types=1);
+import Router from '@components/router';
+import OrderViewPageMap from '@pages/order/OrderViewPageMap';
 
-namespace PrestaShop\PrestaShop\Core\Domain\Shipment\CommandHandler;
+const {$} = window;
 
-use PrestaShop\PrestaShop\Core\Domain\Shipment\Command\DeleteShipmentProductFromOrder;
+export default class OrderShipmentsRefresher {
+  router: Router;
 
-interface DeleteShipmentProductFromOrderHandlerInterface
-{
-    public function handle(DeleteShipmentProductFromOrder $command): void;
+  constructor() {
+    this.router = new Router();
+  }
+
+  refresh(orderId: number): void {
+    $.getJSON(this.router.generate('admin_orders_get_shipments', {orderId}))
+      .then((response) => {
+        $(OrderViewPageMap.orderShipmentsTabCount).text(response.total);
+        $(OrderViewPageMap.orderShipmentsTabBody).html(response.html);
+      });
+  }
 }
