@@ -877,10 +877,21 @@ class OrderController extends PrestaShopAdminController
      */
     private function checkFormValidity(array $products): bool
     {
-        $allSelected = array_reduce($products, fn ($carry, $product) => $carry && ($product['selected'] ?? false), true);
-        $allQuantitiesMatch = array_reduce($products, fn ($carry, $product) => $carry && (($product['selected_quantity'] ?? 0) === $product['quantity']), true);
+        $hasAtLeastOneSelected = false;
 
-        return !($allSelected && $allQuantitiesMatch);
+        foreach ($products as $product) {
+            if (!empty($product['selected'])) {
+                $hasAtLeastOneSelected = true;
+
+                $selectedQuantity = $product['selected_quantity'] ?? 0;
+
+                if ($selectedQuantity > $product['quantity']) {
+                    return false;
+                }
+            }
+        }
+
+        return $hasAtLeastOneSelected;
     }
 
     private function isShipmentShipped(int $orderId, int $shipmentId): bool
