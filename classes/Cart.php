@@ -2335,9 +2335,9 @@ class CartCore extends ObjectModel
         $calculator = new Calculator(
             $this,
             $id_carrier,
-            $container->get(FeatureFlagStateCheckerInterface::class),
             $computePrecision,
-            $orderId
+            $orderId,
+            $container->get(FeatureFlagStateCheckerInterface::class),
         );
 
         /** @var PriceCalculator $priceCalculator */
