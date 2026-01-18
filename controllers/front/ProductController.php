@@ -1188,6 +1188,16 @@ class ProductControllerCore extends ProductPresentingFrontControllerCore
 
         // Assign several product properties to the array
         $product['description'] = $this->transformDescriptionWithImg($this->product->description);
+
+        /*
+         * This property is not a product property, but value from stock_available table. It must be here because on this page,
+         * it's not initialized in any other way. On listings, it goes through ProductAssembler and the property is included.
+         * In cart, it's also in the selected fields. But not here.
+         *
+         * We could centralize it right now, but the call StockAvailable::outOfStock($this->id) would still be called
+         * when constructing a Product object, so, let's just migrate it all at once later.
+         */
+        $product['out_of_stock'] = (int) $this->product->out_of_stock;
         $product['id_product_attribute'] = $this->getIdProductAttributeByGroupOrRequestOrDefault();
 
         // @todo These three properties should be migrated into the lazy array, so they are available also in listings
@@ -1198,9 +1208,11 @@ class ProductControllerCore extends ProductPresentingFrontControllerCore
         $product['cart_quantity'] = $this->context->cart->getProductQuantity((int) $this->product->id, $product['id_product_attribute'])['quantity'];
 
         // Quantity requested by the customer by the quantity input on product page - may be force-altered by us
+        // @todo - a centralized version of this method is implemented in ProductLazyArray - migrate to it when migrating this code
         $product['quantity_wanted'] = $this->getWantedQuantity($product);
 
         // Required quantity to add to cart to reach minimal quantity
+        // @todo - a centralized version of this method is implemented in ProductLazyArray - migrate to it when migrating this code
         $product['quantity_required'] = $this->getRequiredQuantity($product);
 
         // Render hook displayProductExtraContent
@@ -1247,22 +1259,26 @@ class ProductControllerCore extends ProductPresentingFrontControllerCore
      *
      * @param array $product
      *
-     * @return int
+     * @return int Minimal quantity of product from it's settings, always a positive integer
      */
     protected function getProductMinimalQuantity(ProductLazyArray|array $product)
     {
-        $minimal_quantity = 1;
+        $minimalQuantity = 1;
 
         if ($product['id_product_attribute']) {
             $combination = $this->findProductCombinationById($product['id_product_attribute']);
             if ($combination['minimal_quantity']) {
-                $minimal_quantity = $combination['minimal_quantity'];
+                $minimalQuantity = (int) $combination['minimal_quantity'];
             }
         } else {
-            $minimal_quantity = $this->product->minimal_quantity;
+            $minimalQuantity = (int) $this->product->minimal_quantity;
         }
 
-        return $minimal_quantity;
+        if ($minimalQuantity < 1) {
+            $minimalQuantity = 1;
+        }
+
+        return $minimalQuantity;
     }
 
     /**
@@ -1317,15 +1333,16 @@ class ProductControllerCore extends ProductPresentingFrontControllerCore
      * if the minimal quantity is higher. Also, we adjust it by the quantity already in cart.
      *
      * @todo This method should be migrated to ProductLazyArray, so it's available also in listings.
+     *       It's already implemented there.
      *
      * @param array $product
      *
-     * @return int
+     * @return int Minimal quantity of product the customer buy right now, always a positive integer
      */
     protected function getRequiredQuantity(ProductLazyArray|array $product)
     {
         // For the required quantity, we will need to limit it by the minimal quantity on the low side.
-        $minimalRequiredQuantityForPurchase = $this->getProductMinimalQuantity($product);
+        $requiredQuantityForPurchase = $this->getProductMinimalQuantity($product);
 
         /*
          * We reduce it by the quantity we already have in cart. If the user already has a sufficient
@@ -1334,19 +1351,25 @@ class ProductControllerCore extends ProductPresentingFrontControllerCore
          * may not be the correct one.
          */
         if (!empty($product['cart_quantity'])) {
-            $minimalRequiredQuantityForPurchase -= $product['cart_quantity'];
+            $requiredQuantityForPurchase -= $product['cart_quantity'];
+            if ($requiredQuantityForPurchase < 1) {
+                $requiredQuantityForPurchase = 1;
+            }
         }
 
-        return $minimalRequiredQuantityForPurchase;
+        return $requiredQuantityForPurchase;
     }
 
     /**
      * Gets the quantity wanted by the customer for the product. We will take his request,
      * but we will adjust it if it's lower than the required quantity.
      *
+     * @todo This method should be migrated to ProductLazyArray, so it's available also in listings.
+     *       It's already implemented there.
+     *
      * @param array $product
      *
-     * @return int
+     * @return int Quantity of product requested by the customer, altered if needed, always a positive integer
      */
     public function getWantedQuantity(ProductLazyArray|array $product): int
     {
@@ -1354,10 +1377,11 @@ class ProductControllerCore extends ProductPresentingFrontControllerCore
         $quantityWantedByTheCustomer = (int) Tools::getValue('quantity_wanted', 1);
 
         // Get minimal required quantity for purchase
-        $minimalRequiredQuantityForPurchase = $this->getRequiredQuantity($product);
+        $requiredQuantityForPurchase = $this->getRequiredQuantity($product);
 
-        if ($quantityWantedByTheCustomer < $minimalRequiredQuantityForPurchase) {
-            $quantityWantedByTheCustomer = $minimalRequiredQuantityForPurchase;
+        // If the wanted quantity is lower than the required, we adjust it
+        if ($quantityWantedByTheCustomer < $requiredQuantityForPurchase) {
+            $quantityWantedByTheCustomer = $requiredQuantityForPurchase;
         }
 
         return $quantityWantedByTheCustomer;
