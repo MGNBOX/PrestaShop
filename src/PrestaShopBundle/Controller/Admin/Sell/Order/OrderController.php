@@ -529,7 +529,6 @@ class OrderController extends PrestaShopAdminController
             'currency_id' => $orderForViewing->getCurrencyId(),
             'symbol' => $orderCurrency->symbol,
             'is_multishipment_is_enabled' => $featureFlagStateChecker->isEnabled(FeatureFlagSettings::FEATURE_FLAG_IMPROVED_SHIPMENT),
-            'product_id' => 0,
         ]);
 
         $editProductRowForm = $this->createForm(EditProductRowType::class, [], [

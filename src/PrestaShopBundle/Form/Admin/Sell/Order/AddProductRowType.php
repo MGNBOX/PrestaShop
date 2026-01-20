@@ -80,11 +80,9 @@ class AddProductRowType extends TranslatorAwareType
         if ($options['is_multishipment_is_enabled'] === true) {
             $builder->add('addShipment', ChoiceType::class, [
                 'label' => $this->trans('Select a shipment', 'Admin.Orderscustomers.Feature'),
-                'choices' => [],
                 'disabled' => true,
                 'attr' => [
                     'class' => 'custom-select',
-                    'data-disabled-until-product-selected' => true,
                 ],
             ]);
         }
@@ -178,11 +176,9 @@ class AddProductRowType extends TranslatorAwareType
                 'order_id' => null,
                 'currency_id' => null,
                 'is_multishipment_is_enabled' => false,
-                'product_id' => null,
             ])
             ->setAllowedTypes('order_id', ['int', 'null'])
             ->setAllowedTypes('currency_id', ['int', 'null'])
-            ->setAllowedTypes('product_id', ['int', 'null'])
             ->setAllowedTypes('is_multishipment_is_enabled', ['bool'])
             ->setAllowedTypes('symbol', ['string'])
         ;
