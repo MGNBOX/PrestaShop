@@ -354,7 +354,7 @@ describe('BO - Catalog - Products : Details tab', async () => {
     it('should check that product features list is empty', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'isFeatureBlockNotVisible', baseContext);
 
-      const isVisible = await foClassicProductPage.isFeaturesBlockVisible(page);
+      const isVisible = await foClassicProductPage.hasProductFeaturesList(page);
       expect(isVisible).to.eq(false);
     });
 
