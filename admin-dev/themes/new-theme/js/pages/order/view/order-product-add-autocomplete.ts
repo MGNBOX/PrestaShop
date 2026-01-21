@@ -170,16 +170,13 @@ export default class OrderProductAutocomplete {
       })
       .then((data) => {
         this.selectShipment.empty();
-        const shipments = data.shipments as Record<string, number>;
 
-        Object.entries(shipments).forEach(
-          ([label, value]) => {
-            if (value !== 0) {
-              this.selectShipment.append(
-                $('<option></option>').val(value).text(label)
-              );
-            }
-          }
+        data.shipments.forEach(
+          ({ id, name }: { id: number; name: string }) => {
+            this.selectShipment.append(
+              $('<option></option>').val(id).text(name),
+            );
+          },
         );
 
         this.selectShipment.prop('disabled', false);

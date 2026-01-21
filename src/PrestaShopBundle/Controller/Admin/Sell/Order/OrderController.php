@@ -94,6 +94,7 @@ use PrestaShop\PrestaShop\Core\Domain\Shipment\Exception\ShipmentException;
 use PrestaShop\PrestaShop\Core\Domain\Shipment\Query\GetOrderShipments;
 use PrestaShop\PrestaShop\Core\Domain\Shipment\Query\GetShipmentForEditing;
 use PrestaShop\PrestaShop\Core\Domain\Shipment\Query\GetShipmentProducts;
+use PrestaShop\PrestaShop\Core\Domain\Shipment\Query\ListAvailableShipmentsForProduct;
 use PrestaShop\PrestaShop\Core\Domain\Shipment\QueryResult\OrderShipment;
 use PrestaShop\PrestaShop\Core\Domain\Shipment\QueryResult\OrderShipmentProduct;
 use PrestaShop\PrestaShop\Core\Domain\Shipment\QueryResult\ShipmentForEditing;
@@ -888,13 +889,8 @@ class OrderController extends PrestaShopAdminController
     public function getShipmentsForProduct(
         int $orderId,
         int $productId,
-        #[Autowire(service: 'PrestaShop\PrestaShop\Adapter\Form\ChoiceProvider\AvailableShipmentForProductChoiceProvider')] ConfigurableFormChoiceProviderInterface $shipmentChoiceProvider
-    ): Response
-    {
-        $shipments = $shipmentChoiceProvider->getChoices([
-            'order_id' => $orderId,
-            'product_id' => $productId,
-        ]);
+    ): Response {
+        $shipments = $this->dispatchCommand(new ListAvailableShipmentsForProduct($orderId, $productId));
 
         return $this->json(
             ['shipments' => $shipments],
@@ -1446,6 +1442,29 @@ class OrderController extends PrestaShopAdminController
             'orderForViewing' => $orderForViewing,
             'product' => $product,
         ]);
+    }
+
+    public function getCarriersAction(int $orderId): Response
+    {
+        try {
+            /** @var OrderForViewing $orderForViewing */
+            $orderForViewing = $this->dispatchQuery(new GetOrderForViewing($orderId));
+            $carriers = $orderForViewing->getShipping()->getCarriers();
+
+            $carrierList = [];
+            foreach ($carriers as $carrier) {
+                $carrierList[] = [
+                    'id' => $carrier->getCarrierId(),
+                    'name' => $carrier->getName(),
+                ];
+            }
+
+            return $this->json(['carriers' => $carrierList]);
+        } catch (OrderNotFoundException $e) {
+            return $this->json(['message' => 'Order not found'], Response::HTTP_NOT_FOUND);
+        } catch (Exception $e) {
+            return $this->json(['message' => 'An error occurred'], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
 
     /**
