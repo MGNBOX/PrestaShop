@@ -344,6 +344,7 @@ GitHub contributors:
 - Georges Cubas
 - Gerdus van Zyl
 - ggedamed
+- Giuseppe Tripiciano
 - Giant Leap Lab
 - Ginkosama
 - ginodev
@@ -399,6 +400,7 @@ GitHub contributors:
 - indesign47
 - Ines Sallemi
 - Inetbiz
+- Inform-All
 - ironwo0d
 - Ish Gupta
 - Ishiki
@@ -847,6 +849,7 @@ GitHub contributors:
 - Salim Benouamer
 - Sam Berry
 - sallemiines
+- Salvo Passaro
 - Sam
 - Sam Sanchez
 - Samir Shah
