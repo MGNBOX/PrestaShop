@@ -2,26 +2,33 @@
 import testContext from '@utils/testContext';
 
 // Import common tests
-import {enableTheme, disableTheme} from '@commonTests/BO/design/hummingbird';
 import setFeatureFlag from '@commonTests/BO/advancedParameters/newFeatures';
-import {deleteProductTest} from "@commonTests/BO/catalog/product";
+import {deleteProductTest} from '@commonTests/BO/catalog/product';
+import {disableTheme, enableTheme} from '@commonTests/BO/design/hummingbird';
 
 import {
-  type BrowserContext,
-  dataCarriers,
-  dataProducts,
   dataCustomers,
   dataAddresses,
   dataPaymentMethods,
   dataOrderStatuses,
+  dataZones,
   FakerProduct,
   FakerOrder,
   FakerCarrier,
-  dataZones,
-  foHummingbirdCartPage,
-  foHummingbirdCheckoutPage,
-  foHummingbirdHomePage,
-  foHummingbirdProductPage,
+  foClassicCartPage,
+  foClassicCheckoutPage,
+  foClassicHomePage,
+  foClassicSearchResultsPage,
+  foClassicLoginPage,
+  foClassicCheckoutOrderConfirmationPage,
+  foClassicModalQuickViewPage,
+  foClassicModalBlockCartPage,
+  foClassicMyAddressesPage,
+  foClassicMyAccountPage,
+  foClassicMyOrderHistoryPage,
+  foClassicMyOrderDetailsPage,
+  boOrdersPage,
+  boOrdersViewBlockTabListPage,
   boFeatureFlagPage,
   boLoginPage,
   boDashboardPage,
@@ -30,42 +37,45 @@ import {
   boProductsPage,
   boProductsCreatePage,
   boProductsCreateTabShippingPage,
+  boOrderSettingsPage,
   type Page,
+  type BrowserContext,
   utilsPlaywright,
   utilsFile,
 } from '@prestashop-core/ui-testing';
 
 import {expect} from 'chai';
-import {boOrderSettingsPage} from "@prestashop-core/ui-testing";
-import {utilsCore} from "@prestashop-core/ui-testing";
-import {foHummingbirdSearchResultsPage} from "@prestashop-core/ui-testing";
-import {foHummingbirdLoginPage} from "@prestashop-core/ui-testing";
-import {foHummingbirdCheckoutOrderConfirmationPage} from "@prestashop-core/ui-testing";
-import {foHummingbirdModalQuickViewPage} from "@prestashop-core/ui-testing";
-import {foHummingbirdModalBlockCartPage} from "@prestashop-core/ui-testing";
 
-const baseContext: string = 'functional_FO_hummingbird_checkout_shippingMethods_multicarrier';
+const baseContext: string = 'functional_FO_classic_checkout_orderConfirmation_multicarrier';
 
 /*
 Pre-condition:
+- Enable the theme classic
 - Enable multiCarrier
 - Create 2 carriers
 - Create 3 product
-- Enable Hummingbird
+- Enable Classic
 - Enable final summary
 Scenario:
-
+- Add the created products to the cart
+- Check products and shipment data in delivery step
+- Check products and shipment data in payment step
+- Check products and shipment data in payment confirmation page
+- Check products and shipment data in order details page
+- Add tracking number in BO then check it in FO
 Post-condition:
+- Disable the theme classic
 - Disable multiCarrier
 - Delete products
 - Delete carriers
-- Disable Hummingbird
+- Disable Classic
 - Disable final summary
  */
 
 describe('FO - Checkout - Shipping methods : MultiCarrier', async () => {
   let browserContext: BrowserContext;
   let page: Page;
+  let secondCarrierId: string = '1';
 
   const firstCarrierData: FakerCarrier = new FakerCarrier({
     // General settings
@@ -215,10 +225,13 @@ describe('FO - Checkout - Shipping methods : MultiCarrier', async () => {
     ]);
   });
 
-  // 1 - Pre-condition: Enable improved_shipment
-  /*setFeatureFlag(boFeatureFlagPage.featureFlagImprovedShipment, true, `${baseContext}_preTest`);
+  // 1 - Pre-condition : Enable the theme classic
+  enableTheme('classic', `${baseContext}_preTest_0`);
 
-  // 2 - Pre-condition: Create 2 carriers
+  // 2 - Pre-condition: Enable improved_shipment
+  setFeatureFlag(boFeatureFlagPage.featureFlagImprovedShipment, true, `${baseContext}_preTest`);
+
+  // 3 - Pre-condition: Create 2 carriers
   describe('Pre-condition: Create 2 carriers', async () => {
     it('should login in BO', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'loginBO', baseContext);
@@ -289,7 +302,7 @@ describe('FO - Checkout - Shipping methods : MultiCarrier', async () => {
     });
   });
 
-  // 3 - Pre-condition: Create 4 products
+  // 4 - Pre-condition: Create 4 products
   describe('Pre-condition: Create 4 products', async () => {
     it('should go to \'Catalog > Products\' page', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'goToProductsPage', baseContext);
@@ -404,9 +417,27 @@ describe('FO - Checkout - Shipping methods : MultiCarrier', async () => {
       const message = await boProductsCreatePage.saveProduct(page);
       expect(message).to.eq(boProductsCreatePage.successfulUpdateMessage);
     });
+
+    it('should click on new product button', async function () {
+      await testContext.addContextItem(this, 'testIdentifier', 'duplicateProduct3', baseContext);
+
+      await boProductsCreatePage.clickOnNewProductButton(page);
+
+      const pageTitle = await boProductsCreatePage.getPageTitle(page);
+      expect(pageTitle).to.contains(boProductsCreatePage.pageTitle);
+    });
+
+    it('should edit the third duplicated product', async function () {
+      await testContext.addContextItem(this, 'testIdentifier', 'editFourthProduct', baseContext);
+
+      await boProductsCreatePage.chooseProductType(page, productVData.type);
+
+      const createProductMessage = await boProductsCreatePage.setProduct(page, productVData);
+      expect(createProductMessage).to.equal(boProductsCreatePage.successfulUpdateMessage);
+    });
   });
 
-  // 4 - Enable final summary
+  // 5 - Enable final summary
   describe('Pre-condition: Enable final summary', async () => {
     it('should go to \'Shop Parameters > Order Settings\' page', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'goToOrderSettingsPage', baseContext);
@@ -430,145 +461,415 @@ describe('FO - Checkout - Shipping methods : MultiCarrier', async () => {
     });
   });
 
-  // 5 - Pre-condition : Install Hummingbird
-  enableTheme('hummingbird', `${baseContext}_preTest_0`);*/
+  // 6 - Get created carriers ID
+  describe('Pre-condition: Get created carriers id', async () => {
+    it('should go to \'Shipping> Carriers\' page', async function () {
+      await testContext.addContextItem(this, 'testIdentifier', 'goToCarriersPage3', baseContext);
 
-  before(async function () {
-    browserContext = await utilsPlaywright.createBrowserContext(this.browser);
-    page = await utilsPlaywright.newTab(browserContext);
+      await boDashboardPage.goToSubMenu(
+        page,
+        boDashboardPage.shippingLink,
+        boDashboardPage.carriersLink,
+      );
+
+      const pageTitle = await boCarriersPage.getPageTitle(page);
+      expect(pageTitle).to.contains(boCarriersPage.pageTitle);
+    });
+
+    it('should filter by the second created carrier name', async function () {
+      await testContext.addContextItem(this, 'testIdentifier', 'filterSecondCarrier', baseContext);
+
+      await boCarriersPage.filterTable(page, 'input', 'name', secondCarrierData.name);
+      secondCarrierId = await boCarriersPage.getTextColumn(page, 1, 'id_carrier');
+    });
+
+    it('should reset all filters', async function () {
+      await testContext.addContextItem(this, 'testIdentifier', 'resetFilter', baseContext);
+
+      const numberOfCarriersAfterReset = await boCarriersPage.resetAndGetNumberOfLines(page);
+      expect(numberOfCarriersAfterReset).to.not.equal(4);
+    });
   });
 
-  after(async () => {
-    await utilsPlaywright.closeBrowserContext(browserContext);
-  });
-
-  describe('Create order and check multicarrier', async () => {
+  // Steps
+  describe('Add the created products to the cart', async () => {
     it('should go to FO', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'goToFO', baseContext);
 
-      await foHummingbirdHomePage.goToFo(page);
+      await foClassicHomePage.goToFo(page);
 
-      const isHomePage = await foHummingbirdHomePage.isHomePage(page);
+      const isHomePage = await foClassicHomePage.isHomePage(page);
       expect(isHomePage).to.eq(true);
     });
 
     it('should go to login page', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'goToLoginPageFO', baseContext);
 
-      await foHummingbirdHomePage.goToLoginPage(page);
+      await foClassicHomePage.goToLoginPage(page);
 
-      const pageTitle = await foHummingbirdLoginPage.getPageTitle(page);
-      expect(pageTitle, 'Fail to open FO login page').to.contains(foHummingbirdLoginPage.pageTitle);
+      const pageTitle = await foClassicLoginPage.getPageTitle(page);
+      expect(pageTitle, 'Fail to open FO login page').to.contains(foClassicLoginPage.pageTitle);
     });
 
     it('should sign in with customer credentials', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'signInFO', baseContext);
 
-      await foHummingbirdLoginPage.customerLogin(page, orderData.customer);
+      await foClassicLoginPage.customerLogin(page, orderData.customer);
 
-      const isCustomerConnected = await foHummingbirdLoginPage.isCustomerConnected(page);
+      const isCustomerConnected = await foClassicLoginPage.isCustomerConnected(page);
       expect(isCustomerConnected, 'Customer is not connected').to.eq(true);
     });
 
     [
-      {args: {productData: orderData.products[0]}},
-      {args: {productData: orderData.products[1]}},
-      {args: {productData: orderData.products[2]}},
-      {args: {productData: orderData.products[3]}},
+      {args: {orderToMake: orderData.products[0]}},
+      {args: {orderToMake: orderData.products[1]}},
+      {args: {orderToMake: orderData.products[2]}},
+      {args: {orderToMake: orderData.products[3]}},
     ].forEach((test, index) => {
-      it(`should add the product '${test.args.productData.product.name}' to cart`, async function () {
+      it(`should search for the product '${test.args.orderToMake.product.name}'`, async function () {
         await testContext.addContextItem(this, 'testIdentifier', `addProductToCart${index}`, baseContext);
 
         // Go to home page
-        await foHummingbirdLoginPage.goToHomePage(page);
-        await foHummingbirdHomePage.searchProduct(page, test.args.productData.product.name);
-        await foHummingbirdModalQuickViewPage.setQuantityAndAddToCart(page, test.args.productData.product.quantity);
+        await foClassicLoginPage.goToHomePage(page);
+        await foClassicHomePage.searchProduct(page, test.args.orderToMake.product.name);
       });
 
-      it('should click on continue shopping and check that the modal is not visible', async function () {
-        await testContext.addContextItem(this, 'testIdentifier', `clickOnContinueShopping${index}`, baseContext);
+      it('should quick view the product', async function () {
+        await testContext.addContextItem(this, 'testIdentifier', `quickView${index}`, baseContext);
 
-        const isNotVisible = await foHummingbirdModalBlockCartPage.continueShopping(page);
-        expect(isNotVisible).to.eq(true);
+        await foClassicSearchResultsPage.quickViewProduct(page, 1);
+
+        const isModalVisible = await foClassicModalQuickViewPage.isQuickViewProductModalVisible(page);
+        expect(isModalVisible).to.eq(true);
+      });
+
+      it('should set quantity and add to cart', async function () {
+        await testContext.addContextItem(this, 'testIdentifier', `setQuantityAndAddToCart${index}`, baseContext);
+
+        await foClassicModalQuickViewPage.setQuantityAndAddToCart(page, test.args.orderToMake.quantity);
+
+        const isQuickViewModalClosed = await foClassicModalBlockCartPage.closeBlockCartModal(page);
+        expect(isQuickViewModalClosed).to.eq(true);
       });
     });
 
     it('should check the cart notifications number', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'checkNotificationsNumber', baseContext);
 
-      const notificationsNumber = await foHummingbirdHomePage.getCartNotificationsNumber(page);
+      const notificationsNumber = await foClassicHomePage.getCartNotificationsNumber(page);
       expect(notificationsNumber).to.equal(11);
+    });
+  });
+
+  describe('Check products and shipment data in delivery step', async () => {
+    it('should go to the shopping cart page', async function () {
+      await testContext.addContextItem(this, 'testIdentifier', 'goToShoppingCartPage', baseContext);
+
+      await foClassicMyAddressesPage.goToCartPage(page);
+
+      const pageTitle = await foClassicCartPage.getPageTitle(page);
+      expect(pageTitle).to.equal(foClassicCartPage.pageTitle);
     });
 
     it('should proceed to checkout and go to checkout page', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'proceedToCheckout', baseContext);
 
-      await foHummingbirdCartPage.clickOnProceedToCheckout(page);
+      await foClassicCartPage.clickOnProceedToCheckout(page);
 
-      const isCheckoutPage = await foHummingbirdCheckoutPage.isCheckoutPage(page);
+      const isCheckoutPage = await foClassicCheckoutPage.isCheckoutPage(page);
       expect(isCheckoutPage).to.eq(true);
     });
 
     it('should go to delivery step', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'goToDeliveryStep', baseContext);
 
-      // Proceed to checkout the shopping cart
-      await foHummingbirdCartPage.clickOnProceedToCheckout(page);
-
       // Address step - Go to delivery step
-      const isStepAddressComplete = await foHummingbirdCheckoutPage.goToDeliveryStep(page);
-      expect(isStepAddressComplete, 'Step Address is not complete').to.eq(true);
+      const isStepAddressComplete = await foClassicCheckoutPage.goToDeliveryStep(page);
+      expect(isStepAddressComplete, 'Step Address is not complete').to.equal(true);
     });
 
-    it('should check the first carrier data', async function () {
+    it('should check the carrier data', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'checkFirstCarrierData', baseContext);
 
-      const carrierData = await foHummingbirdCheckoutPage.getCarrierData(page, 1);
-      console.log(carrierData.name);
-      console.log(carrierData.transitName);
-      console.log(carrierData.priceText);
-
-      /*await Promise.all([
-        expect(carrierData.name).to.equal(dataCarriers.clickAndCollect.name),
-        expect(carrierData.transitName).to.equal(dataCarriers.clickAndCollect.transitName),
+      const carrierData = await foClassicCheckoutPage.getCarrierData(page, parseInt(secondCarrierId, 10));
+      await Promise.all([
+        expect(carrierData.name).to.equal(`${firstCarrierData.name}, ${secondCarrierData.name}`),
+        expect(carrierData.transitName).to.equal(`${firstCarrierData.transitName}, ${secondCarrierData.transitName}`),
         expect(carrierData.priceText).to.equal('Free'),
-      ]);*/
+      ]);
     });
+  });
 
+  describe('Check products and shipment data in payment step', async () => {
     it('should go to payment step', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'goToPaymentStep', baseContext);
 
       // Delivery step - Go to payment step
-      const isStepDeliveryComplete = await foHummingbirdCheckoutPage.goToPaymentStep(page);
+      const isStepDeliveryComplete = await foClassicCheckoutPage.goToPaymentStep(page);
       expect(isStepDeliveryComplete, 'Step Address is not complete').to.eq(true);
     });
 
+    it('should check the first product in the list and the delivery option', async function () {
+      await testContext.addContextItem(this, 'testIdentifier', 'checkFirstProduct', baseContext);
+
+      const firstProduct = await foClassicCheckoutPage.getOrderConfirmationProduct(page, 1);
+      expect(firstProduct).to.equal(firstProductData.name);
+
+      const firstCarrier = await foClassicCheckoutPage.getOrderConfirmationCarrierInfo(page, 1);
+      expect(firstCarrier).to.equal(`Carrier: ${firstCarrierData.name}`);
+    });
+
+    it('should check the second product in the list and the delivery option', async function () {
+      await testContext.addContextItem(this, 'testIdentifier', 'checkSecondProduct', baseContext);
+
+      const firstCarrier = await foClassicCheckoutPage.getOrderConfirmationCarrierInfo(page, 2);
+      expect(firstCarrier).to.equal(`Carrier: ${firstCarrierData.name}`);
+
+      const secondProduct = await foClassicCheckoutPage.getOrderConfirmationProduct(page, 2);
+      expect(secondProduct).to.contain(thirdProductData.name);
+    });
+
+    it('should check the third product in the list and the delivery option', async function () {
+      await testContext.addContextItem(this, 'testIdentifier', 'checkThirdProduct', baseContext);
+
+      const secondCarrier = await foClassicCheckoutPage.getOrderConfirmationCarrierInfo(page, 3);
+      expect(secondCarrier).to.contains(`Carrier: ${secondCarrierData.name}`);
+
+      const thirdProduct = await foClassicCheckoutPage.getOrderConfirmationProduct(page, 3);
+      expect(thirdProduct).to.contain(secondProductData.name);
+    });
+
+    it('should check that the virtual product has no delivery service', async function () {
+      await testContext.addContextItem(this, 'testIdentifier', 'checkVirtualProductNoDeliveryService', baseContext);
+
+      const deliveryOption = await foClassicCheckoutPage.getOrderConfirmationVirtualInfo(page, 4);
+      expect(deliveryOption).to.contain('Virtual product, no delivery service.');
+
+      const virtualProduct = await foClassicCheckoutPage.getOrderConfirmationProduct(page, 4);
+      expect(virtualProduct).to.contain(productVData.name);
+    });
+  });
+
+  describe('Check products and shipment data in payment confirmation page', async () => {
     it('should choose payment method and confirm the order', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'confirmOrder', baseContext);
 
       // Payment step - Choose payment step
-      await foHummingbirdCheckoutPage.choosePaymentAndOrder(page, orderData.paymentMethod.moduleName);
+      await foClassicCheckoutPage.choosePaymentAndOrder(page, orderData.paymentMethod.moduleName);
 
       // Check the confirmation message
-      const cardTitle = await foHummingbirdCheckoutOrderConfirmationPage.getOrderConfirmationCardTitle(page);
-      expect(cardTitle).to.contains(foHummingbirdCheckoutOrderConfirmationPage.orderConfirmationCardTitle);
+      const cardTitle = await foClassicCheckoutOrderConfirmationPage.getOrderConfirmationCardTitle(page);
+      expect(cardTitle).to.contains(foClassicCheckoutOrderConfirmationPage.orderConfirmationCardTitle);
+    });
+
+    it('should check the first product in the list and the delivery option', async function () {
+      await testContext.addContextItem(this, 'testIdentifier', 'checkFirstProduct2', baseContext);
+
+      const firstProduct = await foClassicCheckoutPage.getOrderConfirmationProduct(page, 1);
+      expect(firstProduct).to.equal(firstProductData.name);
+
+      const firstCarrier = await foClassicCheckoutPage.getOrderConfirmationCarrierInfo(page, 1);
+      expect(firstCarrier).to.equal(`Carrier: ${firstCarrierData.name}`);
+    });
+
+    it('should check the second product in the list and the delivery option', async function () {
+      await testContext.addContextItem(this, 'testIdentifier', 'checkSecondProduct2', baseContext);
+
+      const firstCarrier = await foClassicCheckoutPage.getOrderConfirmationCarrierInfo(page, 2);
+      expect(firstCarrier).to.equal(`Carrier: ${firstCarrierData.name}`);
+
+      const secondProduct = await foClassicCheckoutPage.getOrderConfirmationProduct(page, 2);
+      expect(secondProduct).to.contain(thirdProductData.name);
+    });
+
+    it('should check the third product in the list and the delivery option', async function () {
+      await testContext.addContextItem(this, 'testIdentifier', 'checkThirdProduct2', baseContext);
+
+      const secondCarrier = await foClassicCheckoutPage.getOrderConfirmationCarrierInfo(page, 3);
+      expect(secondCarrier).to.contains(`Carrier: ${secondCarrierData.name}`);
+
+      const thirdProduct = await foClassicCheckoutPage.getOrderConfirmationProduct(page, 3);
+      expect(thirdProduct).to.contain(secondProductData.name);
+    });
+
+    it('should check that the virtual product has no delivery service', async function () {
+      await testContext.addContextItem(this, 'testIdentifier', 'checkVirtualProductNoDeliveryService2', baseContext);
+
+      const deliveryOption = await foClassicCheckoutPage.getOrderConfirmationVirtualInfo(page, 4);
+      expect(deliveryOption).to.contain('Virtual product, no delivery service.');
+
+      const virtualProduct = await foClassicCheckoutPage.getOrderConfirmationProduct(page, 4);
+      expect(virtualProduct).to.contain(productVData.name);
+    });
+  });
+
+  describe('Check products and shipment data in order details page', async () => {
+    it('should go to order history page', async function () {
+      await testContext.addContextItem(this, 'testIdentifier', 'goToOrderHistoryPage', baseContext);
+
+      await foClassicHomePage.goToMyAccountPage(page);
+      await foClassicMyAccountPage.goToHistoryAndDetailsPage(page);
+
+      const pageHeaderTitle = await foClassicMyOrderHistoryPage.getPageTitle(page);
+      expect(pageHeaderTitle).to.equal(foClassicMyOrderHistoryPage.pageTitle);
+    });
+
+    it('should go to order details page', async function () {
+      await testContext.addContextItem(this, 'testIdentifier', 'goToFoToOrderDetails', baseContext);
+
+      await foClassicMyOrderHistoryPage.goToDetailsPage(page);
+
+      const pageTitle = await foClassicMyOrderDetailsPage.getPageTitle(page);
+      expect(pageTitle).to.equal(foClassicMyOrderDetailsPage.pageTitle);
+    });
+
+    it('should check the carriers table', async function () {
+      await testContext.addContextItem(this, 'testIdentifier', 'checkCarriersTable', baseContext);
+
+      let carrier = await foClassicMyOrderDetailsPage.getCarrierDataFromTable(page, 1, '2');
+      expect(carrier).to.equal(firstCarrierData.name);
+
+      let shippingCost = await foClassicMyOrderDetailsPage.getCarrierDataFromTable(page, 1, '4');
+      expect(shippingCost).to.equal('Free');
+
+      carrier = await foClassicMyOrderDetailsPage.getCarrierDataFromTable(page, 2, '2');
+      expect(carrier).to.equal(secondCarrierData.name);
+
+      shippingCost = await foClassicMyOrderDetailsPage.getCarrierDataFromTable(page, 2, '4');
+      expect(shippingCost).to.equal('Free');
+    });
+
+    it('should check product details table', async function () {
+      await testContext.addContextItem(this, 'testIdentifier', 'checkProductDetails', baseContext);
+
+      let productName = await foClassicMyOrderDetailsPage.getProductName(page, 1, 1);
+      expect(productName).to.contain(firstProductData.name);
+
+      productName = await foClassicMyOrderDetailsPage.getProductName(page, 2, 1);
+      expect(productName).to.contain(thirdProductData.name);
+
+      productName = await foClassicMyOrderDetailsPage.getProductName(page, 3, 1);
+      expect(productName).to.contain(secondProductData.name);
+
+      productName = await foClassicMyOrderDetailsPage.getProductName(page, 4, 1);
+      expect(productName).to.contain(productVData.name);
+    });
+  });
+
+  describe('Add tracking number in BO then check it in FO', async () => {
+    it('should go to BO', async function () {
+      await testContext.addContextItem(this, 'testIdentifier', 'loginBO', baseContext);
+
+      await boLoginPage.goTo(page, global.BO.URL);
+
+      const pageTitle = await boDashboardPage.getPageTitle(page);
+      expect(pageTitle).to.contains(boDashboardPage.pageTitle);
+    });
+
+    it('should go to \'Orders > Orders\' page', async function () {
+      await testContext.addContextItem(this, 'testIdentifier', 'goToOrdersPage', baseContext);
+
+      await boDashboardPage.goToSubMenu(
+        page,
+        boDashboardPage.ordersParentLink,
+        boDashboardPage.ordersLink,
+      );
+      await boOrdersPage.closeSfToolBar(page);
+
+      const pageTitle = await boOrdersPage.getPageTitle(page);
+      expect(pageTitle).to.contains(boOrdersPage.pageTitle);
+    });
+
+    it('should go to the first order page', async function () {
+      await testContext.addContextItem(this, 'testIdentifier', 'goToFirstOrderPage', baseContext);
+
+      await boOrdersPage.goToOrder(page, 1);
+
+      const pageTitle = await boOrdersViewBlockTabListPage.getPageTitle(page);
+      expect(pageTitle).to.contains(boOrdersViewBlockTabListPage.pageTitle);
+    });
+
+    it('should click on the tab \'Shipments\'', async function () {
+      await testContext.addContextItem(this, 'testIdentifier', 'goToShipmentsTab', baseContext);
+
+      const isTabOpened = await boOrdersViewBlockTabListPage.goToShipmentsTab(page);
+      expect(isTabOpened).to.equal(true);
+    });
+
+    it('should click on edit shipment link of the first carrier', async function () {
+      await testContext.addContextItem(this, 'testIdentifier', 'clickOnEditShipmentLink', baseContext);
+
+      const isEditModalVisible = await boOrdersViewBlockTabListPage.clickOnEditShipmentLink(page, 1);
+      expect(isEditModalVisible).to.equal(true);
+    });
+
+    it('should add a tracking number and save', async function () {
+      await testContext.addContextItem(this, 'testIdentifier', 'addTrackingNumber', baseContext);
+
+      const isModalNotVisible = await boOrdersViewBlockTabListPage.editShipment(page, 'TN12345678', firstCarrierData.name);
+      expect(isModalNotVisible).to.equal(true);
+    });
+
+    it('should go to FO', async function () {
+      await testContext.addContextItem(this, 'testIdentifier', 'goToFO2', baseContext);
+
+      await foClassicHomePage.goToFo(page);
+
+      const isHomePage = await foClassicHomePage.isHomePage(page);
+      expect(isHomePage).to.eq(true);
+    });
+
+    it('should go to order history page', async function () {
+      await testContext.addContextItem(this, 'testIdentifier', 'goToOrderHistoryPage2', baseContext);
+
+      await foClassicHomePage.goToMyAccountPage(page);
+      await foClassicMyAccountPage.goToHistoryAndDetailsPage(page);
+
+      const pageHeaderTitle = await foClassicMyOrderHistoryPage.getPageTitle(page);
+      expect(pageHeaderTitle).to.equal(foClassicMyOrderHistoryPage.pageTitle);
+    });
+
+    it('should go to order details page', async function () {
+      await testContext.addContextItem(this, 'testIdentifier', 'goToFoToOrderDetails2', baseContext);
+
+      await foClassicMyOrderHistoryPage.goToDetailsPage(page);
+
+      const pageTitle = await foClassicMyOrderDetailsPage.getPageTitle(page);
+      expect(pageTitle).to.equal(foClassicMyOrderDetailsPage.pageTitle);
+    });
+
+    it('should check the carriers table', async function () {
+      await testContext.addContextItem(this, 'testIdentifier', 'checkCarriersTable2', baseContext);
+
+      const trackingNumber = await foClassicMyOrderDetailsPage.getCarrierDataFromTable(page, 1, '5');
+      expect(trackingNumber).to.equal('TN12345678');
     });
   });
 
   // 1 - Post-condition: Disable improved_shipment
-  /*setFeatureFlag(boFeatureFlagPage.featureFlagImprovedShipment, false, `${baseContext}_postTest_1`);
+  setFeatureFlag(boFeatureFlagPage.featureFlagImprovedShipment, false, `${baseContext}_postTest_1`);
 
   // 2 - Post-condition: Delete created products
   [
     {args: {testIdentifier: 'postTest_2', productData: firstProductData}},
     {args: {testIdentifier: 'postTest_3', productData: secondProductData}},
     {args: {testIdentifier: 'postTest_4', productData: thirdProductData}},
+    {args: {testIdentifier: 'postTest_5', productData: productVData}},
   ].forEach((test) => {
     deleteProductTest(test.args.productData, `${baseContext}${test.args.testIdentifier}`);
   });
 
   // 3 - Post-condition: Delete created carriers
   describe('Post-condition: Delete created carriers', async () => {
+    it('should go to BO', async function () {
+      await testContext.addContextItem(this, 'testIdentifier', 'loginBO', baseContext);
+
+      await boLoginPage.goTo(page, global.BO.URL);
+
+      const pageTitle = await boDashboardPage.getPageTitle(page);
+      expect(pageTitle).to.contains(boDashboardPage.pageTitle);
+    });
+
     it('should go to \'Shipping > Carriers\' page', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'goToCarriersPage3', baseContext);
 
@@ -606,9 +907,9 @@ describe('FO - Checkout - Shipping methods : MultiCarrier', async () => {
   });
 
   // 4 - Post-condition: Disable final summary
-  describe('Post-condition: Disable final summary', async ()=> {
+  describe('Post-condition: Disable final summary', async () => {
     it('should go to \'Shop Parameters > Order Settings\' page', async function () {
-      await testContext.addContextItem(this, 'testIdentifier', 'goToOrderSettingsPage', baseContext);
+      await testContext.addContextItem(this, 'testIdentifier', 'goToOrderSettingsPage2', baseContext);
 
       await boDashboardPage.goToSubMenu(
         page,
@@ -629,6 +930,6 @@ describe('FO - Checkout - Shipping methods : MultiCarrier', async () => {
     });
   });
 
-  // 5 - Post-condition : Uninstall Hummingbird
-  disableTheme('hummingbird', `${baseContext}_postTest_2`);*/
+  // 5 - Post-condition : Disable the theme classic
+  disableTheme('classic', `${baseContext}_postTest_3`);
 });
