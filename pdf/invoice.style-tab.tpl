@@ -55,6 +55,7 @@
 			border: 1pt solid {$color_border};
 		}
 		table#payment-tab,
+		table#discount-tab,
 		table#shipping-tab {
 			padding: {$table_padding};
 			border: 1px solid {$color_border};
@@ -64,9 +65,6 @@
 			border-bottom: 1px solid {$color_border};
 		}
 
-		tr.discount th.header {
-			border-top: 1px solid {$color_border};
-		}
 
 		tr.product td {
 			border-bottom: 1px solid {$color_border_lighter};

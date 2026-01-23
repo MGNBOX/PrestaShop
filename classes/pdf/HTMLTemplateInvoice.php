@@ -1,10 +1,18 @@
 <?php
+
 /**
  * For the full copyright and license information, please view the
  * docs/licenses/LICENSE.txt file that was distributed with this source code.
  */
 
+use PrestaShop\PrestaShop\Adapter\ContextStateManager;
+use PrestaShop\PrestaShop\Core\Domain\Shipment\Query\GetOrderShipments;
+use PrestaShop\PrestaShop\Core\Domain\Shipment\Query\GetShipmentProducts;
+use PrestaShop\PrestaShop\Adapter\ContainerFinder;
+use PrestaShop\PrestaShop\Adapter\Presenter\Order\OrderPresenter;
 use PrestaShop\PrestaShop\Core\Util\Sorter;
+use PrestaShop\PrestaShop\Core\FeatureFlag\FeatureFlagSettings;
+use PrestaShop\PrestaShop\Core\FeatureFlag\FeatureFlagStateCheckerInterface;
 
 class HTMLTemplateInvoiceCore extends HTMLTemplate
 {
@@ -217,9 +225,57 @@ class HTMLTemplateInvoiceCore extends HTMLTemplate
             unset($order_detail); // don't overwrite the last order_detail later
         }
 
+        $containerFinder = new ContainerFinder(Context::getContext());
+
+        /** @var FeatureFlagStateCheckerInterface $featureFlagManager */
+        $featureFlagManager = $containerFinder->getContainer()->get(FeatureFlagStateCheckerInterface::class);
+        $isMultishipmentEnabled = $featureFlagManager->isEnabled(FeatureFlagSettings::FEATURE_FLAG_IMPROVED_SHIPMENT);
+
+        $productsByShipment = [];
+        $orderDetailToShipmentMap = [];
+
+        if ($isMultishipmentEnabled) {
+            $queryBus = $containerFinder->getContainer()->get('prestashop.core.query_bus');
+
+            /** @var \PrestaShop\PrestaShop\Core\Domain\Shipment\QueryResult\OrderShipment[] $shipments */
+            $shipments = $queryBus->handle(new GetOrderShipments($this->order->id));
+
+            foreach ($shipments as $shipment) {
+                $shipmentProducts = $queryBus->handle(new GetShipmentProducts($shipment->getId()));
+
+                foreach ($shipmentProducts as $shipmentProduct) {
+                    $orderDetailToShipmentMap[$shipmentProduct->getOrderDetailId()] = [
+                        'shipment' => $shipment,
+                        'products' => $shipmentProduct,
+                    ];
+                }
+            }
+        }
+
         // Sort products by Reference ID (and if equals (like combination) by Supplier Reference)
         $sorter = new Sorter();
         $order_details = $sorter->natural($order_details, Sorter::ORDER_DESC, 'product_reference', 'product_supplier_reference');
+
+        if ($isMultishipmentEnabled && !empty($orderDetailToShipmentMap)) {
+            foreach ($order_details as &$order_detail) {
+                if (isset($orderDetailToShipmentMap[$order_detail['id_order_detail']])) {
+                    $order_detail['shipmentId'] = $orderDetailToShipmentMap[$order_detail['id_order_detail']]['shipment']->getId();
+                    $order_detail['shipment'] = $orderDetailToShipmentMap[$order_detail['id_order_detail']]['shipment'];
+                }
+            }
+            unset($order_detail);
+
+            foreach ($order_details as $order_detail) {
+                if (isset($order_detail['shipmentId']) && isset($order_detail['shipment'])) {
+                    $shipmentId = $order_detail['shipmentId'];
+                    $productsByShipment[$shipmentId]['products'][] = $order_detail;
+                    $productsByShipment[$shipmentId]['carrierName'] = $order_detail['shipment']->getCarrierSummary()->getName();
+                    $productsByShipment[$shipmentId]['trackingNumber'] = $order_detail['shipment']->getTrackingNumber();
+                } elseif ($order_detail['is_virtual']) {
+                    $productsByShipment['virtual_products']['products'][] = $order_detail;
+                }
+            }
+        }
 
         $cart_rules = $this->order->getCartRules();
         $free_shipping = false;
@@ -323,6 +379,8 @@ class HTMLTemplateInvoiceCore extends HTMLTemplate
         }
 
         $data = [
+            'is_multishipment_enabled' => $isMultishipmentEnabled,
+            'products_by_shipment' => $productsByShipment,
             'order' => $this->order,
             'order_invoice' => $this->order_invoice,
             'order_details' => $order_details,
@@ -349,7 +407,9 @@ class HTMLTemplateInvoiceCore extends HTMLTemplate
             'addresses_tab' => $this->smarty->fetch($this->getTemplate('invoice.addresses-tab')),
             'summary_tab' => $this->smarty->fetch($this->getTemplate('invoice.summary-tab')),
             'product_tab' => $this->smarty->fetch($this->getTemplate('invoice.product-tab')),
+            'shipment_tab' => $this->smarty->fetch($this->getTemplate('invoice.shipment-tab')),
             'tax_tab' => $this->getTaxTabContent(),
+            'discount_tab' => $this->smarty->fetch($this->getTemplate('invoice.discount-tab')),
             'payment_tab' => $this->smarty->fetch($this->getTemplate('invoice.payment-tab')),
             'note_tab' => $this->smarty->fetch($this->getTemplate('invoice.note-tab')),
             'total_tab' => $this->smarty->fetch($this->getTemplate('invoice.total-tab')),
@@ -369,8 +429,8 @@ class HTMLTemplateInvoiceCore extends HTMLTemplate
     {
         $address = new Address((int) $this->order->{Configuration::get('PS_TAX_ADDRESS_TYPE')});
         $tax_exempt = Configuration::get('VATNUMBER_MANAGEMENT')
-                            && !empty($address->vat_number)
-                            && $address->id_country != Configuration::get('VATNUMBER_COUNTRY');
+            && !empty($address->vat_number)
+            && $address->id_country != Configuration::get('VATNUMBER_COUNTRY');
         $carrier = new Carrier($this->order->id_carrier);
 
         $data = [

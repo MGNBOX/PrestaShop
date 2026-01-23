@@ -33,11 +33,15 @@
 		<td colspan="12" height="20">&nbsp;</td>
 	</tr>
 
-	<!-- Product -->
+  <!-- Product -->
 	<tr>
 		<td colspan="12">
 
-			{$product_tab}
+			{if $is_multishipment_enabled && count($products_by_shipment) > 0}
+				{$shipment_tab}
+			{else}
+				{$product_tab}
+			{/if}
 
 		</td>
 	</tr>
@@ -72,7 +76,7 @@
 	<tr>
 		<td colspan="6" class="left">
 
-			{$payment_tab}
+			{$discount_tab}
 
 		</td>
 		<td colspan="1">&nbsp;</td>
@@ -81,11 +85,22 @@
 	<tr>
 		<td colspan="6" class="left">
 
-			{$shipping_tab}
+			{$payment_tab}
 
 		</td>
 		<td colspan="1">&nbsp;</td>
 	</tr>
+
+	{if !$is_multishipment_enabled}
+		<tr>
+			<td colspan="6" class="left">
+
+				{$shipping_tab}
+
+			</td>
+			<td colspan="1">&nbsp;</td>
+		</tr>
+	{/if}
 
 	<tr>
 		<td colspan="12" height="10">&nbsp;</td>
