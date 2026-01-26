@@ -35,12 +35,13 @@ use PrestaShop\PrestaShop\Core\Domain\Product\ValueObject\ProductId;
 use PrestaShop\PrestaShop\Core\Domain\Shipment\ValueObject\OrderDetailId;
 use PrestaShop\PrestaShop\Core\Exception\CoreException;
 use PrestaShop\PrestaShop\Core\Repository\AbstractObjectModelRepository;
+use PrestaShopException;
 
 class OrderDetailRepository extends AbstractObjectModelRepository
 {
     public function __construct(
-        private readonly Connection $connection,
-        private string $dbPrefix
+        private readonly ?Connection $connection,
+        private ?string $dbPrefix = null
     ) {
     }
 
@@ -70,6 +71,11 @@ class OrderDetailRepository extends AbstractObjectModelRepository
         ProductId $productId,
         ?CombinationId $combinationId
     ): ?OrderDetail {
+        if (!$this->connection) {
+            trigger_deprecation('prestashop/prestashop', '9.2', 'Connection must be set.');
+            throw new PrestaShopException('Connection must be set for OrderDetailRepository.');
+        }
+
         $qb = $this->connection->createQueryBuilder();
 
         $qb
