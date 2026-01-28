@@ -3142,8 +3142,7 @@ CREATE TABLE `PREFIX_business_entity_domain`
   `id_business_entity` INT UNSIGNED                       NOT NULL,
   `id_domain_type`     INT UNSIGNED        NOT NULL,
   `value`              VARCHAR(255) NOT NULL,
-  PRIMARY KEY (`id_domain`)
-    UNIQUE INDEX `uniq_business_entity_domain` (`id_business_entity`, `id_domain_type`),
+  UNIQUE INDEX `uniq_business_entity_domain` (`id_business_entity`, `id_domain_type`),
   INDEX                `business_entity_domain_id_business_entity_idx` (`id_business_entity`),
   INDEX                `business_entity_domain_id_domain_type_idx` (`id_domain_type`),
   INDEX                `business_entity_domain_value_idx` (`value`),
