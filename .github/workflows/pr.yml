@@ -1,7 +1,7 @@
 name: Pull Request Validator
 on:
   pull_request:
-    types: [ opened, edited, synchronize, reopened, labeled, unlabeled, milestoned, demilestoned ]
+    types: [ opened, edited, reopened, milestoned, demilestoned ]
 
 concurrency:
   group: ${{ github.event_name }}-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
