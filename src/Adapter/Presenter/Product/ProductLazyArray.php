@@ -47,6 +47,7 @@ use PrestaShop\PrestaShop\Adapter\Product\PriceFormatter;
 use PrestaShop\PrestaShop\Adapter\Product\ProductColorsRetriever;
 use PrestaShop\PrestaShop\Core\Domain\Product\ProductCustomizabilitySettings;
 use PrestaShop\PrestaShop\Core\Domain\Product\Stock\ValueObject\OutOfStockType;
+use PrestaShop\PrestaShop\Core\Domain\Product\ValueObject\DeliveryTimeNoteType;
 use PrestaShop\PrestaShop\Core\Product\ProductPresentationSettings;
 use Product;
 use ReflectionException;
@@ -321,24 +322,38 @@ class ProductLazyArray extends AbstractLazyArray
     #[LazyArrayAttribute(arrayAccess: true)]
     public function getDeliveryInformation()
     {
-        $productQuantity =
-            $this->product['stock_quantity'] ?? $this->product['quantity'];
+        // If the product is virtual, we don't show delivery information
+        if ($this->getVirtual()) {
+            return null;
+        }
 
-        if ($productQuantity >= $this->getQuantityWanted()) {
-            $config = $this->configuration->get(
-                'PS_LABEL_DELIVERY_TIME_AVAILABLE'
-            );
+        // If the product cannot be ordered, we don't show delivery information
+        if (!$this->shouldEnableAddToCartButton($this->product, $this->settings)) {
+            return null;
+        }
 
-            return $config[$this->language->id] ?? null;
-        } elseif (
-            $this->shouldEnableAddToCartButton($this->product, $this->settings)
-        ) {
-            $config = $this->configuration->get(
-                'PS_LABEL_DELIVERY_TIME_OOSBOA',
-                []
-            );
+        // Get proper quantity available value
+        $productQuantity = $this->product['stock_quantity'] ?? $this->product['quantity'];
 
-            return $config[$this->language->id] ?? null;
+        // Type 0 - no delivery information
+        if ($this->product['additional_delivery_times'] == DeliveryTimeNoteType::TYPE_NONE) {
+            return null;
+
+        // Type 1 - use default information
+        } elseif ($this->product['additional_delivery_times'] == DeliveryTimeNoteType::TYPE_DEFAULT) {
+            if ($productQuantity >= $this->getQuantityWanted()) {
+                return $this->configuration->get('PS_LABEL_DELIVERY_TIME_AVAILABLE')[$this->language->id] ?? null;
+            } else {
+                return $this->configuration->get('PS_LABEL_DELIVERY_TIME_OOSBOA')[$this->language->id] ?? null;
+            }
+
+        // Type 2 - use product information
+        } elseif ($this->product['additional_delivery_times'] == DeliveryTimeNoteType::TYPE_SPECIFIC) {
+            if ($productQuantity >= $this->getQuantityWanted()) {
+                return $this->product['delivery_in_stock'] ?? null;
+            } else {
+                return $this->product['delivery_out_stock'] ?? null;
+            }
         }
 
         return null;
