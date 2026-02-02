@@ -31,5 +31,4 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
   convention-check:
     name: Validate PR Metadata
-    # On appelle le workflow centralisé via son chemin complet
     uses: PrestaShop/.github/.github/workflows/validate-pr-metadata.yml@master
