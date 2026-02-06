@@ -38,6 +38,13 @@ use Symfony\Component\Console\Output\OutputInterface;
  *
  * Usage:
  *   bin/console prestashop:htaccess:generate [--force]
+ *
+ * Options:
+ *   --force (-f): Force overwrite even if file exists
+ *
+ * Examples:
+ *   bin/console prestashop:htaccess:generate
+ *   bin/console prestashop:htaccess:generate --force
  */
 class GenerateHtaccessCommand extends Command
 {
