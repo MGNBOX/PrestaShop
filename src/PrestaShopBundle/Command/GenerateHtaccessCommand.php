@@ -88,6 +88,9 @@ class GenerateHtaccessCommand extends Command
             return Command::SUCCESS;
         } catch (Exception $e) {
             $output->writeln('<error>Failed to generate .htaccess: ' . $e->getMessage() . '</error>');
+            if ($output->isVerbose()) {
+                $output->writeln('<error>Stack trace: ' . $e->getTraceAsString() . '</error>');
+            }
 
             return Command::FAILURE;
         }
