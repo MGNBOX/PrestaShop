@@ -10,9 +10,6 @@ class GenerateHtaccessCommandTest extends KernelTestCase
 {
     public function setUp(): void
     {
-        // Load PrestaShop environment constants (defines like _PS_IMG_)
-        require_once dirname(__DIR__, 4) . '/config/config.inc.php';
-
         parent::setUp();
         self::bootKernel();
     }
