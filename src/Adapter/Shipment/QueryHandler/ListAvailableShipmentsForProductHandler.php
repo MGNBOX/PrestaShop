@@ -51,8 +51,6 @@ class ListAvailableShipmentsForProductHandler implements ListAvailableShipmentsF
     }
 
     /**
-     * @param ListAvailableShipmentsForProduct $query
-     *
      * @return ShipmentsForProduct[]
      */
     public function handle(ListAvailableShipmentsForProduct $query)

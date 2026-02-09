@@ -32,8 +32,5 @@ use PrestaShop\PrestaShop\Core\Domain\Shipment\Command\AddProductToShipment;
 
 interface AddProductToShipmentHandlerInterface
 {
-    /**
-     * @param AddProductToShipment $command
-     */
     public function handle(AddProductToShipment $command): void;
 }

@@ -36,8 +36,6 @@ import './address';
 import {psShowHide} from './common';
 import initEmailFields from './email-idn';
 
-__webpack_public_path__ = window.prestashop.core_js_public_path;
-
 window.$ = $;
 window.jQuery = $;
 

@@ -32,8 +32,6 @@ use PrestaShop\PrestaShop\Core\Domain\Shipment\QueryResult\ShipmentsForProduct;
 interface ListAvailableShipmentsForProductHandlerInterface
 {
     /**
-     * @param ListAvailableShipmentsForProduct $query
-     *
      * @return ShipmentsForProduct[]
      */
     public function handle(ListAvailableShipmentsForProduct $query);
