@@ -127,6 +127,8 @@ use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\RouterInterface;
+use PrestaShop\PrestaShop\Core\Domain\Carrier\Query\GetCarriersForProduct;
+use PrestaShop\PrestaShop\Core\Domain\Shipment\Command\CreateShipment;
 
 /**
  * Manages "Sell > Orders" page
@@ -885,9 +887,31 @@ class OrderController extends PrestaShopAdminController
         int $productId,
     ): Response {
         $shipments = $this->dispatchCommand(new ListAvailableShipmentsForProduct($orderId, $productId));
+        $shipments[] = [
+            'id' => 0,
+            'name' => $this->trans('Create a shipment', [], 'Admin.Orderscustomers.Feature')
+        ];
 
         return $this->json(
             ['shipments' => $shipments],
+            Response::HTTP_OK
+        );
+    }
+
+    #[AdminSecurity("is_granted('update', 'AdminOrders')", message: 'You do not have permission to show this.')]
+    public function getCarriersForProduct(
+        int $productId,
+    ): Response {
+        if (empty($productId)) {
+            return $this->json(
+                ['error' => 'missing productId'],
+                Response::HTTP_BAD_REQUEST
+            );
+        }
+        $carriers = $this->dispatchQuery(new GetCarriersForProduct($productId));
+
+        return $this->json(
+            ['carriers' => $carriers],
             Response::HTTP_OK
         );
     }
@@ -1141,6 +1165,10 @@ class OrderController extends PrestaShopAdminController
 
                 if (!$isVirtual) {
                     $this->dispatchCommand(new AddProductToShipment($shipmentId, $productId, $orderId, $combinationId));
+                }
+                if ($shipmentId === 0) {
+                    $carrierId = (int) $request->get('carrier_id');
+                    $shipmentId = $this->dispatchCommand(new CreateShipment($orderId, $carrierId));
                 }
             }
         } catch (Exception $e) {
