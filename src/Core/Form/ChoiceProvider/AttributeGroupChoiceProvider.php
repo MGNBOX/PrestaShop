@@ -97,14 +97,10 @@ final class AttributeGroupChoiceProvider implements FormChoiceProviderInterface,
     {
         if (null === $this->attributeGroupsChoicesAttributes || null === $this->attributeGroupsChoices) {
             if (null === $this->attributeGroups) {
-                if ($this->shopContext->isSingleShopContext()) {
-                    $this->attributeGroups = $this->attributeGroupRepository->findByLangAndShop(
-                        $this->langId,
-                        $this->shopContext->getShopConstraint()->getShopId()->getValue()
-                    );
-                } else {
-                    $this->attributeGroups = $this->attributeGroupRepository->findByLangForAllShops($this->langId);
-                }
+                $this->attributeGroups = $this->attributeGroupRepository->findByLangForShops(
+                    $this->langId,
+                    $this->shopContext->getAssociatedShopIds()
+                );
             }
 
             $this->attributeGroupsChoices = [];
