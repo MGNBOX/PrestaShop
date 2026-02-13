@@ -115,7 +115,7 @@ class PreferencesConfiguration implements DataConfigurationInterface
 
         if ($oldB2cModeValue !== $newB2cModeValue) {
             PrestaShopLogger::addLog(
-                sprintf('B2C mode updated: from %s to %s', $oldB2cModeValue, $newB2cModeValue),
+                sprintf('B2C mode updated: from %s to %s', $oldB2cModeValue ? '1' : '0', $newB2cModeValue ? '1' : '0'),
                 1,
                 null,
                 'Configuration',
@@ -126,7 +126,7 @@ class PreferencesConfiguration implements DataConfigurationInterface
 
         if ($oldB2bModeValue !== $newB2bModeValue) {
             PrestaShopLogger::addLog(
-                sprintf('B2B mode updated: from %s to %s', $oldB2bModeValue, $newB2bModeValue),
+                sprintf('B2B mode updated: from %s to %s', $oldB2bModeValue ? '1' : '0', $newB2bModeValue ? '1' : '0'),
                 1,
                 null,
                 'Configuration',
