@@ -112,9 +112,9 @@ class FoundProduct
         int $stock,
         string $location,
         bool $availableOutOfStock,
+        bool $isVirtual,
         array $combinations = [],
         array $customizationFields = [],
-        bool $isVirtual,
     ) {
         $this->productId = $productId;
         $this->name = $name;
