@@ -37,11 +37,13 @@ use Doctrine\ORM\Mapping as ORM;
  *
  *         @ORM\Index(name="business_entity_customer_b2b_be_idx", columns={"id_business_entity"}),
  *         @ORM\Index(name="business_entity_customer_b2b_customer_idx", columns={"id_customer_b2b"}),
- *         @ORM\Index(name="business_entity_customer_b2b_role_idx", columns={"id_role_b2b"}),
+ *         @ORM\Index(name="business_entity_customer_b2b_role_idx", columns={"id_role_b2b"})
+ *     },
+ *     uniqueConstraints={
  *
- *     @ORM\UniqueConstraint(name="uniq_be_customer", columns={"id_business_entity", "id_customer_b2b"})
+ *         @ORM\UniqueConstraint(name="uniq_be_customer", columns={"id_business_entity", "id_customer_b2b"})
  *     }
- *  )
+ * )
  *
  * @ORM\HasLifecycleCallbacks
  *
@@ -56,7 +58,7 @@ class BusinessEntityCustomerB2b
      *
      * @ORM\GeneratedValue(strategy="AUTO")
      */
-    private ?int $idBusinessEntityCustomerB2b = null;
+    private ?int $id = null;
 
     /**
      * @ORM\ManyToOne(targetEntity="PrestaShopBundle\Entity\BusinessEntity", inversedBy="businessEntityCustomerB2bs")
@@ -66,9 +68,11 @@ class BusinessEntityCustomerB2b
     private BusinessEntity $businessEntity;
 
     /**
-     * @ORM\Column(name="id_customer_b2b", type="integer", options={"unsigned"=true})
+     * @ORM\ManyToOne(targetEntity="PrestaShopBundle\Entity\CustomerB2b", inversedBy="businessEntityCustomerB2bs")
+     *
+     * @ORM\JoinColumn(name="id_customer_b2b", referencedColumnName="id_customer_b2b", nullable=false)
      */
-    private int $idCustomerB2b;
+    private CustomerB2b $customerB2b;
 
     /**
      * @ORM\ManyToOne(targetEntity="PrestaShopBundle\Entity\B2bRole", inversedBy="businessEntityCustomerB2bs")
@@ -87,9 +91,9 @@ class BusinessEntityCustomerB2b
      */
     private DateTime $createdAt;
 
-    public function getIdBusinessEntityCustomerB2b(): int
+    public function getId(): ?int
     {
-        return $this->idBusinessEntityCustomerB2b;
+        return $this->id;
     }
 
     public function getBusinessEntity(): BusinessEntity
@@ -104,14 +108,14 @@ class BusinessEntityCustomerB2b
         return $this;
     }
 
-    public function getCustomerB2b(): int
+    public function getCustomerB2b(): CustomerB2b
     {
-        return $this->idCustomerB2b;
+        return $this->customerB2b;
     }
 
-    public function setCustomerB2b(int $idCustomerB2b): self
+    public function setCustomerB2b(CustomerB2b $customerB2b): self
     {
-        $this->idCustomerB2b = $idCustomerB2b;
+        $this->customerB2b = $customerB2b;
 
         return $this;
     }

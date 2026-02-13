@@ -109,7 +109,12 @@ class BusinessEntity
     private Collection $businessEntityIdentifiers;
 
     /**
-     * @ORM\OneToMany(targetEntity="PrestaShopBundle\Entity\BusinessEntityCustomerB2b", mappedBy="businessEntity")
+     * @ORM\OneToMany(
+     *     targetEntity="PrestaShopBundle\Entity\BusinessEntityCustomerB2b",
+     *     mappedBy="businessEntity",
+     *     orphanRemoval=true,
+     *     cascade={"persist","remove"}
+     * )
      */
     private Collection $businessEntityCustomerB2bs;
 
