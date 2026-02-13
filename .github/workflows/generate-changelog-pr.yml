@@ -55,7 +55,7 @@ jobs:
 
       - name: Generate changelog
         id: changelog
-        uses: PrestaShop/.github/.github/actions/generate-changelog.yml@master
+        uses: boherm/.github/.github/actions/generate-changelog@master
         with:
           github_token: ${{ github.token }}
           repository: ${{ github.repository }}
