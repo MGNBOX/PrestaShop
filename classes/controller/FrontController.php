@@ -419,6 +419,7 @@ class FrontControllerCore extends Controller
                 }
                 $cart->id_lang = (int) $this->context->language->id;
                 $cart->id_currency = (int) $this->context->currency->id;
+                $this->context->cart = $cart;
                 $cart->update();
             }
 
