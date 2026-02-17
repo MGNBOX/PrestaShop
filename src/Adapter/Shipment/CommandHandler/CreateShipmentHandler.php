@@ -35,6 +35,7 @@ use PrestaShop\PrestaShop\Adapter\Carrier\ShippingCostCalculator;
 use PrestaShop\PrestaShop\Adapter\Country\Repository\CountryRepository;
 use PrestaShop\PrestaShop\Adapter\Order\Repository\OrderRepository;
 use PrestaShop\PrestaShop\Adapter\Product\Repository\ProductRepository;
+use PrestaShop\PrestaShop\Adapter\Shop\Context as ShopContext;
 use PrestaShop\PrestaShop\Core\CommandBus\Attributes\AsCommandHandler;
 use PrestaShop\PrestaShop\Core\Domain\Address\ValueObject\AddressId;
 use PrestaShop\PrestaShop\Core\Domain\Carrier\ValueObject\ShippingCalculationRequest;
@@ -58,6 +59,7 @@ class CreateShipmentHandler implements CreateShipmentHandlerInterface
         private readonly ProductRepository $productRepository,
         private readonly CountryRepository $countryRepository,
         private readonly ShippingCostCalculator $shippingCostCalculator,
+        private readonly ShopContext $shopContext,
     ) {
     }
 
@@ -98,7 +100,7 @@ class CreateShipmentHandler implements CreateShipmentHandlerInterface
      */
     private function calculateShippingCosts(Order $order, int $carrierId, ProductId $productId, int $quantity): array
     {
-        $product = $this->productRepository->get($productId, new ShopId(1));
+        $product = $this->productRepository->get($productId, new ShopId($this->shopContext->getContextShopID()));
 
         if ($product === null) {
             return [
