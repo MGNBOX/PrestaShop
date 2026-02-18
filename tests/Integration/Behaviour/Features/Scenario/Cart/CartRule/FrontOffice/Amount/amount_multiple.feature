@@ -46,25 +46,19 @@ Feature: Cart rule (amount) calculation with multiple cart rules
     Given I add 1 items of product "product1" in my cart
     And my cart total shipping fees should be 7.0 tax included
     And my cart total should be 26.812 tax included
-    And my cart total using previous calculation method should be 26.812 tax included
     When I apply the voucher code "reduce-5"
     Then my cart total should be 21.812 tax included
-    And my cart total using previous calculation method should be 21.812 tax included
     And I apply the voucher code "reduce-10"
     Then my cart total should be 11.812 tax included
-    And my cart total using previous calculation method should be 11.812 tax included
 
   Scenario: one product in cart, quantity 3, one 5€ global cartRule, one 10€ global cartRule
     Given I add 3 items of product "product1" in my cart
     And my cart total shipping fees should be 7.0 tax included
     And my cart total should be 66.436 tax included
-    And my cart total using previous calculation method should be 66.436 tax included
     When I apply the voucher code "reduce-5"
     Then my cart total should be 61.436 tax included
-    And my cart total using previous calculation method should be 61.436 tax included
     When I apply the voucher code "reduce-10"
     Then my cart total should be 51.436 tax included
-    And my cart total using previous calculation method should be 51.436 tax included
 
   Scenario: 3 products in cart, several quantities, one 5€ global cartRule (reduced product at first place)
     Given I add 2 items of product "product2" in my cart
@@ -72,13 +66,10 @@ Feature: Cart rule (amount) calculation with multiple cart rules
     And I add 1 items of product "product3" in my cart
     And my cart total shipping fees should be 7.0 tax included
     And my cart total should be 162.4 tax included
-    And my cart total using previous calculation method should be 162.4 tax included
     When I apply the voucher code "reduce-5"
     Then my cart total should be 157.4 tax included
-    And my cart total using previous calculation method should be 157.4 tax included
     When I apply the voucher code "reduce-10"
     Then my cart total should be 147.4 tax included
-    And my cart total using previous calculation method should be 147.4 tax included
 
   @restore-cart-rules-after-scenario
   Scenario: One product in my cart, one cart rule for free shipping and one for free gift
@@ -100,7 +91,6 @@ Feature: Cart rule (amount) calculation with multiple cart rules
     Then my cart total shipping fees should be 0.0 tax included
     And my cart total should be precisely 2.35 tax included
     And my cart total should be 2.4 tax included
-    And my cart total using previous calculation method should be 2.4 tax included
 
   @restore-cart-rules-after-scenario
   Scenario: One product in my cart, one 10€ global cartRule, 2 free gifts global cartRules
@@ -128,7 +118,6 @@ Feature: Cart rule (amount) calculation with multiple cart rules
     And I should have 3 products in my cart
     And my cart total should be precisely 16.81 tax included
     And my cart total should be 16.8 tax included
-    And my cart total using previous calculation method should be 16.8 tax included
 
   @restore-cart-rules-after-scenario
   Scenario: One product in my cart, one 30€ global cartRule (which is superior to the product bought), 2 free gifts global cartRules
@@ -157,7 +146,6 @@ Feature: Cart rule (amount) calculation with multiple cart rules
     And my cart total shipping fees should be 7.0 tax included
     And my cart total should be precisely 7.0 tax included
     And my cart total should be 7.0 tax included
-    And my cart total using previous calculation method should be 7.0 tax included
 
   @restore-cart-rules-after-scenario
   Scenario: One product in my cart, one 30€ global cartRule (which is superior to the product bought) with free shipping, 2 free gifts global cartRules
@@ -186,4 +174,3 @@ Feature: Cart rule (amount) calculation with multiple cart rules
     And cart rule "reduce-30-free-ship-global" is applied to my cart
     And my cart total should be precisely 0.0 tax included
     And my cart total should be 0.0 tax included
-    And my cart total using previous calculation method should be 0.0 tax included

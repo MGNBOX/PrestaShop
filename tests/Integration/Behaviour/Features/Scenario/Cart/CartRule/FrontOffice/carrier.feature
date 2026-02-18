@@ -77,7 +77,6 @@ Feature: Cart calculation with cart rules and different carriers
     And I select carrier "carrier4" in my cart
     And cart shipping fees should be 7.0
     And my cart total should be 82.5 tax included
-    And my cart total using previous calculation method should be 82.5 tax included
 
   Scenario: free carrier in price range, voucher in amount set the price bellow range
     Given there is a cart rule "cartrule3" with following properties:
@@ -95,7 +94,6 @@ Feature: Cart calculation with cart rules and different carriers
     And I select carrier "carrier4" in my cart
     Then cart shipping fees should be 7.0
     And my cart total should be 156.0 tax included
-    And my cart total using previous calculation method should be 156.0 tax included
 
   # Issue #12976 part two
   @restore-cart-rules-after-scenario
@@ -115,7 +113,6 @@ Feature: Cart calculation with cart rules and different carriers
     And I select carrier "carrier4" in my cart
     Then cart shipping fees should be 7.0
     And my cart total should be 156.0 tax included
-    And my cart total using previous calculation method should be 156.0 tax included
 
   Scenario: carrier fees not free, voucher with code set shipping fees free above amount, cart total is below
     When I add 1 item of product "product4" in my cart
@@ -125,7 +122,6 @@ Feature: Cart calculation with cart rules and different carriers
     Then I should get cart rule validation error saying "The minimum amount to benefit from this promo code is $150"
     And cart shipping fees should be 7.0
     And my cart total should be 156.0 tax included
-    And my cart total using previous calculation method should be 156.0 tax included
 
   @restore-cart-rules-after-scenario
   Scenario: carrier fees not free, voucher without code set shipping fees free above amount, cart total is below
@@ -144,7 +140,6 @@ Feature: Cart calculation with cart rules and different carriers
     And I select carrier "carrier4" in my cart
     Then cart shipping fees should be 7.0
     And my cart total should be 156.0 tax included
-    And my cart total using previous calculation method should be 156.0 tax included
 
   Scenario: carrier fees not free, voucher with code set shipping fees free above amount, cart total is above
     Given I add 1 item of product "product5" in my cart
@@ -153,7 +148,6 @@ Feature: Cart calculation with cart rules and different carriers
     When I apply the voucher code "foo5"
     Then cart shipping fees should be 2.0
     And my cart total should be 151.0 tax included
-    And my cart total using previous calculation method should be 151.0 tax included
 
   @restore-cart-rules-after-scenario
   Scenario: carrier fees not free, voucher without code set shipping fees free above amount, cart total is above
@@ -172,7 +166,6 @@ Feature: Cart calculation with cart rules and different carriers
     And I select carrier "carrier4" in my cart
     Then cart shipping fees should be 2.0
     And my cart total should be 151.0 tax included
-    And my cart total using previous calculation method should be 151.0 tax included
 
   Scenario: one product in cart, quantity 1, can apply only the cart rule which is restricted to selected carrier
     Given there is a cart rule "cartrule7" with following properties:

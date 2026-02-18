@@ -130,7 +130,6 @@ Feature: Cart rule application is validated before it is applied to cart
     When I apply the voucher code "foo4"
     Then I should get cart rule validation error saying "You cannot use this voucher with these products"
     And my cart total should be 66.436 tax included
-    And my cart total using previous calculation method should be 66.436 tax included
     And I add 1 items of product "product2" in my cart
     And my cart total should be 98.82 tax included
     When I apply the voucher code "foo4"
