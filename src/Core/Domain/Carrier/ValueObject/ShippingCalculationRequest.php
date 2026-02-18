@@ -8,36 +8,49 @@ declare(strict_types=1);
 
 namespace PrestaShop\PrestaShop\Core\Domain\Carrier\ValueObject;
 
-use Country;
 use InvalidArgumentException;
 
 final class ShippingCalculationRequest
 {
+    /**
+     * @var array<array{
+     *     id_product: int,
+     *     id_product_attribute: int,
+     *     quantity: int,
+     *     weight: float,
+     *     weight_attribute: float|null,
+     *     is_virtual: int,
+     *     additional_shipping_cost: float,
+     *     price_wt: float
+     * }>
+     */
     private array $products;
     private ?int $carrierId;
     private ?int $zoneId;
     private ?int $addressId;
-    private Country $country;
+    private int $countryZoneId;
     private int $currencyId;
     private ?int $customerId;
     private float $orderTotal;
 
     /**
-     * @param array $products Array of products with required fields:
-     *                        - id_product (int): Product ID
-     *                        - id_product_attribute (int): Product attribute/combination ID
-     *                        - quantity (int): Quantity in cart
-     *                        - weight (float): Product base weight
-     *                        - weight_attribute (float|null): Product attribute weight (optional)
-     *                        - is_virtual (bool): Whether product is virtual (0 = physical, 1 = virtual)
-     *                        - additional_shipping_cost (float): Additional shipping cost per item
-     * @param int|null $carrierId Specific carrier to use, null for auto-selection
-     * @param int|null $zoneId Zone ID for shipping, null for auto-detection from address/country
-     * @param int|null $addressId Address ID for tax calculation and zone resolution
-     * @param Country $country Country for shipping (fallback for zone resolution)
-     * @param int $currencyId Currency ID for price calculations
-     * @param int|null $customerId Customer ID for carrier filtering by customer groups (optional)
-     * @param float $orderTotal Order total for price-based shipping calculations
+     * @param array<array{
+     *     id_product: int,
+     *     id_product_attribute: int,
+     *     quantity: int,
+     *     weight: float,
+     *     weight_attribute: float|null,
+     *     is_virtual: int,
+     *     additional_shipping_cost: float,
+     *     price_wt: float
+     * }> $products Array of product data for shipping calculation
+     * @param int $carrierId Carrier ID
+     * @param int|null $zoneId Zone ID (optional, will be resolved from address or country)
+     * @param int|null $addressId Delivery address ID
+     * @param int $countryZoneId Country's default zone ID (fallback)
+     * @param int $currencyId Currency ID
+     * @param int|null $customerId Customer ID
+     * @param float $orderTotal Total order amount
      *
      * @throws InvalidArgumentException If products array is invalid or missing required fields
      */
@@ -46,7 +59,7 @@ final class ShippingCalculationRequest
         int $carrierId,
         ?int $zoneId,
         ?int $addressId,
-        Country $country,
+        int $countryZoneId,
         int $currencyId,
         ?int $customerId,
         float $orderTotal
@@ -59,12 +72,21 @@ final class ShippingCalculationRequest
         $this->carrierId = $carrierId;
         $this->zoneId = $zoneId;
         $this->addressId = $addressId;
-        $this->country = $country;
+        $this->countryZoneId = $countryZoneId;
         $this->currencyId = $currencyId;
         $this->customerId = $customerId;
         $this->orderTotal = $orderTotal;
     }
 
+    /**
+     * @param array{
+     *     id_product: int,
+     *     quantity: int,
+     *     is_virtual: bool
+     * } $product
+     *
+     * @throws InvalidArgumentException
+     */
     private function validateProduct(array $product): void
     {
         $required = ['id_product', 'quantity', 'is_virtual'];
@@ -75,6 +97,18 @@ final class ShippingCalculationRequest
         }
     }
 
+    /**
+     * @return array<array{
+     *     id_product: int,
+     *     id_product_attribute: int,
+     *     quantity: int,
+     *     weight: float,
+     *     weight_attribute: float|null,
+     *     is_virtual: int,
+     *     additional_shipping_cost: float,
+     *     price_wt: float
+     * }>
+     */
     public function getProducts(): array
     {
         return $this->products;
@@ -95,9 +129,9 @@ final class ShippingCalculationRequest
         return $this->addressId;
     }
 
-    public function getCountry(): Country
+    public function getCountryZoneId(): int
     {
-        return $this->country;
+        return $this->countryZoneId;
     }
 
     public function getCurrencyId(): int

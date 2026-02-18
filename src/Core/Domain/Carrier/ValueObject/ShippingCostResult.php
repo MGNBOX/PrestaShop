@@ -74,14 +74,4 @@ final class ShippingCostResult
     {
         return $this->precision;
     }
-
-    public function getTaxExcludedAsFloat(): float
-    {
-        return (float) (string) $this->taxExcluded;
-    }
-
-    public function getTaxIncludedAsFloat(): float
-    {
-        return (float) (string) $this->taxIncluded;
-    }
 }

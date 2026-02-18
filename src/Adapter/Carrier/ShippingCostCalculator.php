@@ -10,30 +10,40 @@ namespace PrestaShop\PrestaShop\Adapter\Carrier;
 
 use Address;
 use Carrier;
-use Configuration;
 use Currency;
+use Exception;
 use PrestaShop\Decimal\DecimalNumber;
+use PrestaShop\PrestaShop\Adapter\Address\Repository\AddressRepository;
+use PrestaShop\PrestaShop\Adapter\Carrier\Repository\CarrierRepository;
+use PrestaShop\PrestaShop\Adapter\Configuration as AdapterConfiguration;
+use PrestaShop\PrestaShop\Adapter\Currency\Repository\CurrencyRepository;
 use PrestaShop\PrestaShop\Adapter\LegacyContext;
 use PrestaShop\PrestaShop\Adapter\Tools;
+use PrestaShop\PrestaShop\Core\Context\CurrencyContext;
+use PrestaShop\PrestaShop\Core\Domain\Address\ValueObject\AddressId;
+use PrestaShop\PrestaShop\Core\Domain\Carrier\ValueObject\CarrierId;
 use PrestaShop\PrestaShop\Core\Domain\Carrier\ValueObject\ShippingCalculationRequest;
 use PrestaShop\PrestaShop\Core\Domain\Carrier\ValueObject\ShippingCostResult;
-use Validate;
+use PrestaShop\PrestaShop\Core\Domain\Currency\ValueObject\CurrencyId;
 
 class ShippingCostCalculator
 {
+    /**
+     * @var Carrier[]
+     */
     private array $carrierCache = [];
 
     public function __construct(
         private readonly LegacyContext $context,
         private readonly Tools $tools,
+        private readonly CurrencyRepository $currencyRepository,
+        private readonly CurrencyContext $currencyContext,
+        private readonly AdapterConfiguration $configurationAdapter,
+        private readonly CarrierRepository $carrierRepository,
+        private readonly AddressRepository $addressRepository,
     ) {
     }
 
-    /**
-     * @param ShippingCalculationRequest $request Request
-     *
-     * @return ShippingCostResult|null
-     */
     public function calculate(ShippingCalculationRequest $request): ?ShippingCostResult
     {
         $physicalProducts = $this->filterPhysicalProducts($request->getProducts());
@@ -45,11 +55,11 @@ class ShippingCostCalculator
         $zoneId = $this->resolveZoneId($request);
         $carrier = $this->getCarrier($request->getCarrierId());
 
-        if (!$carrier || !Validate::isLoadedObject($carrier) || !$carrier->active) {
+        if (empty($carrier)) {
             return $this->setFreeShippingCost($request->getCarrierId());
         }
 
-        if ($carrier->is_free == 1) {
+        if ($carrier->getShippingMethod() === Carrier::SHIPPING_METHOD_FREE) {
             return $this->setFreeShippingCost($carrier->id);
         }
 
@@ -71,8 +81,8 @@ class ShippingCostCalculator
             return $this->setFreeShippingCost($carrier->id);
         }
 
-        if ($carrier->shipping_handling && Configuration::get('PS_SHIPPING_HANDLING')) {
-            $handlingCost = new DecimalNumber((string) Configuration::get('PS_SHIPPING_HANDLING'));
+        if ($carrier->shipping_handling && $this->configurationAdapter->get('PS_SHIPPING_HANDLING')) {
+            $handlingCost = new DecimalNumber((string) $this->configurationAdapter->get('PS_SHIPPING_HANDLING'));
             $baseCost = $baseCost->plus($handlingCost);
         }
 
@@ -82,6 +92,18 @@ class ShippingCostCalculator
         return $this->applyTaxAndRound($baseCost, $carrier, $request->getAddressId());
     }
 
+    /**
+     * @return array<array{
+     *     id_product: int,
+     *     id_product_attribute: int,
+     *     quantity: int,
+     *     weight: float,
+     *     weight_attribute: float|null,
+     *     is_virtual: int,
+     *     additional_shipping_cost: float,
+     *     price_wt: float
+     * }>
+     */
     private function filterPhysicalProducts(array $products): array
     {
         return array_filter($products, fn ($p) => empty($p['is_virtual']));
@@ -93,21 +115,27 @@ class ShippingCostCalculator
             return $request->getZoneId();
         }
 
-        if ($request->getAddressId() && Address::addressExists($request->getAddressId(), true)) {
-            return (int) Address::getZoneById($request->getAddressId());
+        if ($request->getAddressId()) {
+            try {
+                return $this->addressRepository->getZoneId(
+                    new AddressId($request->getAddressId())
+                );
+            } catch (Exception $e) {
+            }
         }
 
-        return (int) $request->getCountry()->id_zone;
+        return $request->getCountryZoneId();
     }
 
     private function getCarrier(int $carrierId): ?Carrier
     {
         if (!isset($this->carrierCache[$carrierId])) {
-            $carrier = new Carrier($carrierId, (int) Configuration::get('PS_LANG_DEFAULT'));
-            if (!Validate::isLoadedObject($carrier)) {
+            try {
+                $carrier = $this->carrierRepository->get(new CarrierId($carrierId));
+                $this->carrierCache[$carrierId] = $carrier;
+            } catch (Exception $e) {
                 return null;
             }
-            $this->carrierCache[$carrierId] = $carrier;
         }
 
         return $this->carrierCache[$carrierId];
@@ -131,15 +159,13 @@ class ShippingCostCalculator
 
     private function qualifiesForFreeShipping(float $orderTotal, float $totalWeight, int $currencyId): bool
     {
-        $config = Configuration::getMultiple([
-            'PS_SHIPPING_FREE_PRICE',
-            'PS_SHIPPING_FREE_WEIGHT',
-        ]);
+        $shippingFreePrice = $this->configurationAdapter->get('PS_SHIPPING_FREE_PRICE');
+        $shippingFreeWeight = $this->configurationAdapter->get('PS_SHIPPING_FREE_WEIGHT');
 
-        if (isset($config['PS_SHIPPING_FREE_PRICE']) && (float) $config['PS_SHIPPING_FREE_PRICE'] > 0) {
-            $freeShippingPrice = \Tools::convertPrice(
-                (float) $config['PS_SHIPPING_FREE_PRICE'],
-                Currency::getCurrencyInstance($currencyId)
+        if (isset($shippingFreePrice) && (float) $shippingFreePrice > 0) {
+            $freeShippingPrice = $this->tools->convertPrice(
+                (float) $shippingFreePrice,
+                $this->currencyRepository->get(new CurrencyId($currencyId))
             );
 
             if ($orderTotal >= $freeShippingPrice) {
@@ -147,8 +173,8 @@ class ShippingCostCalculator
             }
         }
 
-        if (isset($config['PS_SHIPPING_FREE_WEIGHT']) && (float) $config['PS_SHIPPING_FREE_WEIGHT'] > 0) {
-            if ($totalWeight >= (float) $config['PS_SHIPPING_FREE_WEIGHT']) {
+        if (isset($shippingFreeWeight) && (float) $shippingFreeWeight > 0) {
+            if ($totalWeight >= (float) $shippingFreeWeight) {
                 return true;
             }
         }
@@ -208,7 +234,7 @@ class ShippingCostCalculator
 
     private function convertCurrency(DecimalNumber $amount, int $currencyId): DecimalNumber
     {
-        $converted = \Tools::convertPrice(
+        $converted = $this->tools->convertPrice(
             (float) (string) $amount,
             Currency::getCurrencyInstance($currencyId)
         );
@@ -226,19 +252,12 @@ class ShippingCostCalculator
         $taxExcluded = $cost;
         $taxIncluded = $cost;
 
-        if (Configuration::get('PS_TAX') && $addressId) {
+        if ($this->configurationAdapter->get('PS_TAX') && $addressId && !$this->configurationAdapter->get('PS_ATCP_SHIPWRAP')) {
             $address = Address::initialize($addressId);
-            $carrierTax = 0;
-
-            if (Configuration::get('PS_ATCP_SHIPWRAP')) {
-                $taxIncluded = $cost;
-                $taxExcluded = $cost;
-            } else {
-                $carrierTax = $carrier->getTaxesRate($address);
-                $taxIncluded = $cost->times(
-                    new DecimalNumber((string) (1 + ($carrierTax / 100)))
-                );
-            }
+            $carrierTax = $carrier->getTaxesRate($address);
+            $taxIncluded = $cost->times(
+                new DecimalNumber((string) (1 + ($carrierTax / 100)))
+            );
         }
 
         $taxExcludedRounded = new DecimalNumber(
@@ -258,7 +277,7 @@ class ShippingCostCalculator
 
     private function setFreeShippingCost(int $carrierId): ShippingCostResult
     {
-        $precision = $this->context->getContext()->getComputingPrecision();
+        $precision = $this->currencyContext->getPrecision();
         $zero = new DecimalNumber('0');
 
         return new ShippingCostResult(
