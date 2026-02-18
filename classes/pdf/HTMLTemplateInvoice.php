@@ -1,5 +1,4 @@
 <?php
-
 /**
  * For the full copyright and license information, please view the
  * docs/licenses/LICENSE.txt file that was distributed with this source code.
@@ -7,8 +6,6 @@
 
 use PrestaShop\PrestaShop\Adapter\ContainerFinder;
 use PrestaShop\PrestaShop\Core\Domain\Shipment\Query\GetOrderShipmentsWithProducts;
-use PrestaShop\PrestaShop\Core\FeatureFlag\FeatureFlagSettings;
-use PrestaShop\PrestaShop\Core\FeatureFlag\FeatureFlagStateCheckerInterface;
 use PrestaShop\PrestaShop\Core\Util\Sorter;
 
 class HTMLTemplateInvoiceCore extends HTMLTemplate
