@@ -3091,7 +3091,7 @@ class CartCore extends ObjectModel
 
         $cart_rules = CartRule::getCustomerCartRules(
             (int) Context::getContext()->language->id,
-            (int) Context::getContext()->customer->id,
+            !empty(Context::getContext()->customer->id) ? (int) Context::getContext()->customer->id : 0,
             true,
             true,
             false,
