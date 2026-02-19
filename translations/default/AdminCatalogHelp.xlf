@@ -160,7 +160,6 @@
       <trans-unit id="8b2ff26690065c221599c196cb6adc82">
         <source>If a carrier has a tax, it will be added to the shipping fees. Does not apply to free shipping.</source>
         <target>If a carrier has a tax, it will be added to the shipping fees. Does not apply to free shipping.</target>
-        <note>File: src/PrestaShopBundle/Form/Admin/Sell/Product/Shipping/ShippingType.php [Line: 84]</note>
       </trans-unit>
       <trans-unit id="f049153f2c655d6d1ebd123f04b432cf">
         <source>If set, the file will not be downloadable after this date. Leave blank if you do not wish to attach an expiration date.</source>
@@ -235,6 +234,11 @@
         <source>Only applicable if the voucher value is greater than the cart total.</source>
         <target>Only applicable if the voucher value is greater than the cart total.</target>
         <note>File: admin-dev/themes/default/template/controllers/cart_rules/informations.tpl [Line: 91]</note>
+      </trans-unit>
+      <trans-unit id="69f3af81a513ef4f221187b81498930e">
+        <source>Optional additional fee added to the shipping cost for each purchased item. Applies only if shipping is not free.</source>
+        <target>Optional additional fee added to the shipping cost for each purchased item. Applies only if shipping is not free.</target>
+        <note>File: src/PrestaShopBundle/Form/Admin/Sell/Product/Shipping/ShippingType.php [Line: 84]</note>
       </trans-unit>
       <trans-unit id="39fe0bb83d46a90711119bd7b5807a34">
         <source>Optional detailed information about the product, such as its features, specifications, images, videos, or package contents. Use this field when you need to provide more details beyond the short summary.</source>
