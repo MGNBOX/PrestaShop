@@ -65,12 +65,14 @@ export default class OrderProductAutocomplete {
       this.updateResults(this.results);
     });
 
-    this.selectShipment.addEventListener('change', (event: Event) => this.handleShipment(event));
-    this.selectCarriers.addEventListener('change', (event: Event) => {
-      const element = event.target as HTMLSelectElement;
-      const submitBtn = document.querySelector<HTMLButtonElement>(OrderViewPageMap.productAddActionBtn)!;
-      submitBtn.disabled = !element.value;
-    });
+    if (this.isMultishipmentIsEnabled) {
+      this.selectShipment.addEventListener('change', (event: Event) => this.handleShipment(event));
+      this.selectCarriers.addEventListener('change', (event: Event) => {
+        const element = event.target as HTMLSelectElement;
+        const submitBtn = document.querySelector<HTMLButtonElement>(OrderViewPageMap.productAddActionBtn)!;
+        submitBtn.disabled = !element.value;
+      });
+    }
 
     this.input.on('keyup', (event: JQueryEventObject) => this.delaySearch(<HTMLInputElement>event.currentTarget));
     $(document).on('click', () => this.dropdownMenu.hide());
