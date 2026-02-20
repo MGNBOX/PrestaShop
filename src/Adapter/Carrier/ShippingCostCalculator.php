@@ -98,14 +98,14 @@ class ShippingCostCalculator
      *     quantity: int,
      *     weight: float,
      *     weight_attribute: float|null,
-     *     is_virtual: int,
+     *     is_virtual: bool,
      *     additional_shipping_cost: float,
      *     price_wt: float
      * }>
      */
     private function filterPhysicalProducts(array $products): array
     {
-        return array_filter($products, fn ($p) => empty($p['is_virtual']));
+        return array_filter($products, fn ($p) => $p['is_virtual'] === false);
     }
 
     private function resolveZoneId(ShippingCalculationRequest $request): int
@@ -146,7 +146,7 @@ class ShippingCostCalculator
         $totalWeight = 0;
 
         foreach ($products as $product) {
-            if (!empty($product['is_virtual'])) {
+            if ($product['is_virtual'] === true) {
                 continue;
             }
 
@@ -217,7 +217,7 @@ class ShippingCostCalculator
         $additionalCost = new DecimalNumber('0');
 
         foreach ($products as $product) {
-            if (!empty($product['is_virtual'])) {
+            if ($product['is_virtual'] === true) {
                 continue;
             }
 
