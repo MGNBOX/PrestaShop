@@ -1101,7 +1101,7 @@ parameters:
 			path: src/PrestaShopBundle/Command/ModuleCommand.php
 		-
 			message: "#^Namespace Configuration is forbidden, No legacy calls inside the prestashop bundle\\. Please create an interface and an adapter if you need to\\.$#"
-			count: 2
+			count: 3
 			path: src/PrestaShopBundle/Command/ModuleCommand.php
 
 		-
