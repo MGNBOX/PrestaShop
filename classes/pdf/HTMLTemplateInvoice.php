@@ -7,7 +7,6 @@
 use PrestaShop\PrestaShop\Adapter\ContainerFinder;
 use PrestaShop\PrestaShop\Core\Util\Sorter;
 use PrestaShopBundle\Entity\Repository\ShipmentRepository;
-use PrestaShopBundle\Entity\Shipment;
 
 class HTMLTemplateInvoiceCore extends HTMLTemplate
 {
@@ -27,6 +26,11 @@ class HTMLTemplateInvoiceCore extends HTMLTemplate
     public $available_in_your_account = false;
 
     /**
+     * @var ShipmentRepository
+     */
+    private $shipmentRepository;
+
+    /**
      * @param OrderInvoice $order_invoice
      * @param Smarty $smarty
      * @param bool $bulk_mode
@@ -39,6 +43,9 @@ class HTMLTemplateInvoiceCore extends HTMLTemplate
         $this->order = new Order((int) $this->order_invoice->id_order);
         $this->smarty = $smarty;
         $this->smarty->assign('isTaxEnabled', (bool) Configuration::get('PS_TAX'));
+
+        $containerFinder = new ContainerFinder(Context::getContext());
+        $this->shipmentRepository = $containerFinder->getContainer()->get(ShipmentRepository::class);
 
         // If shop_address is null, then update it with current one.
         // But no DB save required here to avoid massive updates for bulk PDF generation case.
@@ -220,16 +227,7 @@ class HTMLTemplateInvoiceCore extends HTMLTemplate
             unset($order_detail); // don't overwrite the last order_detail later
         }
 
-        $containerFinder = new ContainerFinder(Context::getContext());
-        $container = $containerFinder->getContainer();
-
-        $doctrine = $container->get('doctrine');
-
-        /** @var ShipmentRepository $shipmentRepository */
-        $shipmentRepository = $doctrine->getManager()->getRepository(Shipment::class);
-        $shipmentRepository->setTablePrefix(_DB_PREFIX_);
-
-        $shipmentsWithProducts = $this->getOrderShipmentsWithProducts($this->order->id, $shipmentRepository);
+        $shipmentsWithProducts = $this->getOrderShipmentsWithProducts($this->order->id);
         $orderHasShipment = !empty($shipmentsWithProducts);
 
         $productsByShipment = [];
@@ -534,15 +532,12 @@ class HTMLTemplateInvoiceCore extends HTMLTemplate
     /**
      * Get shipments with products (array of order details IDs) for an order.
      *
-     * @param int $orderId
-     * @param ShipmentRepository $shipmentRepository
-     *
      * @return array Array of shipment data with products
      */
-    private function getOrderShipmentsWithProducts(int $orderId, ShipmentRepository $shipmentRepository): array
+    private function getOrderShipmentsWithProducts(int $orderId): array
     {
         try {
-            $shipments = $shipmentRepository->findByOrderId($orderId);
+            $shipments = $this->shipmentRepository->findByOrderId($orderId);
         } catch (Throwable $e) {
             return [];
         }
@@ -551,7 +546,7 @@ class HTMLTemplateInvoiceCore extends HTMLTemplate
             return [];
         }
 
-        $shipmentProductMapping = $this->getShipmentProductMapping($orderId, $shipmentRepository);
+        $shipmentProductMapping = $this->getShipmentProductMapping($orderId);
 
         $result = [];
         foreach ($shipments as $shipment) {
@@ -575,14 +570,11 @@ class HTMLTemplateInvoiceCore extends HTMLTemplate
      * Get shipment to order detail ID mapping.
      * Returns an array where keys are shipment IDs and values are arrays of order detail IDs.
      *
-     * @param int $orderId
-     * @param ShipmentRepository $shipmentRepository
-     *
      * @return array<int, int[]>
      */
-    private function getShipmentProductMapping(int $orderId, ShipmentRepository $shipmentRepository): array
+    private function getShipmentProductMapping(int $orderId): array
     {
-        $results = $shipmentRepository->getShipmentProductMappingByOrderId($orderId);
+        $results = $this->shipmentRepository->getShipmentProductMappingByOrderId($orderId);
 
         if (empty($results)) {
             return [];
