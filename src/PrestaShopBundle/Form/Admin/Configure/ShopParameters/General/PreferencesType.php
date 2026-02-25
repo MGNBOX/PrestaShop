@@ -26,9 +26,7 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 class PreferencesType extends TranslatorAwareType
 {
     public const SHOP_MODE = 'shop_mode';
-    public const SHOP_MODE_B2C_ONLY = 'b2c_only';
-    public const SHOP_MODE_B2B_ONLY = 'b2b_only';
-    public const SHOP_MODE_B2B_AND_B2C = 'b2b_and_b2c';
+
     /**
      * @var bool
      */
