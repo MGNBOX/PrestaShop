@@ -30,6 +30,8 @@ export default class OrderProductAutocomplete {
 
   selectCarriers: HTMLSelectElement;
 
+  addProductBtnAction: HTMLButtonElement;
+
   searchTimeoutId: undefined | number | ReturnType<typeof setTimeout>;
 
   onItemClickedCallback: (product?: Record<string, any> | undefined) => void;
@@ -46,6 +48,7 @@ export default class OrderProductAutocomplete {
     // eslint-disable-next-line max-len
     this.isMultishipmentIsEnabled = document.querySelector<HTMLElement>(OrderViewPageMap.productsTable)?.dataset.multishipmentEnabled === '1';
     this.selectCarriers = document.querySelector<HTMLSelectElement>(OrderViewPageMap.productSelectCarriers)!;
+    this.addProductBtnAction = document.querySelector<HTMLButtonElement>(OrderViewPageMap.productAddActionBtn)!;
 
     if (this.isMultishipmentIsEnabled) {
       this.dropdownMenu = $(OrderViewPageMap.productSearchInputAutocompleteMenuOnModale);
@@ -66,12 +69,8 @@ export default class OrderProductAutocomplete {
     });
 
     if (this.isMultishipmentIsEnabled) {
-      this.selectShipment.addEventListener('change', (event: Event) => this.handleShipment(event));
-      this.selectCarriers.addEventListener('change', (event: Event) => {
-        const element = event.target as HTMLSelectElement;
-        const submitBtn = document.querySelector<HTMLButtonElement>(OrderViewPageMap.productAddActionBtn)!;
-        submitBtn.disabled = !element.value;
-      });
+      this.selectShipment.addEventListener('change', this.handleShipment);
+      this.selectCarriers.addEventListener('change', this.toggleSubmitButton);
     }
 
     this.input.on('keyup', (event: JQueryEventObject) => this.delaySearch(<HTMLInputElement>event.currentTarget));
@@ -157,23 +156,25 @@ export default class OrderProductAutocomplete {
   handleShipment(event: Event): void {
     const select = event.target as HTMLSelectElement;
     const container = document.querySelector<HTMLElement>(OrderViewPageMap.productSelectCarriersContainer)!;
-    const submitBtn = document.querySelector<HTMLButtonElement>(OrderViewPageMap.productAddActionBtn)!;
     const {value} = select;
 
     container.classList.toggle('d-none', value !== '0');
     container.classList.toggle('d-block', value === '0');
 
-    submitBtn.disabled = !value || value === '0';
+    this.addProductBtnAction.disabled = !value || value === '0';
 
     if (value === '0') {
-      this.fetchCarrierFromProduct();
+      const productId = document.querySelector<HTMLInputElement>(OrderViewPageMap.productAddIdInput)?.value;
+      this.fetchCarrierFromProduct(Number(productId));
     }
   }
 
-  fetchCarrierFromProduct(): void {
-    const productAddInput = document.querySelector<HTMLInputElement>(OrderViewPageMap.productAddIdInput);
-    const productId = productAddInput?.value;
+  toggleSubmitButton(event: Event): void {
+    const element = event.target as HTMLSelectElement;
+    this.addProductBtnAction.disabled = !element.value;
+  }
 
+  fetchCarrierFromProduct(productId: number): void {
     if (!productId) {
       throw new Error('productId is missing');
     }
@@ -202,8 +203,7 @@ export default class OrderProductAutocomplete {
         );
 
         this.selectCarriers.disabled = false;
-        const submitBtn = document.querySelector<HTMLButtonElement>(OrderViewPageMap.productAddActionBtn)!;
-        submitBtn.disabled = true;
+        this.addProductBtnAction.disabled = true;
       })
       .catch((error) => {
         console.error('An error occured while fetching carriers ', error);
@@ -241,8 +241,7 @@ export default class OrderProductAutocomplete {
             );
           },
         );
-        const submitBtn = document.querySelector<HTMLButtonElement>(OrderViewPageMap.productAddActionBtn)!;
-        submitBtn.disabled = true;
+        this.addProductBtnAction.disabled = true;
         this.selectShipment.disabled = false;
       })
       .catch((error) => {
