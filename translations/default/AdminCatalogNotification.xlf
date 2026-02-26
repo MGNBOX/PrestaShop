@@ -703,7 +703,7 @@
       <trans-unit id="c29a17eb8f5e0d85a09204574d8889d3">
         <source>You need to select at least one product.</source>
         <target>You need to select at least one product.</target>
-        <note>File: src/PrestaShopBundle/Form/Admin/Sell/Discount/ProductConditionsType.php [Line: 68]</note>
+        <note>File: src/PrestaShopBundle/Form/Admin/Sell/Discount/ProductConditionsType.php [Line: 69]</note>
       </trans-unit>
     </body>
   </file>

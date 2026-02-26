@@ -22,30 +22,6 @@
         <source>1.62 in</source>
         <target>1.62 in</target>
       </trans-unit>
-      <trans-unit id="1c383cd30b7c298ab50293adfecb7b18">
-        <source>35</source>
-        <target>35</target>
-      </trans-unit>
-      <trans-unit id="19ca14e7ea6328a42e0eb13d585e4c22">
-        <source>36</source>
-        <target>36</target>
-      </trans-unit>
-      <trans-unit id="a5bfc9e07964f8dddeb95fc584cd965d">
-        <source>37</source>
-        <target>37</target>
-      </trans-unit>
-      <trans-unit id="a5771bce93e200c36f7cd9dfd0e5deaa">
-        <source>38</source>
-        <target>38</target>
-      </trans-unit>
-      <trans-unit id="d67d8ab4f4c10bf22aa353e27879133c">
-        <source>39</source>
-        <target>39</target>
-      </trans-unit>
-      <trans-unit id="d645920e395fedad7bbbed0eca3fe2e0">
-        <source>40</source>
-        <target>40</target>
-      </trans-unit>
       <trans-unit id="d576562cd8e23f2a8210efc25387bde2">
         <source>120 g</source>
         <target>120 g</target>
@@ -386,6 +362,30 @@
         <source>Yellow</source>
         <target>Yellow</target>
         <note>File: classes/lang/KeysReference/AttributeLang.php [Line: 22]</note>
+      </trans-unit>
+      <trans-unit id="1c383cd30b7c298ab50293adfecb7b18">
+        <source>35</source>
+        <target>35</target>
+      </trans-unit>
+      <trans-unit id="19ca14e7ea6328a42e0eb13d585e4c22">
+        <source>36</source>
+        <target>36</target>
+      </trans-unit>
+      <trans-unit id="a5bfc9e07964f8dddeb95fc584cd965d">
+        <source>37</source>
+        <target>37</target>
+      </trans-unit>
+      <trans-unit id="a5771bce93e200c36f7cd9dfd0e5deaa">
+        <source>38</source>
+        <target>38</target>
+      </trans-unit>
+      <trans-unit id="d67d8ab4f4c10bf22aa353e27879133c">
+        <source>39</source>
+        <target>39</target>
+      </trans-unit>
+      <trans-unit id="d645920e395fedad7bbbed0eca3fe2e0">
+        <source>40</source>
+        <target>40</target>
       </trans-unit>
     </body>
   </file>

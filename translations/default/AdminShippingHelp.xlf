@@ -32,6 +32,11 @@
         <target>Current size:</target>
         <note>File: admin-dev/themes/default/template/controllers/carrier_wizard/helpers/form/form.tpl [Line: 38]</note>
       </trans-unit>
+      <trans-unit id="18e9f7ddeac8d0b72e3dfc3610a6aa4d">
+        <source>Default carrier that will be pre-selected for customers in the checkout process.</source>
+        <target>Default carrier that will be pre-selected for customers in the checkout process.</target>
+        <note>File: src/PrestaShopBundle/Form/Admin/Improve/Shipping/Preferences/CarrierOptionsType.php [Line: 70]</note>
+      </trans-unit>
       <trans-unit id="ff9058a791d671d3cb7ce3117b3f989d">
         <source>Delivery tracking URL: Type '@' where the tracking number should appear. It will be automatically replaced by the tracking number.</source>
         <target>Delivery tracking URL: Type '@' where the tracking number should appear. It will be automatically replaced by the tracking number.</target>
@@ -41,6 +46,11 @@
         <source>Delivery tracking URL: Type '@' where the tracking number should appear. It will then be automatically replaced by the tracking number.</source>
         <target>Delivery tracking URL: Type '@' where the tracking number should appear. It will then be automatically replaced by the tracking number.</target>
         <note>File: controllers/admin/AdminCarriersController.php [Line: 218]</note>
+      </trans-unit>
+      <trans-unit id="20a099646bcf8c5d78b0d9f4c7038152">
+        <source>Determines how carriers are sorted in the checkout.</source>
+        <target>Determines how carriers are sorted in the checkout.</target>
+        <note>File: src/PrestaShopBundle/Form/Admin/Improve/Shipping/Preferences/CarrierOptionsType.php [Line: 84]</note>
       </trans-unit>
       <trans-unit id="c7d2c17ab5d3a8c4cc23b32760f3b0d5">
         <source>Does the carrier have additional fees</source>
@@ -182,6 +192,11 @@
         <target>Note: DO NOT register a new carrier if there already exists a module for it! Using a module will be much faster and more accurate!</target>
         <note>File: admin-dev/themes/default/template/controllers/carriers/helpers/list/list_header.tpl [Line: 12]</note>
       </trans-unit>
+      <trans-unit id="b5bf157ac3bd2fe88fd233dd0a218937">
+        <source>Optional additional fee added to carriers with handling charges enabled. This fee is not applied when shipping is free due to options below.</source>
+        <target>Optional additional fee added to carriers with handling charges enabled. This fee is not applied when shipping is free due to options below.</target>
+        <note>File: src/PrestaShopBundle/Form/Admin/Improve/Shipping/Preferences/HandlingType.php [Line: 71]</note>
+      </trans-unit>
       <trans-unit id="0d93d79832d9f31a18045afabb105de1">
         <source>Out-of-range behavior occurs when no defined range matches the customer's cart (e.g. when the weight of the cart is greater than the highest weight limit defined by the weight ranges).</source>
         <target>Out-of-range behavior occurs when no defined range matches the customer's cart (e.g. when the weight of the cart is greater than the highest weight limit defined by the weight ranges).</target>
@@ -191,6 +206,21 @@
         <source>Out-of-range behavior occurs when none is defined (e.g. when a customer's cart weight is greater than the highest range limit).</source>
         <target>Out-of-range behavior occurs when none is defined (e.g. when a customer's cart weight is greater than the highest range limit).</target>
         <note>File: controllers/admin/AdminCarriersController.php [Line: 357]</note>
+      </trans-unit>
+      <trans-unit id="cf83a9e87e171e2120cf9349e6cd48b3">
+        <source>Sets the sorting direction of carriers in the checkout.</source>
+        <target>Sets the sorting direction of carriers in the checkout.</target>
+        <note>File: src/PrestaShopBundle/Form/Admin/Improve/Shipping/Preferences/CarrierOptionsType.php [Line: 97]</note>
+      </trans-unit>
+      <trans-unit id="25c2b60f406a96b0ee2ca5bf92c5dbf8">
+        <source>Shipping is free for all zones when the cart total reaches or exceeds this amount.</source>
+        <target>Shipping is free for all zones when the cart total reaches or exceeds this amount.</target>
+        <note>File: src/PrestaShopBundle/Form/Admin/Improve/Shipping/Preferences/HandlingType.php [Line: 89]</note>
+      </trans-unit>
+      <trans-unit id="43a4e91b6e4675142f1f3b9bf4648510">
+        <source>Shipping is free for all zones when the total cart weight reaches or exceeds this value.</source>
+        <target>Shipping is free for all zones when the total cart weight reaches or exceeds this value.</target>
+        <note>File: src/PrestaShopBundle/Form/Admin/Improve/Shipping/Preferences/HandlingType.php [Line: 107]</note>
       </trans-unit>
       <trans-unit id="95be6960ce35a5d972b7314203b312be">
         <source>The carrier's name will be displayed during checkout.</source>
@@ -215,7 +245,6 @@
       <trans-unit id="4f309c91cb82ce5d20c15d015759a21e">
         <source>This will only be visible in the front office.</source>
         <target>This will only be visible in the front office.</target>
-        <note>File: src/PrestaShopBundle/Form/Admin/Improve/Shipping/Preferences/CarrierOptionsType.php [Line: 97]</note>
       </trans-unit>
       <trans-unit id="9e93aab109e30d26aa231a49385c99db">
         <source>Upload a logo from your computer.</source>
@@ -235,7 +264,6 @@
       <trans-unit id="d42436f136f07fe81921a4939242c3bf">
         <source>Your shop's default carrier.</source>
         <target>Your shop's default carrier.</target>
-        <note>File: src/PrestaShopBundle/Form/Admin/Improve/Shipping/Preferences/CarrierOptionsType.php [Line: 70]</note>
       </trans-unit>
       <trans-unit id="52dbc6fa2418548ded20ae17862f4ca1">
         <source>Zones that the carrier can handle</source>

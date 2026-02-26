@@ -310,6 +310,10 @@ describe('API : Check endpoints', async () => {
         // tests/UI/campaigns/functional/API/02_endpoints/08_product/10_postProduct.ts
         '/products: POST',
         // @todo: add tests
+        '/showcase-cards/{showcaseCardName}/{employeeId}/close: PUT',
+        // @todo: add tests
+        '/showcase-cards/{showcaseCardName}/{employeeId}: GET',
+        // @todo: add tests
         // '/search-aliases/bulk-delete: DELETE',
         // @todo: add tests
         // '/search-aliases/{searchTerm}: GET',
@@ -367,6 +371,20 @@ describe('API : Check endpoints', async () => {
         '/tax-rules-groups: GET',
         // @todo: add tests
         '/tax-rules-groups: POST',
+        // @todo: add tests
+        '/taxes/bulk-delete: PUT',
+        // @todo: add tests
+        '/taxes/bulk-set-status: PUT',
+        // @todo: add tests
+        '/taxes/{taxId}: DELETE',
+        // @todo: add tests
+        '/taxes/{taxId}: GET',
+        // @todo: add tests
+        '/taxes/{taxId}: PATCH',
+        // @todo: add tests
+        '/taxes: GET',
+        // @todo: add tests
+        '/taxes: POST',
         // @todo: add tests
         '/titles/bulk-delete: DELETE',
         // @todo: add tests

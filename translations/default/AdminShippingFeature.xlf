@@ -170,7 +170,7 @@
       <trans-unit id="c9722f74f95451816de0f8ca3259ae44">
         <source>Free shipping starts at</source>
         <target>Free shipping starts at</target>
-        <note>File: src/PrestaShopBundle/Form/Admin/Improve/Shipping/Preferences/HandlingType.php [Line: 91]</note>
+        <note>File: src/PrestaShopBundle/Form/Admin/Improve/Shipping/Preferences/HandlingType.php [Line: 99]</note>
       </trans-unit>
       <trans-unit id="de62775a71fc2bf7a13d7530ae24a7ed">
         <source>General settings</source>

@@ -440,7 +440,7 @@
       <trans-unit id="41e117ea7f23233cf071b82507d9bd72">
         <source>Cart conditions</source>
         <target>Cart conditions</target>
-        <note>File: src/PrestaShopBundle/Form/Admin/Sell/Discount/DiscountConditionsType.php [Line: 36]</note>
+        <note>File: src/PrestaShopBundle/Form/Admin/Sell/Discount/DiscountConditionsType.php [Line: 40]</note>
       </trans-unit>
       <trans-unit id="48bc4d0ad8c02bb7d116b43d907570e2">
         <source>Cart rule</source>
@@ -823,7 +823,7 @@
       <trans-unit id="7283dc55553a6f5424376b4ea9279fd9">
         <source>Delivery conditions</source>
         <target>Delivery conditions</target>
-        <note>File: src/PrestaShopBundle/Form/Admin/Sell/Discount/DiscountConditionsType.php [Line: 48]</note>
+        <note>File: src/PrestaShopBundle/Form/Admin/Sell/Discount/DiscountConditionsType.php [Line: 52]</note>
       </trans-unit>
       <trans-unit id="7320268d3e6def915f7a462afd0e5738">
         <source>Delivery time</source>
@@ -1451,7 +1451,7 @@
       <trans-unit id="2b9fd8d7c40948fdfbc27fc95aa7d4b1">
         <source>Limit the discount's availability based on the customer's country or chosen delivery method.</source>
         <target>Limit the discount's availability based on the customer's country or chosen delivery method.</target>
-        <note>File: src/PrestaShopBundle/Form/Admin/Sell/Discount/DiscountConditionsType.php [Line: 49]</note>
+        <note>File: src/PrestaShopBundle/Form/Admin/Sell/Discount/DiscountConditionsType.php [Line: 53]</note>
       </trans-unit>
       <trans-unit id="8f36b08eb9ebba13ef930c9dd719ff7c">
         <source>Limit to a single customer</source>
@@ -2015,7 +2015,7 @@
       <trans-unit id="37701e6d893d81d755624942eeff27da">
         <source>Product segment</source>
         <target>Product segment</target>
-        <note>File: src/PrestaShopBundle/Form/Admin/Sell/Discount/ProductConditionsType.php [Line: 75]</note>
+        <note>File: src/PrestaShopBundle/Form/Admin/Sell/Discount/ProductConditionsType.php [Line: 76]</note>
       </trans-unit>
       <trans-unit id="7f36b7eac5872d757b315ed431c4ad92">
         <source>Product selection</source>
@@ -2365,7 +2365,7 @@
       <trans-unit id="a256a6cd98631feb7a6a8036e75e3a56">
         <source>Set a minimum purchase amount or product quantity for the discount to become active.</source>
         <target>Set a minimum purchase amount or product quantity for the discount to become active.</target>
-        <note>File: src/PrestaShopBundle/Form/Admin/Sell/Discount/DiscountConditionsType.php [Line: 37]</note>
+        <note>File: src/PrestaShopBundle/Form/Admin/Sell/Discount/DiscountConditionsType.php [Line: 41]</note>
       </trans-unit>
       <trans-unit id="048d6660ebe2ebd42adea9efed97aa7d">
         <source>Set a specific order for this product</source>
@@ -2440,7 +2440,7 @@
       <trans-unit id="8e67c00156e67afbdaf27272c772a2e2">
         <source>Single product</source>
         <target>Single product</target>
-        <note>File: src/PrestaShopBundle/Form/Admin/Sell/Discount/ProductConditionsType.php [Line: 44]</note>
+        <note>File: src/PrestaShopBundle/Form/Admin/Sell/Discount/ProductConditionsType.php [Line: 45]</note>
       </trans-unit>
       <trans-unit id="d6c88db9c7c9e17dd19361fd0cd109a2">
         <source>Sold products</source>
@@ -2480,7 +2480,7 @@
       <trans-unit id="0134930cd8de5ba2ea50e5a843bea37d">
         <source>Specific products</source>
         <target>Specific products</target>
-        <note>File: src/PrestaShopBundle/Form/Admin/Sell/Discount/ProductConditionsType.php [Line: 47]</note>
+        <note>File: src/PrestaShopBundle/Form/Admin/Sell/Discount/ProductConditionsType.php [Line: 48]</note>
       </trans-unit>
       <trans-unit id="4c43a60b8005e29697dfbcf647f8096e">
         <source>Specific references</source>

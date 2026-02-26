@@ -214,7 +214,7 @@
       <trans-unit id="29aa46cc3d2677c7e0f216910df600ff">
         <source>Free shipping</source>
         <target>Free shipping</target>
-        <note>File: src/Adapter/Presenter/Cart/CartLazyArray.php [Line: 452]</note>
+        <note>File: src/Adapter/Presenter/Cart/CartLazyArray.php [Line: 458]</note>
       </trans-unit>
       <trans-unit id="0d9175fe89fb80d815e7d03698b6e83a">
         <source>Gift</source>
@@ -299,7 +299,7 @@
       <trans-unit id="0bf3928d84fde940f6feafac75062280">
         <source>My Address</source>
         <target>My Address</target>
-        <note>File: classes/form/CustomerAddressForm.php [Line: 149]</note>
+        <note>File: classes/form/CustomerAddressForm.php [Line: 144]</note>
       </trans-unit>
       <trans-unit id="49ee3087348e8d44e1feda1917443987">
         <source>Name</source>
