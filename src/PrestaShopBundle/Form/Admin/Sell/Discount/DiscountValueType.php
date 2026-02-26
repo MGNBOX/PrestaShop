@@ -19,9 +19,6 @@ class DiscountValueType extends TranslatorAwareType
                 'label' => $this->trans('Discount value', 'Admin.Catalog.Feature'),
                 'label_help_box' => $this->trans('You can choose a minimum amount for the cart either with or without the taxes.', 'Admin.Catalog.Help'),
                 'help' => $this->trans('Shipping fees are excluded.', 'Admin.Catalog.Help'),
-                'help_attr' => [
-                    'class' => 'text-right',
-                ],
                 'required' => false,
                 'row_attr' => [
                     'class' => 'discount-container',
