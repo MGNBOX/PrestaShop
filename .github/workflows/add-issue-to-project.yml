@@ -10,4 +10,4 @@ jobs:
     with:
       project-number: 48
     secrets:
-      GITHUB_TOKEN: ${{ secrets.JARVIS_TOKEN }}
+      TOKEN: ${{ secrets.JARVIS_TOKEN }}
