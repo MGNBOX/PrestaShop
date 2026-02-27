@@ -38,6 +38,10 @@ export default class OrderProductAutocomplete {
 
   isMultishipmentIsEnabled: boolean;
 
+  private boundHandleShipment: (event: Event) => void;
+
+  private boundToggleSubmitButton: (event: Event) => void;
+
   constructor(input: JQuery) {
     this.activeSearchRequest = null;
     this.router = new Router();
@@ -49,6 +53,8 @@ export default class OrderProductAutocomplete {
     this.isMultishipmentIsEnabled = document.querySelector<HTMLElement>(OrderViewPageMap.productsTable)?.dataset.multishipmentEnabled === '1';
     this.selectCarriers = document.querySelector<HTMLSelectElement>(OrderViewPageMap.productSelectCarriers)!;
     this.addProductBtnAction = document.querySelector<HTMLButtonElement>(OrderViewPageMap.productAddActionBtn)!;
+    this.boundHandleShipment = this.handleShipment.bind(this);
+    this.boundToggleSubmitButton = this.toggleSubmitButton.bind(this);
 
     if (this.isMultishipmentIsEnabled) {
       this.dropdownMenu = $(OrderViewPageMap.productSearchInputAutocompleteMenuOnModale);
@@ -69,8 +75,8 @@ export default class OrderProductAutocomplete {
     });
 
     if (this.isMultishipmentIsEnabled) {
-      this.selectShipment.addEventListener('change', this.handleShipment);
-      this.selectCarriers.addEventListener('change', this.toggleSubmitButton);
+      this.selectShipment.addEventListener('change', this.boundHandleShipment);
+      this.selectCarriers.addEventListener('change', this.boundToggleSubmitButton);
     }
 
     this.input.on('keyup', (event: JQueryEventObject) => this.delaySearch(<HTMLInputElement>event.currentTarget));
@@ -141,6 +147,8 @@ export default class OrderProductAutocomplete {
 
     if (selectedProduct.length !== 0) {
       this.input.val(selectedProduct[0].name);
+      this.resetShipmentAndCarrierSelects();
+
       if (this.selectShipment) {
         const shipmentSelectorContainer = document.querySelector<HTMLElement>(OrderViewPageMap.selectAddShipmentContainer)!;
         shipmentSelectorContainer.classList.toggle('d-none', selectedProduct[0].virtual === true);
@@ -153,6 +161,27 @@ export default class OrderProductAutocomplete {
     }
   }
 
+  removeListener(): void {
+    if (this.isMultishipmentIsEnabled) {
+      this.selectShipment.removeEventListener('change', this.boundHandleShipment);
+      this.selectCarriers.removeEventListener('change', this.boundToggleSubmitButton);
+    }
+  }
+
+  private resetShipmentAndCarrierSelects(): void {
+    this.selectShipment.length = 1;
+    this.selectShipment.disabled = true;
+
+    this.selectCarriers.length = 1;
+    this.selectCarriers.disabled = true;
+
+    const carrierContainer = document.querySelector<HTMLElement>(OrderViewPageMap.productSelectCarriersContainer)!;
+    carrierContainer.classList.add('d-none');
+    carrierContainer.classList.remove('d-block');
+
+    this.addProductBtnAction.disabled = true;
+  }
+
   handleShipment(event: Event): void {
     const select = event.target as HTMLSelectElement;
     const container = document.querySelector<HTMLElement>(OrderViewPageMap.productSelectCarriersContainer)!;
@@ -160,21 +189,22 @@ export default class OrderProductAutocomplete {
 
     container.classList.toggle('d-none', value !== '0');
     container.classList.toggle('d-block', value === '0');
-
     this.addProductBtnAction.disabled = !value || value === '0';
 
     if (value === '0') {
       const productId = document.querySelector<HTMLInputElement>(OrderViewPageMap.productAddIdInput)?.value;
       this.fetchCarrierFromProduct(Number(productId));
     }
-  }
+  };
 
   toggleSubmitButton(event: Event): void {
     const element = event.target as HTMLSelectElement;
     this.addProductBtnAction.disabled = !element.value;
-  }
+  };
 
   fetchCarrierFromProduct(productId: number): void {
+    this.selectCarriers.disabled = true;
+
     fetch(this.router.generate('admin_orders_get_carriers_for_product', {productId}), {
       method: 'POST',
       headers: {

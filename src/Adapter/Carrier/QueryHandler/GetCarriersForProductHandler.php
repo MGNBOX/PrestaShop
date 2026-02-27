@@ -28,10 +28,11 @@ final class GetCarriersForProductHandler implements GetCarriersForProductHandler
      */
     public function handle(GetCarriersForProduct $query)
     {
-        $productCarriers = $this->carrierRepository->getCarriersByProductId($query->getProductId(), new ShopId($this->shopContext->getContextShopID()));
+        $productId = $query->getProductId()->getValue();
+        $productCarriers = $this->carrierRepository->findCarriersByProductIds([$productId], new ShopId($this->shopContext->getContextShopID()));
         $carriers = [];
 
-        foreach ($productCarriers as $productCarrier) {
+        foreach ($productCarriers[$productId] as $productCarrier) {
             $carriers[] = new CarrierSummary($productCarrier['id_carrier'], $productCarrier['name']);
         }
 
