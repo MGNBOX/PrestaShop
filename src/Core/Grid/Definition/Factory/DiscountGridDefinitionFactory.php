@@ -15,9 +15,11 @@ use PrestaShop\PrestaShop\Core\Grid\Action\ModalOptions;
 use PrestaShop\PrestaShop\Core\Grid\Action\Row\RowActionCollection;
 use PrestaShop\PrestaShop\Core\Grid\Action\Row\Type\LinkRowAction;
 use PrestaShop\PrestaShop\Core\Grid\Action\Row\Type\SubmitRowAction;
+use PrestaShop\PrestaShop\Core\Grid\Action\ViewOptionsCollection;
 use PrestaShop\PrestaShop\Core\Grid\Column\ColumnCollection;
 use PrestaShop\PrestaShop\Core\Grid\Column\ColumnCollectionInterface;
 use PrestaShop\PrestaShop\Core\Grid\Column\Type\Common\ActionColumn;
+use PrestaShop\PrestaShop\Core\Grid\Column\Type\Common\BadgeColumn;
 use PrestaShop\PrestaShop\Core\Grid\Column\Type\Common\BulkActionColumn;
 use PrestaShop\PrestaShop\Core\Grid\Column\Type\Common\DataColumn;
 use PrestaShop\PrestaShop\Core\Grid\Column\Type\Common\DiscountUsageColumn;
@@ -25,9 +27,10 @@ use PrestaShop\PrestaShop\Core\Grid\Column\Type\Common\ToggleColumn;
 use PrestaShop\PrestaShop\Core\Grid\Filter\Filter;
 use PrestaShop\PrestaShop\Core\Grid\Filter\FilterCollection;
 use PrestaShop\PrestaShop\Core\Grid\Filter\FilterCollectionInterface;
+use PrestaShopBundle\Form\Admin\Sell\Discount\DiscountSearchAndResetType;
+use PrestaShopBundle\Form\Admin\Sell\Discount\DiscountTypeChoiceType;
 use PrestaShopBundle\Form\Admin\Type\DateRangeType;
 use PrestaShopBundle\Form\Admin\Type\FilterLinkFilterType;
-use PrestaShopBundle\Form\Admin\Type\SearchAndResetType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\HttpFoundation\Request;
@@ -87,16 +90,18 @@ final class DiscountGridDefinitionFactory extends AbstractGridDefinitionFactory 
             )
             ->add(
                 (new DataColumn('name'))
-                    ->setName($this->trans('Discount Name', [], 'Admin.Global'))
+                    ->setName($this->trans('Discount name', [], 'Admin.Global'))
                     ->setOptions([
                         'field' => 'name',
                     ])
             )
             ->add(
-                (new DataColumn('discount_type'))
+                (new BadgeColumn('discount_type'))
                     ->setName($this->trans('Type', [], 'Admin.Catalog.Feature'))
                     ->setOptions([
-                        'field' => 'discount_type',
+                        'field' => 'discount_type_name',
+                        'alignment' => 'left',
+                        'badge_type' => 'light-info',
                     ])
             )
             ->add(
@@ -124,7 +129,7 @@ final class DiscountGridDefinitionFactory extends AbstractGridDefinitionFactory 
             )
             ->add(
                 (new DataColumn('date_to'))
-                    ->setName($this->trans('Expiration date', [], 'Admin.Catalog.Feature'))
+                    ->setName($this->trans('End date', [], 'Admin.Catalog.Feature'))
                     ->setOptions([
                         'field' => 'date_to',
                         'sortable' => true,
@@ -211,6 +216,20 @@ final class DiscountGridDefinitionFactory extends AbstractGridDefinitionFactory 
                     ->setAssociatedColumn('name')
             )
             ->add(
+                (new Filter('code', TextType::class))
+                    ->setTypeOptions([
+                        'required' => false,
+                        'attr' => [
+                            'placeholder' => $this->trans('Code', [], 'Admin.Global'),
+                        ],
+                    ])
+                    ->setAssociatedColumn('code')
+            )
+            ->add(
+                (new Filter('discount_type', DiscountTypeChoiceType::class))
+                    ->setAssociatedColumn('discount_type')
+            )
+            ->add(
                 (new Filter('active', ChoiceType::class))
                     ->setAssociatedColumn('active')
                     ->setTypeOptions([
@@ -260,13 +279,10 @@ final class DiscountGridDefinitionFactory extends AbstractGridDefinitionFactory 
                     ->setAssociatedColumn('date_to')
             )
             ->add(
-                (new Filter('actions', SearchAndResetType::class))
+                (new Filter('actions', DiscountSearchAndResetType::class))
                     ->setAssociatedColumn('actions')
                     ->setTypeOptions([
-                        'reset_route' => 'admin_common_reset_search_by_filter_id',
-                        'reset_route_params' => [
-                            'filterId' => self::GRID_ID,
-                        ],
+                        'reset_route' => 'admin_discounts_reset_grid',
                         'redirect_route' => 'admin_discounts_index',
                     ])
                     ->setAssociatedColumn('actions')
@@ -296,5 +312,13 @@ final class DiscountGridDefinitionFactory extends AbstractGridDefinitionFactory 
             ->add(
                 $this->buildBulkDeleteAction('admin_discount_bulk_delete')
             );
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected function getViewOptions()
+    {
+        return (new ViewOptionsCollection())->add('empty_state_without_headers', false);
     }
 }

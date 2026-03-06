@@ -12,6 +12,16 @@
   }
 }
 
+.discount-type-badge {
+  display: block;
+  width: fit-content;
+  font-size: var(--#{$cdk}size-14);
+
+  .text-preview-value {
+    display: none;
+  }
+}
+
 .specific-product-item {
   .form-group {
     margin-bottom: 0;

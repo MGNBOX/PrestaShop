@@ -6,8 +6,10 @@
 
 namespace PrestaShopBundle\Form\Admin\Sell\Discount;
 
+use PrestaShop\PrestaShop\Adapter\Discount\Repository\DiscountTypeRepository;
 use PrestaShop\PrestaShop\Core\ConstraintValidator\Constraints\DefaultLanguage;
 use PrestaShop\PrestaShop\Core\ConstraintValidator\Constraints\TypedRegex;
+use PrestaShop\PrestaShop\Core\Context\LanguageContext;
 use PrestaShop\PrestaShop\Core\Domain\Discount\DiscountSettings;
 use PrestaShopBundle\Form\Admin\Type\CardType;
 use PrestaShopBundle\Form\Admin\Type\TextPreviewType;
@@ -18,20 +20,33 @@ use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\Validator\Constraints\Length;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 class DiscountInformationType extends TranslatorAwareType
 {
+    public function __construct(
+        TranslatorInterface $translator,
+        array $locales,
+        protected readonly LanguageContext $languageContext,
+        protected readonly DiscountTypeRepository $discountTypeRepository,
+    ) {
+        parent::__construct($translator, $locales);
+    }
+
     public function buildForm(FormBuilderInterface $builder, array $options)
     {
         $discountType = $options['discount_type'];
+        $discountTypeName = $this->getDiscountTypeName($discountType);
         $builder
             ->add('discount_type', TextPreviewType::class, [
                 'data' => $discountType,
-                'label' => $this->trans('Discount Type', 'Admin.Catalog.Feature'),
+                'label' => $this->trans('Discount type', 'Admin.Catalog.Feature'),
+                'preview_class' => 'badge rounded discount-type-badge badge-light-info',
+                'prefix' => $discountTypeName,
                 'required' => false,
             ])
             ->add('names', TranslatableType::class, [
-                'label' => $this->trans('Discount Name', 'Admin.Catalog.Feature'),
+                'label' => $this->trans('Discount name', 'Admin.Catalog.Feature'),
                 'label_help_box' => $this->trans('This will be displayed in the cart summary, as well as on the invoice.', 'Admin.Catalog.Help'),
                 'required' => true,
                 'type' => TextType::class,
@@ -93,5 +108,12 @@ class DiscountInformationType extends TranslatorAwareType
     public function getParent()
     {
         return CardType::class;
+    }
+
+    private function getDiscountTypeName(string $discountType): string
+    {
+        $discountTypeData = $this->discountTypeRepository->getByDiscountType($discountType, $this->languageContext->getId());
+
+        return $discountTypeData['name'] ?? $discountType;
     }
 }

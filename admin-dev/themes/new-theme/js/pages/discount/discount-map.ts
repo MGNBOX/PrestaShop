@@ -5,13 +5,12 @@
 const discountContainer = '.discount-container';
 
 export default {
-  currencySelect: '#discount_value_reduction_currency',
-  currencySelectContainer: `${discountContainer} .price-reduction-currency-selector`,
-  discountContainer,
-  includeTaxInput: '#discount_value_reduction_include_tax',
   reductionTypeSelect: '#discount_value_reduction_type',
-  reductionValueSymbol: `${discountContainer} .price-reduction-value .input-group .input-group-append .input-group-text,
-   ${discountContainer} .price-reduction-value .input-group .input-group-prepend .input-group-text`,
+  reductionCurrencySelect: '#discount_value_reduction_value_currency',
+  reductionCurrencyAppend: `${discountContainer} .currency-money .input-group-append`,
+  reductionIncludeTaxRow: '#discount_value_reduction_include_tax',
+  reductionPercentSpan: '.currency-money-percent',
+  discountContainer,
   freeGiftProductSearchContainer: '#discount_free_gift',
   discountTypeRadios: '#discount_type_selector_discount_type_selector input[type="radio"]',
   discountTypeSubmit: '#discountTypeSubmit',
