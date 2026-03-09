@@ -116,6 +116,8 @@ export default class OrderViewPage {
         return;
       }
       this.orderProductRenderer.moveProductPanelToOriginalPosition();
+      // Initialize tooltips
+      $(OrderViewPageMap.productEditButtons).pstooltip();
     });
 
     EventEmitter.on(OrderViewEventMap.productAddedToOrder, (event) => {
@@ -133,9 +135,6 @@ export default class OrderViewPage {
       this.orderShipmentsRefresher.refresh(event.orderId);
       this.orderProductRenderer.moveProductPanelToOriginalPosition();
     });
-
-    // Initialize tooltips
-    $(OrderViewPageMap.productEditButtons).pstooltip();
   }
 
   listenForProductDelete(): void {

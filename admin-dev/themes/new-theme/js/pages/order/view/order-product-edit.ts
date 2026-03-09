@@ -135,7 +135,6 @@ export default class OrderProductEdit {
     });
     this.shipmentInputs = [];
 
-    $(OrderViewPageMap.productEditButtons).remove();
     $(OrderViewPageMap.productEditModal).modal('hide');
   }
 
@@ -423,6 +422,7 @@ export default class OrderProductEdit {
     }).then(
       () => {
         this.removeShipmentListeners();
+        $(OrderViewPageMap.productEditButtons).remove();
         EventEmitter.emit(OrderViewEventMap.productUpdated, {
           orderId,
           orderDetailId,
