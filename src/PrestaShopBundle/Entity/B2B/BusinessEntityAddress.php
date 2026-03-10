@@ -37,6 +37,11 @@ class BusinessEntityAddress
     private int $idAddress;
 
     /**
+     * @ORM\Column(name="`default`", type="boolean", options={"default"=false})
+     */
+    private bool $default = false;
+
+    /**
      * @ORM\Column(name="address_type", enumType=AddressTypeEnum::class, length=50)
      */
     private AddressTypeEnum $addressType = AddressTypeEnum::BOTH;
@@ -73,6 +78,18 @@ class BusinessEntityAddress
     public function setAddressType(AddressTypeEnum $addressType): self
     {
         $this->addressType = $addressType;
+
+        return $this;
+    }
+
+    public function isDefault(): bool
+    {
+        return $this->default;
+    }
+
+    public function setDefault(bool $default): self
+    {
+        $this->default = $default;
 
         return $this;
     }
