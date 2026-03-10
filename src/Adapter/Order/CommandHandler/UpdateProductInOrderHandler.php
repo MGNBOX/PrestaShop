@@ -17,6 +17,7 @@ use OrderInvoice;
 use PrestaShop\PrestaShop\Adapter\ContextStateManager;
 use PrestaShop\PrestaShop\Adapter\Order\OrderDetailUpdater;
 use PrestaShop\PrestaShop\Adapter\Order\OrderProductQuantityUpdater;
+use PrestaShop\PrestaShop\Adapter\Shipment\ShipmentProductQuantityUpdater;
 use PrestaShop\PrestaShop\Core\CommandBus\Attributes\AsCommandHandler;
 use PrestaShop\PrestaShop\Core\Domain\Order\Exception\CannotEditDeliveredOrderProductException;
 use PrestaShop\PrestaShop\Core\Domain\Order\Exception\CannotFindProductInOrderException;
@@ -25,6 +26,8 @@ use PrestaShop\PrestaShop\Core\Domain\Order\Exception\OrderException;
 use PrestaShop\PrestaShop\Core\Domain\Order\Product\Command\UpdateProductInOrderCommand;
 use PrestaShop\PrestaShop\Core\Domain\Order\Product\CommandHandler\UpdateProductInOrderHandlerInterface;
 use PrestaShop\PrestaShop\Core\Domain\Product\Exception\ProductOutOfStockException;
+use PrestaShop\PrestaShop\Core\FeatureFlag\FeatureFlagSettings;
+use PrestaShop\PrestaShop\Core\FeatureFlag\FeatureFlagStateCheckerInterface;
 use Product;
 use StockAvailable;
 use Validate;
@@ -35,36 +38,13 @@ use Validate;
 #[AsCommandHandler]
 final class UpdateProductInOrderHandler extends AbstractOrderCommandHandler implements UpdateProductInOrderHandlerInterface
 {
-    /**
-     * @var ContextStateManager
-     */
-    private $contextStateManager;
-
-    /**
-     * @var OrderProductQuantityUpdater
-     */
-    private $orderProductQuantityUpdater;
-
-    /**
-     * @var OrderDetailUpdater
-     */
-    private $orderDetailUpdater;
-
-    /**
-     * UpdateProductInOrderHandler constructor.
-     *
-     * @param OrderProductQuantityUpdater $orderProductQuantityUpdater
-     * @param OrderDetailUpdater $orderDetailUpdater
-     * @param ContextStateManager $contextStateManager
-     */
     public function __construct(
-        OrderProductQuantityUpdater $orderProductQuantityUpdater,
-        OrderDetailUpdater $orderDetailUpdater,
-        ContextStateManager $contextStateManager
+        private OrderProductQuantityUpdater $orderProductQuantityUpdater,
+        private OrderDetailUpdater $orderDetailUpdater,
+        private ContextStateManager $contextStateManager,
+        private ?ShipmentProductQuantityUpdater $shipmentProductQuantityUpdater = null,
+        private ?FeatureFlagStateCheckerInterface $featureflagStateCheckerInterface = null,
     ) {
-        $this->orderProductQuantityUpdater = $orderProductQuantityUpdater;
-        $this->orderDetailUpdater = $orderDetailUpdater;
-        $this->contextStateManager = $contextStateManager;
     }
 
     /**
@@ -110,6 +90,10 @@ final class UpdateProductInOrderHandler extends AbstractOrderCommandHandler impl
 
             // Update order_detail_tax table without modifying prices
             $this->orderDetailUpdater->updateOrderDetailTaxTableOnly($order);
+
+            if ($this->featureflagStateCheckerInterface !== null && $this->featureflagStateCheckerInterface->isEnabled(FeatureFlagSettings::FEATURE_FLAG_IMPROVED_SHIPMENT) && $command->getShipmentsQuantities() !== null) {
+                $this->shipmentProductQuantityUpdater->updateShipmentQuantity($command->getOrderDetailId(), $command->getShipmentsQuantities());
+            }
 
             Hook::exec('actionOrderEdited', ['order' => $order]);
         } catch (Exception $e) {

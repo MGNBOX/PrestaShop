@@ -11,6 +11,7 @@ namespace PrestaShopBundle\Entity\Repository;
 
 use Doctrine\ORM\EntityRepository;
 use PrestaShopBundle\Entity\Shipment;
+use Throwable;
 
 class ShipmentRepository extends EntityRepository
 {
@@ -181,5 +182,57 @@ class ShipmentRepository extends EntityRepository
             )
             ->setParameter('orderId', $orderId)
             ->executeStatement();
+    }
+
+    public function updateShipmentProductQuantity(
+        int $shipmentId,
+        int $orderDetailId,
+        int $quantity
+    ): void {
+        $conn = $this->getEntityManager()->getConnection();
+
+        $conn->beginTransaction();
+
+        try {
+            if ($quantity <= 0) {
+                $conn->createQueryBuilder()
+                    ->delete($this->tablePrefix . 'shipment_product')
+                    ->where('id_shipment = :shipmentId')
+                    ->andWhere('id_order_detail = :orderDetailId')
+                    ->setParameter('shipmentId', $shipmentId)
+                    ->setParameter('orderDetailId', $orderDetailId)
+                    ->executeStatement();
+            } else {
+                $conn->createQueryBuilder()
+                    ->update($this->tablePrefix . 'shipment_product')
+                    ->set('quantity', ':quantity')
+                    ->where('id_shipment = :shipmentId')
+                    ->andWhere('id_order_detail = :orderDetailId')
+                    ->setParameter('quantity', $quantity)
+                    ->setParameter('shipmentId', $shipmentId)
+                    ->setParameter('orderDetailId', $orderDetailId)
+                    ->executeStatement();
+            }
+
+            $remainingProducts = $conn->createQueryBuilder()
+                ->select('COUNT(*)')
+                ->from($this->tablePrefix . 'shipment_product')
+                ->where('id_shipment = :shipmentId')
+                ->setParameter('shipmentId', $shipmentId)
+                ->fetchOne();
+
+            if ((int) $remainingProducts === 0) {
+                $conn->createQueryBuilder()
+                    ->delete($this->tablePrefix . 'shipment')
+                    ->where('id_shipment = :shipmentId')
+                    ->setParameter('shipmentId', $shipmentId)
+                    ->executeStatement();
+            }
+
+            $conn->commit();
+        } catch (Throwable $e) {
+            $conn->rollBack();
+            throw $e;
+        }
     }
 }
