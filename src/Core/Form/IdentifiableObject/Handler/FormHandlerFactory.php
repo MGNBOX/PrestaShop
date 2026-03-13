@@ -6,6 +6,7 @@
 
 namespace PrestaShop\PrestaShop\Core\Form\IdentifiableObject\Handler;
 
+use PrestaShop\PrestaShop\Adapter\ExtraProperty\BackOffice\ExtraPropertiesFormDataPersister;
 use PrestaShop\PrestaShop\Core\Form\IdentifiableObject\DataHandler\FormDataHandlerInterface;
 use PrestaShop\PrestaShop\Core\Hook\HookDispatcherInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
@@ -31,18 +32,26 @@ final class FormHandlerFactory implements FormHandlerFactoryInterface
     private $isDemoModeEnabled;
 
     /**
+     * @var ExtraPropertiesFormDataPersister|null
+     */
+    private $extraPropertiesFormDataPersister;
+
+    /**
      * @param HookDispatcherInterface $hookDispatcher
      * @param TranslatorInterface $translator
      * @param bool $isDemoModeEnabled
+     * @param ExtraPropertiesFormDataPersister|null $extraPropertiesFormDataPersister
      */
     public function __construct(
         HookDispatcherInterface $hookDispatcher,
         TranslatorInterface $translator,
-        $isDemoModeEnabled
+        $isDemoModeEnabled,
+        ?ExtraPropertiesFormDataPersister $extraPropertiesFormDataPersister = null
     ) {
         $this->hookDispatcher = $hookDispatcher;
         $this->translator = $translator;
         $this->isDemoModeEnabled = $isDemoModeEnabled;
+        $this->extraPropertiesFormDataPersister = $extraPropertiesFormDataPersister;
     }
 
     /**
@@ -54,7 +63,8 @@ final class FormHandlerFactory implements FormHandlerFactoryInterface
             $dataHandler,
             $this->hookDispatcher,
             $this->translator,
-            $this->isDemoModeEnabled
+            $this->isDemoModeEnabled,
+            $this->extraPropertiesFormDataPersister
         );
     }
 }

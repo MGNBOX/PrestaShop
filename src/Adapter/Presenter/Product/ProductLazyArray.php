@@ -22,12 +22,14 @@ use PrestaShop\PrestaShop\Adapter\Configuration;
 use PrestaShop\PrestaShop\Adapter\HookManager;
 use PrestaShop\PrestaShop\Adapter\Image\ImageRetriever;
 use PrestaShop\PrestaShop\Adapter\Presenter\AbstractLazyArray;
+use PrestaShop\PrestaShop\Adapter\Presenter\ExtraPropertiesLazyArray;
 use PrestaShop\PrestaShop\Adapter\Presenter\LazyArrayAttribute;
 use PrestaShop\PrestaShop\Adapter\Product\PriceFormatter;
 use PrestaShop\PrestaShop\Adapter\Product\ProductColorsRetriever;
 use PrestaShop\PrestaShop\Core\Domain\Product\ProductCustomizabilitySettings;
 use PrestaShop\PrestaShop\Core\Domain\Product\Stock\ValueObject\OutOfStockType;
 use PrestaShop\PrestaShop\Core\Domain\Product\ValueObject\DeliveryTimeNoteType;
+use PrestaShop\PrestaShop\Core\ExtraProperty\Storage\ExtraPropertyValueProviderInterface;
 use PrestaShop\PrestaShop\Core\Product\ProductPresentationSettings;
 use Product;
 use ReflectionException;
@@ -101,7 +103,8 @@ class ProductLazyArray extends AbstractLazyArray
         ProductColorsRetriever $productColorsRetriever,
         TranslatorInterface $translator,
         ?HookManager $hookManager = null,
-        ?Configuration $configuration = null
+        ?Configuration $configuration = null,
+        ?ExtraPropertyValueProviderInterface $extraPropertyValueProvider = null
     ) {
         $this->settings = $settings;
         $this->product = $product;
@@ -113,6 +116,12 @@ class ProductLazyArray extends AbstractLazyArray
         $this->translator = $translator;
         $this->hookManager = $hookManager ?? new HookManager();
         $this->configuration = $configuration ?? new Configuration();
+        $this->extraPropertiesLazyArray = ExtraPropertiesLazyArray::fromObjectModelClass(
+            Product::class,
+            (int) ($this->product['id_product'] ?? 0),
+            $extraPropertyValueProvider,
+            Context::getContext()
+        );
 
         // Load image information right away
         $this->fillImages($product, $language);

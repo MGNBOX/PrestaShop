@@ -9,6 +9,7 @@ namespace PrestaShop\PrestaShop\Core\Grid\Data\Factory;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Doctrine\SqlFormatter\NullHighlighter;
 use Doctrine\SqlFormatter\SqlFormatter;
+use PrestaShop\PrestaShop\Adapter\ExtraProperty\Grid\ExtraPropertiesGridQueryBuilderModifier;
 use PrestaShop\PrestaShop\Core\Grid\Data\GridData;
 use PrestaShop\PrestaShop\Core\Grid\Query\DoctrineQueryBuilderInterface;
 use PrestaShop\PrestaShop\Core\Grid\Query\QueryParserInterface;
@@ -22,6 +23,11 @@ use Symfony\Component\DependencyInjection\Container;
  */
 class DoctrineGridDataFactory implements GridDataFactoryInterface
 {
+    /**
+     * @var ExtraPropertiesGridQueryBuilderModifier|null
+     */
+    protected $extraPropertiesGridQueryBuilderModifier;
+
     /**
      * @param DoctrineQueryBuilderInterface $gridQueryBuilder
      * @param HookDispatcherInterface $hookDispatcher
@@ -43,6 +49,15 @@ class DoctrineGridDataFactory implements GridDataFactoryInterface
     {
         $searchQueryBuilder = $this->gridQueryBuilder->getSearchQueryBuilder($searchCriteria);
         $countQueryBuilder = $this->gridQueryBuilder->getCountQueryBuilder($searchCriteria);
+
+        if (null !== $this->extraPropertiesGridQueryBuilderModifier) {
+            $this->extraPropertiesGridQueryBuilderModifier->apply(
+                $searchQueryBuilder,
+                $countQueryBuilder,
+                $searchCriteria,
+                $this->gridId
+            );
+        }
 
         $this->hookDispatcher->dispatchWithParameters('action' . Container::camelize($this->gridId) . 'GridQueryBuilderModifier', [
             'search_query_builder' => $searchQueryBuilder,
@@ -82,5 +97,10 @@ class DoctrineGridDataFactory implements GridDataFactoryInterface
         $sqlFormatter = new SqlFormatter(new NullHighlighter());
 
         return $sqlFormatter->format($query);
+    }
+
+    public function setExtraPropertiesGridQueryBuilderModifier(?ExtraPropertiesGridQueryBuilderModifier $modifier): void
+    {
+        $this->extraPropertiesGridQueryBuilderModifier = $modifier;
     }
 }

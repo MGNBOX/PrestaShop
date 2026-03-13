@@ -4,6 +4,9 @@
  * docs/licenses/LICENSE.txt file that was distributed with this source code.
  */
 use PrestaShop\PrestaShop\Adapter\ServiceLocator;
+use PrestaShop\PrestaShop\Core\ExtraProperty\Repository\ExtraPropertyDefinitionRepositoryInterface;
+use PrestaShop\PrestaShop\Core\ExtraProperty\Storage\ExtraPropertyReaderInterface;
+use PrestaShop\PrestaShop\Core\ExtraProperty\Storage\ExtraPropertyWriterInterface;
 use PrestaShop\PrestaShop\Core\Image\ImageFormatConfiguration;
 use PrestaShopBundle\Translation\TranslatorComponent;
 
@@ -116,6 +119,27 @@ abstract class ObjectModelCore implements PrestaShop\PrestaShop\Core\Foundation\
 
     /** @var array|null List of specific fields to update (all fields if null). */
     protected $update_fields = null;
+
+    /** @var array<string, mixed>|null Runtime values for extra properties. */
+    protected $extra_properties = null;
+
+    /**
+     * Definitions index for this entity's extra fields, keyed by [module_name][field_name].
+     * '_core' is used for fields without a module owner (DB module_name IS NULL).
+     * Loaded once on first access from extra_property_definition and cached for the object's lifetime.
+     *
+     * @var array<string, array<string, list<array<string, mixed>>>>|null
+     */
+    protected $extra_property_definitions = null;
+
+    /**
+     * Raw registry rows for this entity (same shape as getByEntityNameAllScopes()).
+     * Populated together with $extra_property_definitions so getExtraProperties() can reuse them
+     * and avoid a second definition load on the same object instance.
+     *
+     * @var array<int, array<string, mixed>>|null
+     */
+    protected $extra_property_definition_rows = null;
 
     /** @var Db|bool An instance of the db in order to avoid calling Db::getInstance() thousands of times. */
     protected static $db = false;
@@ -524,6 +548,9 @@ abstract class ObjectModelCore implements PrestaShop\PrestaShop\Core\Foundation\
             $entityMultiLangFields = [];
         }
 
+        // Also validate extra properties before any insert to avoid partial writes
+        $this->validateExtraProperties();
+
         if (!$result = Db::getInstance()->insert($this->def['table'], $entityFields, $null_values)) {
             return false;
         }
@@ -569,6 +596,13 @@ abstract class ObjectModelCore implements PrestaShop\PrestaShop\Core\Foundation\
                     $result &= Db::getInstance()->insert($this->def['table'] . '_lang', $field);
                 }
             }
+        }
+
+        if ($result) {
+            $result &= $this->persistExtraProperties($null_values);
+        }
+        if (!$result) {
+            return false;
         }
 
         // @hook actionObject<ObjectClassName>AddAfter
@@ -716,6 +750,9 @@ abstract class ObjectModelCore implements PrestaShop\PrestaShop\Core\Foundation\
             $multiLangFieldsToUpdate = [];
         }
 
+        // Validate extra properties before any update to avoid partial writes.
+        $this->validateExtraProperties();
+
         if (!$result = Db::getInstance()->update($this->def['table'], $fieldsToUpdate, '`' . pSQL($this->def['primary']) . '` = ' . (int) $this->id, 0, $null_values)) {
             return false;
         }
@@ -795,6 +832,13 @@ abstract class ObjectModelCore implements PrestaShop\PrestaShop\Core\Foundation\
             }
         }
 
+        if ($result) {
+            $result &= $this->persistExtraProperties($null_values);
+        }
+        if (!$result) {
+            return false;
+        }
+
         // @hook actionObject<ObjectClassName>UpdateAfter
         Hook::exec('actionObjectUpdateAfter', ['object' => $this]);
         Hook::exec('actionObject' . $this->getFullyQualifiedName() . 'UpdateAfter', ['object' => $this]);
@@ -850,6 +894,16 @@ abstract class ObjectModelCore implements PrestaShop\PrestaShop\Core\Foundation\
 
         if (!$result) {
             return false;
+        }
+
+        // Delete extra property rows from *_extra / *_extra_lang / *_extra_shop
+        if (!$has_multishop_entries && !empty($this->def['table']) && (int) $this->id > 0) {
+            try {
+                /** @var ExtraPropertyWriterInterface $writer */
+                $writer = ServiceLocator::get(ExtraPropertyWriterInterface::class);
+                $writer->deleteAll($this->def['table'], $this->def['primary'], (int) $this->id);
+            } catch (Throwable) {
+            }
         }
 
         // @hook actionObject<ObjectClassName>DeleteAfter
@@ -1004,6 +1058,115 @@ abstract class ObjectModelCore implements PrestaShop\PrestaShop\Core\Foundation\
                     return $errorReturn ? $message : false;
                 }
             }
+        }
+
+        return true;
+    }
+
+    /**
+     * Checks if extra-properties values are valid before database interaction.
+     *
+     * Uses the extra-properties registry definitions (extra_property_definition.validator) to call Validate::xxx methods
+     * and blocks persistence when invalid values are detected.
+     *
+     * @param bool $die [default=true] If false, return a value instead of throwing an exception on error
+     * @param bool $errorReturn [default=false] If true, return error message instead of false on error
+     *
+     * @return bool|string true, false or error message
+     *
+     * @throws PrestaShopException
+     */
+    public function validateExtraProperties($die = true, $errorReturn = false)
+    {
+        if (null === $this->extra_properties) {
+            return true;
+        }
+
+        $definitionsIndex = $this->getExtraPropertyDefinitions();
+        if (empty($definitionsIndex)) {
+            return true;
+        }
+
+        foreach ($definitionsIndex as $moduleName => $fieldsByModule) {
+            foreach ($fieldsByModule as $fieldName => $definitions) {
+                if (!isset($this->extra_properties[$moduleName]) || !array_key_exists($fieldName, $this->extra_properties[$moduleName])) {
+                    continue;
+                }
+
+                $value = $this->extra_properties[$moduleName][$fieldName];
+
+                foreach ($definitions as $definition) {
+                    $validator = (string) ($definition['validator'] ?? '');
+                    if ('' === $validator) {
+                        continue;
+                    }
+
+                    if (!method_exists('Validate', $validator)) {
+                        throw new PrestaShopException($this->trans('Validation function not found: %s.', [$validator], 'Admin.Notifications.Error'));
+                    }
+
+                    $validationMessage = $this->validateExtraPropertyValue($validator, $value, $fieldName);
+                    if (true !== $validationMessage) {
+                        if ($die) {
+                            throw new PrestaShopException($validationMessage);
+                        }
+
+                        return $errorReturn ? $validationMessage : false;
+                    }
+                }
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Validates one extra property value (scalar or lang-array) with a given Validate method.
+     *
+     * @param string $validator Validate::xxx method name
+     * @param mixed $value Scalar value or an array keyed by id_lang
+     * @param string $fieldName Technical field name (used for error messages)
+     *
+     * @return bool|string true or error message string
+     *
+     * @throws PrestaShopException
+     */
+    protected function validateExtraPropertyValue(string $validator, $value, string $fieldName)
+    {
+        // Keep same behavior as in validateField() for those two validators
+        $isEmptyValidationMethod = Tools::strtolower($validator) === 'isrequiredwhenactive'
+            || Tools::strtolower($validator) === 'defaultlanguagerequiredwhenactive';
+
+        if (is_array($value)) {
+            foreach ($value as $idLang => $langValue) {
+                if (empty($langValue) && !$isEmptyValidationMethod) {
+                    continue;
+                }
+
+                $res = $this->callValidateMethod($validator, $langValue, (int) $idLang);
+                if (!$res) {
+                    return $this->trans(
+                        'The %s field is invalid.',
+                        [$fieldName],
+                        'Admin.Notifications.Error'
+                    );
+                }
+            }
+
+            return true;
+        }
+
+        if (empty($value) && !$isEmptyValidationMethod) {
+            return true;
+        }
+
+        $res = $this->callValidateMethod($validator, $value, null);
+        if (!$res) {
+            return $this->trans(
+                'The %s field is invalid.',
+                [$fieldName],
+                'Admin.Notifications.Error'
+            );
         }
 
         return true;
@@ -2051,6 +2214,354 @@ abstract class ObjectModelCore implements PrestaShop\PrestaShop\Core\Foundation\
         } else {
             throw new PrestaShopException('Could not load field from definition.');
         }
+    }
+
+    /**
+     * Returns extra properties for this object model, grouped by module technical name.
+     *
+     * Returned format:
+     * [
+     *     'module_technical_name' => [
+     *         'field_name' => 'value',
+     *     ],
+     * ]
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    public function getExtraProperties(): array
+    {
+        if (null !== $this->extra_properties) {
+            return $this->extra_properties;
+        }
+        if (empty($this->def['table']) || (int) $this->id <= 0) {
+            $this->extra_properties = [];
+
+            return $this->extra_properties;
+        }
+
+        if (empty($this->getExtraPropertyDefinitions())) {
+            $this->extra_properties = [];
+
+            return $this->extra_properties;
+        }
+
+        try {
+            /** @var ExtraPropertyReaderInterface $reader */
+            $reader = ServiceLocator::get(ExtraPropertyReaderInterface::class);
+            $this->extra_properties = $reader->getExtraProperties(
+                $this->def['table'],
+                $this->def['primary'],
+                (int) $this->id,
+                $this->resolveCurrentLangId(),
+                $this->resolveCurrentShopId(),
+                $this->isLangMultishop(),
+                false,
+                $this->extra_property_definition_rows
+            );
+        } catch (Throwable) {
+            $this->extra_properties = [];
+        }
+
+        return $this->extra_properties;
+    }
+
+    /**
+     * Returns all extra property values for a given module on this entity instance.
+     *
+     * Equivalent to getExtraProperties()[$moduleName] ?? [].
+     * Pass null or '_core' to retrieve core (no-module) fields.
+     *
+     * @param string|null $moduleName technical module name, or null / '_core' for core fields
+     *
+     * @return array<string, mixed>
+     */
+    public function getExtraPropertiesByModule(?string $moduleName): array
+    {
+        $normalizedModule = (null === $moduleName || '_core' === $moduleName) ? '_core' : $moduleName;
+
+        return $this->getExtraProperties()[$normalizedModule] ?? [];
+    }
+
+    /**
+     * Returns one extra property value for this object model.
+     *
+     * @param string|null $moduleName technical module name owning the field, or null / '_core' for core fields
+     * @param string $propertyName field name as declared in the registry
+     * @param string|null $scope Allowed values: common, lang, shop or null.
+     *                           When null, the field definition is auto-detected only if there is no ambiguity
+     *                           between scopes for the same field name within the given module.
+     *
+     * @return mixed|null
+     */
+    public function getExtraProperty(?string $moduleName, string $propertyName, ?string $scope = null)
+    {
+        if ('' === $propertyName) {
+            return null;
+        }
+        if (!in_array($scope, [null, 'common', 'lang', 'shop'], true)) {
+            return null;
+        }
+
+        $definition = $this->resolveExtraPropertyDefinition($moduleName, $propertyName, $scope);
+        if (null === $definition) {
+            return null;
+        }
+
+        $normalizedModule = !empty($definition['module_name']) ? $definition['module_name'] : '_core';
+        $propertiesByModule = $this->getExtraProperties();
+
+        return $propertiesByModule[$normalizedModule][$propertyName] ?? null;
+    }
+
+    /**
+     * Sets one extra property value for this object model.
+     *
+     * @param string|null $moduleName technical module name owning the field, or null / '_core' for core fields
+     * @param string $propertyName field name as declared in the registry
+     * @param mixed $propertyValue
+     * @param string|null $scope Allowed values: common, lang, shop or null.
+     *                           When null, the field definition is auto-detected only if there is no ambiguity
+     *                           between scopes for the same field name within the given module.
+     *
+     * @return bool
+     */
+    public function setExtraProperty(?string $moduleName, string $propertyName, mixed $propertyValue, ?string $scope = null): bool
+    {
+        $definition = $this->resolveExtraPropertyDefinition($moduleName, $propertyName, $scope);
+        if (null === $definition) {
+            return false;
+        }
+
+        $normalizedModule = !empty($definition['module_name']) ? $definition['module_name'] : '_core';
+        $propertiesByModule = $this->getExtraProperties();
+        if (!array_key_exists($normalizedModule, $propertiesByModule)) {
+            $propertiesByModule[$normalizedModule] = [];
+        }
+        $propertiesByModule[$normalizedModule][$propertyName] = $propertyValue;
+        $this->extra_properties = $propertiesByModule;
+
+        return true;
+    }
+
+    /**
+     * Resolves one field definition from registry table with module, field name and optional scope.
+     * Uses $extra_property_definitions for O(1) lookup by [module_name][field_name].
+     *
+     * @param string|null $moduleName null or '_core' targets core fields (DB module_name IS NULL)
+     * @param string $propertyName
+     * @param string|null $scope
+     *
+     * @return array<string, mixed>|null
+     */
+    protected function resolveExtraPropertyDefinition(?string $moduleName, string $propertyName, ?string $scope = null): ?array
+    {
+        // Normalize: null and '_core' both map to the '_core' bucket.
+        $normalizedModule = (null === $moduleName || '_core' === $moduleName) ? '_core' : $moduleName;
+        $propertyDefinitions = $this->getExtraPropertyDefinitions();
+        $candidates = $propertyDefinitions[$normalizedModule][$propertyName] ?? [];
+
+        if (empty($candidates)) {
+            return null;
+        }
+
+        if (null !== $scope) {
+            foreach ($candidates as $definition) {
+                if (($definition['field_scope'] ?? null) === $scope) {
+                    return $definition;
+                }
+            }
+
+            return null;
+        }
+
+        // No scope hint: return only when there is exactly one candidate within this module (no ambiguity).
+        return 1 === count($candidates) ? $candidates[0] : null;
+    }
+
+    /**
+     * Reads extra field definitions for current entity from the registry.
+     * Returns a 2D index keyed by [module_name][field_name], where '_core' is used for fields
+     * without a module owner (DB module_name IS NULL).
+     *
+     * Uses ExtraPropertyDefinitionRepositoryInterface via ServiceLocator (Symfony service,
+     * available in both FO and BO contexts via common.yml).
+     *
+     * @return array<string, array<string, list<array<string, mixed>>>>
+     */
+    public function getExtraPropertyDefinitions(): array
+    {
+        if (null !== $this->extra_property_definitions) {
+            return $this->extra_property_definitions;
+        }
+
+        $this->extra_property_definitions = [];
+        $this->extra_property_definition_rows = [];
+
+        if (empty($this->def['table'])) {
+            return $this->extra_property_definitions;
+        }
+
+        try {
+            /** @var ExtraPropertyDefinitionRepositoryInterface $repository */
+            $repository = ServiceLocator::get(ExtraPropertyDefinitionRepositoryInterface::class);
+            $rows = $repository->getByEntityNameAllScopes($this->def['table']);
+        } catch (Throwable) {
+            return $this->extra_property_definitions;
+        }
+
+        $this->extra_property_definition_rows = is_array($rows) ? $rows : [];
+
+        foreach ($this->extra_property_definition_rows as $row) {
+            $fieldName = (string) ($row['field_name'] ?? '');
+            $fieldScope = (string) ($row['field_scope'] ?? '');
+            if ('' === $fieldName || !in_array($fieldScope, ['common', 'lang', 'shop'], true)) {
+                continue;
+            }
+            $moduleName = !empty($row['module_name']) ? (string) $row['module_name'] : '_core';
+            $this->extra_property_definitions[$moduleName][$fieldName][] = $row;
+        }
+
+        return $this->extra_property_definitions;
+    }
+
+    /**
+     * Persists runtime extra properties into dedicated *_extra tables.
+     *
+     * Uses ExtraPropertyWriterInterface via ServiceLocator (Symfony service,
+     * available in both FO and BO contexts via common.yml).
+     *
+     * @param bool $nullValues
+     *
+     * @return bool
+     */
+    protected function persistExtraProperties(bool $nullValues = false): bool
+    {
+        if (null === $this->extra_properties || empty($this->def['table']) || (int) $this->id <= 0) {
+            return true;
+        }
+
+        $definitions = $this->getExtraPropertyDefinitions();
+        if (empty($definitions)) {
+            return true;
+        }
+
+        $entityValues = [];
+        $langValuesByIdLang = [];
+        $shopValues = [];
+
+        foreach ($definitions as $moduleName => $fieldsByModule) {
+            foreach ($fieldsByModule as $fieldName => $fieldDefinitions) {
+                foreach ($fieldDefinitions as $definition) {
+                    $fieldScope = (string) ($definition['field_scope'] ?? 'common');
+                    if (
+                        !isset($this->extra_properties[$moduleName])
+                        || !array_key_exists($fieldName, $this->extra_properties[$moduleName])
+                    ) {
+                        continue;
+                    }
+                    $value = $this->extra_properties[$moduleName][$fieldName];
+                    if ($nullValues && '' === $value) {
+                        $value = null;
+                    }
+                    // When nullValues=false (default), do not persist explicit NULLs.
+                    // This avoids inserting NULL into NOT NULL columns and lets SQL defaults apply on first insert.
+                    if (null === $value && !$nullValues) {
+                        continue;
+                    }
+                    $columnName = $this->resolveExtraPropertyStorageColumnName($definition);
+
+                    if ('lang' === $fieldScope) {
+                        $langId = $this->resolveCurrentLangId();
+                        if ($langId > 0) {
+                            $langValuesByIdLang[$langId][$columnName] = $value;
+                        }
+                    } elseif ('shop' === $fieldScope) {
+                        $shopValues[$columnName] = $value;
+                    } else {
+                        $entityValues[$columnName] = $value;
+                    }
+                }
+            }
+        }
+
+        if (empty($entityValues) && empty($langValuesByIdLang) && empty($shopValues)) {
+            return true;
+        }
+
+        try {
+            /** @var ExtraPropertyWriterInterface $writer */
+            $writer = ServiceLocator::get(ExtraPropertyWriterInterface::class);
+            $writer->writeAll(
+                $this->def['table'],
+                $this->def['primary'],
+                (int) $this->id,
+                $entityValues,
+                $langValuesByIdLang,
+                $shopValues,
+                $this->resolveCurrentShopId()
+            );
+        } catch (Throwable) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Returns the effective lang id for extra properties storage.
+     * Uses the object's own id_lang when set, falls back to the current context language.
+     *
+     * @return int
+     */
+    protected function resolveCurrentLangId(): int
+    {
+        return ((int) $this->id_lang > 0)
+            ? (int) $this->id_lang
+            : (int) Context::getContext()->language->id;
+    }
+
+    /**
+     * Returns the effective shop id for extra properties storage.
+     * Uses the object's own id_shop when set, falls back to the current context shop.
+     *
+     * @return int
+     */
+    protected function resolveCurrentShopId(): int
+    {
+        return ((int) $this->id_shop > 0)
+            ? (int) $this->id_shop
+            : (int) Context::getContext()->shop->id;
+    }
+
+    /**
+     * @param string|null $moduleName
+     * @param string $fieldName
+     *
+     * @return string
+     */
+    protected function buildExtraPropertyColumnName(?string $moduleName, string $fieldName): string
+    {
+        return empty($moduleName)
+            ? $fieldName
+            : $moduleName . '_' . $fieldName;
+    }
+
+    /**
+     * @param array<string, mixed> $definition
+     *
+     * @return string
+     */
+    protected function resolveExtraPropertyStorageColumnName(array $definition): string
+    {
+        $storageColumnName = $definition['storage_column_name'] ?? null;
+        if (!empty($storageColumnName)) {
+            return (string) $storageColumnName;
+        }
+
+        return $this->buildExtraPropertyColumnName(
+            $definition['module_name'] ?? '',
+            $definition['field_name']
+        );
     }
 
     /**

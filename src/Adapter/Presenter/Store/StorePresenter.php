@@ -6,12 +6,16 @@
 
 namespace PrestaShop\PrestaShop\Adapter\Presenter\Store;
 
+use Context;
 use Hook;
 use Language;
 use Link;
+use PrestaShop\PrestaShop\Adapter\ContainerFinder;
 use PrestaShop\PrestaShop\Adapter\Image\ImageRetriever;
+use PrestaShop\PrestaShop\Core\ExtraProperty\Storage\ExtraPropertyValueProviderInterface;
 use Store;
 use Symfony\Contracts\Translation\TranslatorInterface;
+use Throwable;
 
 class StorePresenter
 {
@@ -30,6 +34,11 @@ class StorePresenter
      */
     protected $translator;
 
+    /**
+     * @var ExtraPropertyValueProviderInterface|null
+     */
+    protected $extraPropertyValueProvider;
+
     public function __construct(
         Link $link,
         TranslatorInterface $translator
@@ -37,6 +46,7 @@ class StorePresenter
         $this->link = $link;
         $this->imageRetriever = new ImageRetriever($link);
         $this->translator = $translator;
+        $this->extraPropertyValueProvider = $this->resolveExtraPropertyValueProvider();
     }
 
     /**
@@ -64,7 +74,8 @@ class StorePresenter
             $store,
             $language,
             $this->imageRetriever,
-            $this->translator
+            $this->translator,
+            $this->extraPropertyValueProvider
         );
 
         Hook::exec('actionPresentStore',
@@ -72,5 +83,22 @@ class StorePresenter
         );
 
         return $storeLazyArray;
+    }
+
+    /**
+     * Resolves the front-office extra property provider from the service container when available.
+     */
+    protected function resolveExtraPropertyValueProvider(): ?ExtraPropertyValueProviderInterface
+    {
+        try {
+            $containerFinder = new ContainerFinder(Context::getContext());
+
+            /** @var ExtraPropertyValueProviderInterface $extraPropertyValueProvider */
+            $extraPropertyValueProvider = $containerFinder->getContainer()->get(ExtraPropertyValueProviderInterface::class);
+
+            return $extraPropertyValueProvider;
+        } catch (Throwable $e) {
+            return null;
+        }
     }
 }

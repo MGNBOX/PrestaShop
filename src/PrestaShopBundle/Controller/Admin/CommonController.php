@@ -6,10 +6,12 @@
 
 namespace PrestaShopBundle\Controller\Admin;
 
+use Doctrine\DBAL\Connection;
 use PrestaShop\PrestaShop\Adapter\Tools;
 use PrestaShop\PrestaShop\Core\Domain\Notification\Command\UpdateEmployeeNotificationLastElementCommand;
 use PrestaShop\PrestaShop\Core\Domain\Notification\Query\GetNotificationLastElements;
 use PrestaShop\PrestaShop\Core\Domain\Notification\QueryResult\NotificationsResults;
+use PrestaShop\PrestaShop\Core\ExtraProperty\Registry\EntityExtraFieldRegistryInterface;
 use PrestaShop\PrestaShop\Core\Grid\Definition\Factory\AbstractGridDefinitionFactory;
 use PrestaShop\PrestaShop\Core\Grid\Definition\Factory\FilterableGridDefinitionFactoryInterface;
 use PrestaShop\PrestaShop\Core\Grid\Definition\Factory\GridDefinitionFactoryProvider;
@@ -25,6 +27,8 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Contracts\Translation\TranslatorInterface;
+use Throwable;
 
 /**
  * Admin controller for the common actions across the whole admin interface.
@@ -35,6 +39,8 @@ class CommonController extends PrestaShopAdminController
     {
         return parent::getSubscribedServices() + [
             ControllerResponseBuilder::class => ControllerResponseBuilder::class,
+            Connection::class => Connection::class,
+            EntityExtraFieldRegistryInterface::class => EntityExtraFieldRegistryInterface::class,
         ];
     }
 
@@ -67,6 +73,121 @@ class CommonController extends PrestaShopAdminController
         $this->dispatchCommand(new UpdateEmployeeNotificationLastElementCommand($request->request->get('type')));
 
         return new JsonResponse(true);
+    }
+
+    /**
+     * Toggle one extra property value from a grid toggle column.
+     *
+     * This endpoint is designed for ToggleColumn async usage in BO grids.
+     * It performs an UPSERT and toggles the value in SQL without doing a preliminary SELECT.
+     *
+     * @param string $entityName
+     * @param int $entityId
+     * @param string $moduleName normalized module name, can be "_core" for core fields
+     * @param string $fieldName
+     * @param string $scope Supported scopes: "entity" and "shop"
+     * @param int $shopId Shop context for shop-scoped fields (ignored for entity scope)
+     */
+    #[AdminSecurity("is_granted('update', request.get('_legacy_controller'))")]
+    public function toggleExtraPropertyAction(
+        string $entityName,
+        int $entityId,
+        string $moduleName,
+        string $fieldName,
+        string $scope,
+        int $shopId = 0,
+    ): JsonResponse {
+        /** @var EntityExtraFieldRegistryInterface $registry */
+        $registry = $this->container->get(EntityExtraFieldRegistryInterface::class);
+        /** @var Connection $connection */
+        $connection = $this->container->get(Connection::class);
+        /** @var TranslatorInterface $translator */
+        $translator = $this->container->get(TranslatorInterface::class);
+
+        $definitions = $registry->getByEntityNameAllScopes($entityName);
+        if (empty($definitions)) {
+            return new JsonResponse([
+                'status' => false,
+                'message' => $translator->trans('Field not found.', [], 'Admin.Notifications.Error'),
+            ], 404);
+        }
+
+        $matched = null;
+        foreach ($definitions as $definition) {
+            $defModule = $definition['module_name'] ?? null;
+            $normalizedDefModule = (null === $defModule || '' === (string) $defModule) ? '_core' : (string) $defModule;
+            if (
+                $normalizedDefModule === $moduleName
+                && ($definition['field_name'] ?? null) === $fieldName
+                && ($definition['field_scope'] ?? null) === $scope
+            ) {
+                $matched = $definition;
+                break;
+            }
+        }
+
+        if (null === $matched) {
+            return new JsonResponse([
+                'status' => false,
+                'message' => $translator->trans('Field not found.', [], 'Admin.Notifications.Error'),
+            ], 404);
+        }
+
+        $storageColumn = (string) ($matched['storage_column_name'] ?? '');
+        if ('' === $storageColumn) {
+            return new JsonResponse([
+                'status' => false,
+                'message' => $translator->trans('Field is invalid.', [], 'Admin.Notifications.Error'),
+            ], 400);
+        }
+
+        $primaryKey = 'id_' . $entityName;
+        $tableName = match ($scope) {
+            'shop' => _DB_PREFIX_ . $entityName . '_extra_shop',
+            default => _DB_PREFIX_ . $entityName . '_extra',
+        };
+
+        try {
+            if ('shop' === $scope) {
+                $sql = sprintf(
+                    'INSERT INTO %s (%s, %s, %s) VALUES (:entityId, :shopId, 1)
+                    ON DUPLICATE KEY UPDATE %s = 1 - IFNULL(%s, 0)',
+                    $connection->quoteIdentifier($tableName),
+                    $connection->quoteIdentifier($primaryKey),
+                    $connection->quoteIdentifier('id_shop'),
+                    $connection->quoteIdentifier($storageColumn),
+                    $connection->quoteIdentifier($storageColumn),
+                    $connection->quoteIdentifier($storageColumn),
+                );
+                $connection->executeStatement($sql, [
+                    'entityId' => $entityId,
+                    'shopId' => $shopId,
+                ]);
+            } else {
+                $sql = sprintf(
+                    'INSERT INTO %s (%s, %s) VALUES (:entityId, 1)
+                    ON DUPLICATE KEY UPDATE %s = 1 - IFNULL(%s, 0)',
+                    $connection->quoteIdentifier($tableName),
+                    $connection->quoteIdentifier($primaryKey),
+                    $connection->quoteIdentifier($storageColumn),
+                    $connection->quoteIdentifier($storageColumn),
+                    $connection->quoteIdentifier($storageColumn),
+                );
+                $connection->executeStatement($sql, [
+                    'entityId' => $entityId,
+                ]);
+            }
+        } catch (Throwable $e) {
+            return new JsonResponse([
+                'status' => false,
+                'message' => $translator->trans('An error occurred while saving.', [], 'Admin.Notifications.Error'),
+            ], 500);
+        }
+
+        return new JsonResponse([
+            'status' => true,
+            'message' => $translator->trans('Update successful.', [], 'Admin.Notifications.Success'),
+        ]);
     }
 
     /**

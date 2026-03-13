@@ -6,6 +6,7 @@
 
 namespace PrestaShop\PrestaShop\Core\Form\IdentifiableObject\Handler;
 
+use PrestaShop\PrestaShop\Adapter\ExtraProperty\BackOffice\ExtraPropertiesFormDataPersister;
 use PrestaShop\PrestaShop\Core\Form\IdentifiableObject\DataHandler\FormDataHandlerInterface;
 use PrestaShop\PrestaShop\Core\Hook\HookDispatcherInterface;
 use Symfony\Component\DependencyInjection\Container;
@@ -39,21 +40,29 @@ final class FormHandler implements FormHandlerInterface
     private $isDemoModeEnabled;
 
     /**
+     * @var ExtraPropertiesFormDataPersister|null
+     */
+    private $extraPropertiesFormDataPersister;
+
+    /**
      * @param FormDataHandlerInterface $dataHandler
      * @param HookDispatcherInterface $hookDispatcher
      * @param TranslatorInterface $translator
      * @param bool $isDemoModeEnabled
+     * @param ExtraPropertiesFormDataPersister|null $extraPropertiesFormDataPersister
      */
     public function __construct(
         FormDataHandlerInterface $dataHandler,
         HookDispatcherInterface $hookDispatcher,
         TranslatorInterface $translator,
-        $isDemoModeEnabled
+        $isDemoModeEnabled,
+        ?ExtraPropertiesFormDataPersister $extraPropertiesFormDataPersister = null
     ) {
         $this->dataHandler = $dataHandler;
         $this->hookDispatcher = $hookDispatcher;
         $this->translator = $translator;
         $this->isDemoModeEnabled = $isDemoModeEnabled;
+        $this->extraPropertiesFormDataPersister = $extraPropertiesFormDataPersister;
     }
 
     /**
@@ -122,6 +131,18 @@ final class FormHandler implements FormHandlerInterface
 
         $newId = $this->dataHandler->update($id, $data);
 
+        if (null !== $this->extraPropertiesFormDataPersister) {
+            $shopId = $form->getConfig()->hasOption('shop_id')
+                ? (int) $form->getConfig()->getOption('shop_id')
+                : (int) ($data['shop_id'] ?? 1);
+            $this->extraPropertiesFormDataPersister->persist(
+                $form,
+                $this->getExtraPropertyEntityName($form),
+                (int) ($newId ?? $id),
+                $shopId
+            );
+        }
+
         $this->hookDispatcher->dispatchWithParameters('actionAfterUpdate' . Container::camelize($form->getName()) . 'FormHandler', [
             'id' => $id,
             'form_data' => &$data,
@@ -147,11 +168,32 @@ final class FormHandler implements FormHandlerInterface
 
         $id = $this->dataHandler->create($data);
 
+        if (null !== $this->extraPropertiesFormDataPersister) {
+            $shopId = $form->getConfig()->hasOption('shop_id')
+                ? (int) $form->getConfig()->getOption('shop_id')
+                : (int) ($data['shop_id'] ?? 1);
+            $this->extraPropertiesFormDataPersister->persist(
+                $form,
+                $this->getExtraPropertyEntityName($form),
+                (int) $id,
+                $shopId
+            );
+        }
+
         $this->hookDispatcher->dispatchWithParameters('actionAfterCreate' . Container::camelize($form->getName()) . 'FormHandler', [
             'id' => $id,
             'form_data' => &$data,
         ]);
 
         return FormHandlerResult::createWithId($id);
+    }
+
+    /**
+     * Same entity key as FormBuilder (registry type block prefix). Do not use $form->getName() here:
+     * the DOM/form tree name can differ from the type prefix (empty name, wrapper, createNamedBuilder).
+     */
+    private function getExtraPropertyEntityName(FormInterface $form): string
+    {
+        return $form->getConfig()->getType()->getBlockPrefix();
     }
 }

@@ -13,7 +13,9 @@ use Currency;
 use HistoryController;
 use Order;
 use PrestaShop\PrestaShop\Adapter\Presenter\AbstractLazyArray;
+use PrestaShop\PrestaShop\Adapter\Presenter\ExtraPropertiesLazyArray;
 use PrestaShop\PrestaShop\Adapter\Presenter\LazyArrayAttribute;
+use PrestaShop\PrestaShop\Core\ExtraProperty\Storage\ExtraPropertyValueProviderInterface;
 use PrestaShop\PrestaShop\Core\Localization\LocaleInterface;
 use PrestaShopBundle\Entity\Repository\ShipmentRepository;
 use PrestaShopBundle\Translation\TranslatorComponent;
@@ -49,13 +51,18 @@ class OrderDetailLazyArray extends AbstractLazyArray
      *
      * @param Order $order
      */
-    public function __construct(Order $order, ShipmentRepository $shipmentRepository)
+    public function __construct(Order $order, ShipmentRepository $shipmentRepository, ?ExtraPropertyValueProviderInterface $extraPropertyValueProvider = null)
     {
         $this->order = $order;
         $this->context = Context::getContext();
         $this->translator = Context::getContext()->getTranslator();
         $this->locale = $this->context->getCurrentLocale();
         $this->shipmentRepository = $shipmentRepository;
+        $this->extraPropertiesLazyArray = ExtraPropertiesLazyArray::fromObjectModel(
+            $order,
+            $extraPropertyValueProvider,
+            $this->context
+        );
         parent::__construct();
     }
 

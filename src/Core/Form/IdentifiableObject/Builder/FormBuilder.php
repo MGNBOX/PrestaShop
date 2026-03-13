@@ -6,6 +6,7 @@
 
 namespace PrestaShop\PrestaShop\Core\Form\IdentifiableObject\Builder;
 
+use PrestaShop\PrestaShop\Adapter\ExtraProperty\BackOffice\ExtraPropertiesFormBuilderModifier;
 use PrestaShop\PrestaShop\Core\Form\IdentifiableObject\DataProvider\FormDataProviderInterface;
 use PrestaShop\PrestaShop\Core\Form\IdentifiableObject\OptionProvider\FormOptionsProviderInterface;
 use PrestaShop\PrestaShop\Core\Hook\HookDispatcherInterface;
@@ -50,12 +51,18 @@ final class FormBuilder implements FormBuilderInterface
     private $registry;
 
     /**
+     * @var ExtraPropertiesFormBuilderModifier|null
+     */
+    private $extraPropertiesFormBuilderModifier;
+
+    /**
      * @param FormFactoryInterface $formFactory
      * @param HookDispatcherInterface $hookDispatcher
      * @param FormDataProviderInterface $dataProvider
      * @param string $formType
      * @param FormRegistryInterface $registry
      * @param FormOptionsProviderInterface|null $optionsProvider
+     * @param ExtraPropertiesFormBuilderModifier|null $extraPropertiesFormBuilderModifier
      */
     public function __construct(
         FormFactoryInterface $formFactory,
@@ -63,7 +70,8 @@ final class FormBuilder implements FormBuilderInterface
         FormDataProviderInterface $dataProvider,
         string $formType,
         FormRegistryInterface $registry,
-        ?FormOptionsProviderInterface $optionsProvider = null
+        ?FormOptionsProviderInterface $optionsProvider = null,
+        ?ExtraPropertiesFormBuilderModifier $extraPropertiesFormBuilderModifier = null
     ) {
         $this->formFactory = $formFactory;
         $this->hookDispatcher = $hookDispatcher;
@@ -71,6 +79,7 @@ final class FormBuilder implements FormBuilderInterface
         $this->formType = $formType;
         $this->registry = $registry;
         $this->optionsProvider = $optionsProvider;
+        $this->extraPropertiesFormBuilderModifier = $extraPropertiesFormBuilderModifier;
     }
 
     /**
@@ -145,6 +154,17 @@ final class FormBuilder implements FormBuilderInterface
     private function buildForm($formType, $data, array $options = [], $id = null)
     {
         $formBuilder = $this->formFactory->createBuilder($formType, $data, $options);
+
+        if (null !== $this->extraPropertiesFormBuilderModifier) {
+            $entityName = $this->getFormName();
+            $shopId = (int) ($options['shop_id'] ?? ($data['shop_id'] ?? 1));
+            $this->extraPropertiesFormBuilderModifier->apply(
+                $formBuilder,
+                $entityName,
+                null !== $id ? (int) $id : null,
+                $shopId
+            );
+        }
 
         $this->hookDispatcher->dispatchWithParameters('action' . $this->camelize($formBuilder->getName()) . 'FormBuilderModifier', [
             'form_builder' => $formBuilder,

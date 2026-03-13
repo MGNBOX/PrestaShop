@@ -1,0 +1,33 @@
+services:
+  _defaults:
+    public: true
+
+  PrestaShop\PrestaShop\Adapter\ExtraProperty\Grid\ExtraPropertiesGridDefinitionProvider:
+    public: false
+    arguments:
+      $registry: '@PrestaShop\PrestaShop\Core\ExtraProperty\Registry\EntityExtraFieldRegistryInterface'
+
+  PrestaShop\PrestaShop\Adapter\ExtraProperty\Grid\ExtraPropertiesGridDefinitionModifier:
+    public: false
+    arguments:
+      $definitionProvider: '@PrestaShop\PrestaShop\Adapter\ExtraProperty\Grid\ExtraPropertiesGridDefinitionProvider'
+      $translator: '@translator'
+
+  PrestaShop\PrestaShop\Adapter\ExtraProperty\Grid\ExtraPropertiesGridQueryBuilderModifier:
+    public: false
+    arguments:
+      $definitionProvider: '@PrestaShop\PrestaShop\Adapter\ExtraProperty\Grid\ExtraPropertiesGridDefinitionProvider'
+      $dbPrefix: '%database_prefix%'
+      $contextLangId: '@=service("prestashop.adapter.legacy.context").getContext().language.id'
+
+  _instanceof:
+    PrestaShop\PrestaShop\Core\Grid\Definition\Factory\AbstractGridDefinitionFactory:
+      calls:
+        - setExtraPropertiesGridDefinitionModifier:
+            - '@PrestaShop\PrestaShop\Adapter\ExtraProperty\Grid\ExtraPropertiesGridDefinitionModifier'
+
+    PrestaShop\PrestaShop\Core\Grid\Data\Factory\DoctrineGridDataFactory:
+      calls:
+        - setExtraPropertiesGridQueryBuilderModifier:
+            - '@PrestaShop\PrestaShop\Adapter\ExtraProperty\Grid\ExtraPropertiesGridQueryBuilderModifier'
+

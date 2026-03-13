@@ -49,6 +49,13 @@ use RuntimeException;
 abstract class AbstractLazyArray implements Iterator, ArrayAccess, Countable, JsonSerializable
 {
     /**
+     * When set by a concrete LazyArray, exposes front-office extra fields under the `extraProperties` key.
+     *
+     * @var ExtraPropertiesLazyArray|null
+     */
+    protected $extraPropertiesLazyArray = null;
+
+    /**
      * @var ArrayObject
      */
     private $arrayAccessList;
@@ -87,6 +94,25 @@ abstract class AbstractLazyArray implements Iterator, ArrayAccess, Countable, Js
             }
         }
         $this->arrayAccessIterator = $this->arrayAccessList->getIterator();
+    }
+
+    /**
+     * Returns extra fields grouped by module for front-office templates (`extraProperties` in Smarty).
+     *
+     * Concrete LazyArrays assign {@see AbstractLazyArray::$extraPropertiesLazyArray} in their constructor
+     * (typically via {@see ExtraPropertiesLazyArray::fromObjectModel()} or
+     * {@see ExtraPropertiesLazyArray::fromObjectModelClass()}).
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    #[LazyArrayAttribute(arrayAccess: true, indexName: 'extraProperties')]
+    public function getExtraProperties(): array
+    {
+        if (null === $this->extraPropertiesLazyArray) {
+            return [];
+        }
+
+        return $this->extraPropertiesLazyArray->getValues();
     }
 
     /**

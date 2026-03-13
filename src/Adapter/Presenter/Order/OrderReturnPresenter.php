@@ -6,11 +6,15 @@
 
 namespace PrestaShop\PrestaShop\Adapter\Presenter\Order;
 
+use Context;
 use Exception;
 use Hook;
 use Link;
+use PrestaShop\PrestaShop\Adapter\ContainerFinder;
 use PrestaShop\PrestaShop\Adapter\Presenter\PresenterInterface;
+use PrestaShop\PrestaShop\Core\ExtraProperty\Storage\ExtraPropertyValueProviderInterface;
 use ReflectionException;
+use Throwable;
 
 class OrderReturnPresenter implements PresenterInterface
 {
@@ -25,6 +29,11 @@ class OrderReturnPresenter implements PresenterInterface
     private $link;
 
     /**
+     * @var ExtraPropertyValueProviderInterface|null
+     */
+    protected $extraPropertyValueProvider;
+
+    /**
      * OrderReturnPresenter constructor.
      *
      * @param string $prefix
@@ -34,6 +43,7 @@ class OrderReturnPresenter implements PresenterInterface
     {
         $this->prefix = $prefix;
         $this->link = $link;
+        $this->extraPropertyValueProvider = $this->resolveExtraPropertyValueProvider();
     }
 
     /**
@@ -49,12 +59,34 @@ class OrderReturnPresenter implements PresenterInterface
             throw new Exception('orderReturnPresenter can only present order_return passed as array');
         }
 
-        $orderReturnLazyArray = new OrderReturnLazyArray($this->prefix, $this->link, $orderReturn);
+        $orderReturnLazyArray = new OrderReturnLazyArray(
+            $this->prefix,
+            $this->link,
+            $orderReturn,
+            $this->extraPropertyValueProvider
+        );
 
         Hook::exec('actionPresentOrderReturn',
             ['presentedOrderReturn' => &$orderReturnLazyArray]
         );
 
         return $orderReturnLazyArray;
+    }
+
+    /**
+     * Resolves the front-office extra property provider from the service container when available.
+     */
+    protected function resolveExtraPropertyValueProvider(): ?ExtraPropertyValueProviderInterface
+    {
+        try {
+            $containerFinder = new ContainerFinder(Context::getContext());
+
+            /** @var ExtraPropertyValueProviderInterface $extraPropertyValueProvider */
+            $extraPropertyValueProvider = $containerFinder->getContainer()->get(ExtraPropertyValueProviderInterface::class);
+
+            return $extraPropertyValueProvider;
+        } catch (Throwable $e) {
+            return null;
+        }
     }
 }

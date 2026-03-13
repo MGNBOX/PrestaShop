@@ -21,10 +21,12 @@ use OrderReturn;
 use PrestaShop\PrestaShop\Adapter\ContainerFinder;
 use PrestaShop\PrestaShop\Adapter\Presenter\AbstractLazyArray;
 use PrestaShop\PrestaShop\Adapter\Presenter\Cart\CartPresenter;
+use PrestaShop\PrestaShop\Adapter\Presenter\ExtraPropertiesLazyArray;
 use PrestaShop\PrestaShop\Adapter\Presenter\LazyArrayAttribute;
 use PrestaShop\PrestaShop\Adapter\Presenter\Object\ObjectPresenter;
 use PrestaShop\PrestaShop\Adapter\Product\PriceFormatter;
 use PrestaShop\PrestaShop\Adapter\Shipment\ShipmentTotalsCalculatorInterface;
+use PrestaShop\PrestaShop\Core\ExtraProperty\Storage\ExtraPropertyValueProviderInterface;
 use PrestaShop\PrestaShop\Core\Util\ColorBrightnessCalculator;
 use PrestaShopBundle\Entity\Repository\ShipmentRepository;
 use PrestaShopBundle\Entity\ShipmentProduct;
@@ -64,13 +66,16 @@ class OrderLazyArray extends AbstractLazyArray
     /** @var ShipmentTotalsCalculatorInterface */
     private $shipmentTotalCalculator;
 
+    /** @var ExtraPropertyValueProviderInterface|null */
+    private $extraPropertyValueProvider;
+
     /**
      * OrderArray constructor.
      *
      * @throws AnnotationException
      * @throws ReflectionException
      */
-    public function __construct(Order $order)
+    public function __construct(Order $order, ?ExtraPropertyValueProviderInterface $extraPropertyValueProvider = null)
     {
         $this->order = $order;
         $this->cartPresenter = new CartPresenter();
@@ -82,6 +87,12 @@ class OrderLazyArray extends AbstractLazyArray
         $containerFinder = new ContainerFinder(Context::getContext());
         $this->shipmentRepository = $containerFinder->getContainer()->get(ShipmentRepository::class);
         $this->shipmentTotalCalculator = $containerFinder->getContainer()->get(ShipmentTotalsCalculatorInterface::class);
+        $this->extraPropertyValueProvider = $extraPropertyValueProvider;
+        $this->extraPropertiesLazyArray = ExtraPropertiesLazyArray::fromObjectModel(
+            $order,
+            $extraPropertyValueProvider,
+            Context::getContext()
+        );
 
         parent::__construct();
     }
@@ -365,7 +376,7 @@ class OrderLazyArray extends AbstractLazyArray
     #[LazyArrayAttribute(arrayAccess: true)]
     public function getDetails()
     {
-        return new OrderDetailLazyArray($this->order, $this->shipmentRepository);
+        return new OrderDetailLazyArray($this->order, $this->shipmentRepository, $this->extraPropertyValueProvider);
     }
 
     /**
