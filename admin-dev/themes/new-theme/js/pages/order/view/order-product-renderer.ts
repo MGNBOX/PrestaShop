@@ -34,9 +34,7 @@ export default class OrderProductRenderer {
   }
 
   updateNumProducts(numProducts: number): void {
-    if (!this.isMultishipmentIsEnabled) {
-      $(OrderViewPageMap.productsCount).html(String(numProducts));
-    }
+    $(OrderViewPageMap.productsCount).html(String(numProducts));
   }
 
   editProductFromList(
