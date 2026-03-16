@@ -639,8 +639,8 @@ form#importDropzone {
   @include media-breakpoint-down(sm) {
     position: fixed;
     top: calc(var(--#{$cdk}header-height) + #{$size-header-toolbar-height});
-    left: 0;
     right: 0;
+    left: 0;
     width: 100%;
   }
 
