@@ -69,7 +69,7 @@ class ShipmentRepository extends EntityRepository
 
     public function findByOrderAndShipmentId(int $orderId, int $shipmentId, bool $deleted = false): ?Shipment
     {
-        return $this->findOneBy(['orderId' => $orderId, 'id' => $shipmentId, $deleted]);
+        return $this->findOneBy(['orderId' => $orderId, 'id' => $shipmentId, 'deleted' => $deleted]);
     }
 
     public function findById(int $shipmentId, bool $deleted = false): ?Shipment
