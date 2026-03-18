@@ -1,5 +1,4 @@
 <?php
-
 /**
  * For the full copyright and license information, please view the
  * docs/licenses/LICENSE.txt file that was distributed with this source code.
@@ -105,8 +104,6 @@ use PrestaShopBundle\Form\Admin\Sell\Order\InternalNoteType;
 use PrestaShopBundle\Form\Admin\Sell\Order\OrderMessageType;
 use PrestaShopBundle\Form\Admin\Sell\Order\OrderPaymentType;
 use PrestaShopBundle\Form\Admin\Sell\Order\Shipment\EditShipmentType;
-use PrestaShopBundle\Form\Admin\Sell\Order\Shipment\MergeShipmentType;
-use PrestaShopBundle\Form\Admin\Sell\Order\Shipment\SplitShipmentType;
 use PrestaShopBundle\Form\Admin\Sell\Order\Shipment\FulfillShipmentType;
 use PrestaShopBundle\Form\Admin\Sell\Order\UpdateOrderShippingType;
 use PrestaShopBundle\Form\Admin\Sell\Order\UpdateOrderStatusType;
