@@ -82,10 +82,10 @@
       </thead>
       <tbody>
         {% for shipment in shipments %}
-          <tr id="{{ shipment.shipmentId }}">
+          <tr>
             <td class="w-100">{{ 'Shipment'|trans({}, 'Admin.Global') }} {{ shipment.shipmentId }}</td>
             <td class="text-right">
-              <input type="number" class="form-control js-shipment-quantity" value="{{ shipment.quantity }}">
+              <input type="number" class="form-control js-shipment-quantity" value="{{ shipment.quantity }}" data-shipment-id="{{ shipment.shipmentId }}">
             </td>
           </tr>
         {% endfor %}

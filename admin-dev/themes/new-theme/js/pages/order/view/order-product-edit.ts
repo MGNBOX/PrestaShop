@@ -403,12 +403,19 @@ export default class OrderProductEdit {
   }
 
   editProduct(orderId: number, orderDetailId: number): void {
-    const params = {
+    const params: Record<string, unknown> = {
       price_tax_incl: this.priceTaxIncludedInput?.val(),
       price_tax_excl: this.priceTaxExcludedInput?.val(),
       quantity: this.quantityInput.val(),
       invoice: this.productEditInvoiceSelect?.val(),
     };
+
+    if (this.isMultishipmentIsEnabled && this.shipmentInputs.length > 0) {
+      params.shipmentProducts = this.shipmentInputs.map((input) => ({
+        shipment_id: Number(input.dataset.shipmentId),
+        quantity: Number(input.value),
+      }));
+    }
 
     $.ajax({
       url: this.router.generate('admin_orders_update_product', {
