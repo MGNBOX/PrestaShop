@@ -147,7 +147,7 @@ final class ShipmentGridDefinitionFactory extends AbstractFilterableGridDefiniti
             )
             ->add(
                 (new DeliverySlipShipmentRowAction('print_delivery_slip'))
-                    ->setName($this->trans('View delivery slip', [], 'Admin.Orderscustomers.Feature'))
+                    ->setName($this->trans('Download delivery slip', [], 'Admin.Orderscustomers.Feature'))
                     ->setIcon('local_shipping')
                     ->setOptions([
                         'route' => 'admin_orders_generate_shipment_delivery_slip_pdf',
