@@ -751,7 +751,7 @@ class OrderController extends PrestaShopAdminController
     #[AdminSecurity("is_granted('update', 'AdminOrders')", redirectRoute: 'admin_orders_view', redirectQueryParamsToKeep: ['orderId'], message: 'You do not have permission to edit this.')]
     public function editShipmentAction(int $orderId, int $shipmentId, Request $request, #[Autowire(service: 'prestashop.core.form.identifiable_object.builder.edit_shipment_form_builder')] FormBuilderInterface $formBuilder): RedirectResponse
     {
-        $form = $formBuilder->getFormFor($orderId);
+        $form = $formBuilder->getFormFor($orderId, [], ['method' => 'PUT']);
         $form->handleRequest($request);
         $submittedData = $request->request->all('edit_shipment');
 

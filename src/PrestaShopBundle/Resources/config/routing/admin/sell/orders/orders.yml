@@ -274,7 +274,7 @@ admin_orders_get_edit_product_form:
 
 admin_orders_edit_shipment:
   path: /{orderId}/shipment/{shipmentId}/edit
-  methods: [ POST, PATCH ]
+  methods: [ PUT ]
   defaults:
     _controller: PrestaShopBundle\Controller\Admin\Sell\Order\OrderController::editShipmentAction
   requirements:
