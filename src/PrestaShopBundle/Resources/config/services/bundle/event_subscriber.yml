@@ -2,5 +2,8 @@ services:
   _defaults:
     public: true
     autowire: true
+    autoconfigure: true
 
-  PrestaShopBundle\EventSubscriber\UpdateShopModeFieldListener: ~
+  PrestaShopBundle\EventSubscriber\:
+    resource: "%kernel.project_dir%/src/PrestaShopBundle/EventSubscriber/*"
+    lazy: true

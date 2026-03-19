@@ -30,7 +30,7 @@ final class ImprovedB2bTabsToggler
     public function sync(): void
     {
         if ($this->featureFlagChecker instanceof ResetInterface) {
-            $this->featureFlagChecker->reset();
+            $this->featureFlagChecker->reset(); // refresh FeatureFlagChecker cache
         }
 
         $shouldEnable =
