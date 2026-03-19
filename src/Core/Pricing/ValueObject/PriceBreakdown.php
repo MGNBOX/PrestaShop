@@ -8,10 +8,13 @@ declare(strict_types=1);
 
 namespace PrestaShop\PrestaShop\Core\Pricing\ValueObject;
 
-final class PriceBreakdown
+/**
+ * Ordered collection of PriceModification steps, representing the full audit trail of a price computation.
+ */
+class PriceBreakdown
 {
     /** @var PriceModification[] */
-    private array $steps = [];
+    protected array $steps = [];
 
     public function addStep(PriceModification $step): void
     {

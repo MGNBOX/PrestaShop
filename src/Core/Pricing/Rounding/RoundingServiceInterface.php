@@ -10,6 +10,10 @@ namespace PrestaShop\PrestaShop\Core\Pricing\Rounding;
 
 use PrestaShop\Decimal\DecimalNumber;
 
+/**
+ * Centralised rounding service. Only injected into rounding calculators —
+ * no other calculator should round values directly.
+ */
 interface RoundingServiceInterface
 {
     public function round(DecimalNumber $value, ?int $precision = null): DecimalNumber;

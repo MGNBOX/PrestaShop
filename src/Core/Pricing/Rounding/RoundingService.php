@@ -11,20 +11,23 @@ namespace PrestaShop\PrestaShop\Core\Pricing\Rounding;
 use PrestaShop\Decimal\DecimalNumber;
 use PrestaShop\Decimal\Operation\Rounding;
 
-final class RoundingService implements RoundingServiceInterface
+/**
+ * Reads PS_PRICE_ROUND_MODE from configuration and delegates to DecimalNumber::toPrecision().
+ * In Phase 1 the default precision is 0 (round to integers).
+ */
+class RoundingService implements RoundingServiceInterface
 {
     /**
      * Maps PrestaShop PS_PRICE_ROUND_MODE config values to DecimalNumber rounding modes.
      *
-     * PS_PRICE_ROUND_MODE values:
-     * 0 = Round up away from zero, when it is half way there
-     * 1 = Round down towards zero, when it is half way there
+     * 0 = Round up away from zero when half way
+     * 1 = Round down towards zero when half way
      * 2 = Round towards the next even value
      * 3 = Round up to the nearest value
      * 4 = Round down to the nearest value
      * 5 = Truncate
      */
-    private const ROUNDING_MODE_MAP = [
+    protected const ROUNDING_MODE_MAP = [
         0 => Rounding::ROUND_HALF_UP,
         1 => Rounding::ROUND_HALF_DOWN,
         2 => Rounding::ROUND_HALF_EVEN,
@@ -33,7 +36,7 @@ final class RoundingService implements RoundingServiceInterface
         5 => Rounding::ROUND_TRUNCATE,
     ];
 
-    private readonly string $roundingMode;
+    protected readonly string $roundingMode;
 
     public function __construct(
         int $legacyRoundMode = 0,

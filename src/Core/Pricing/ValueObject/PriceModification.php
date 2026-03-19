@@ -8,14 +8,17 @@ declare(strict_types=1);
 
 namespace PrestaShop\PrestaShop\Core\Pricing\ValueObject;
 
-final class PriceModification
+/**
+ * Debug record of a single price property change, capturing which calculator made the modification.
+ */
+class PriceModification
 {
     public function __construct(
-        private readonly string $callerClass,
-        private readonly int $callerLine,
-        private readonly string $property,
-        private readonly string $previousValue,
-        private readonly string $newValue,
+        protected readonly string $callerClass,
+        protected readonly int $callerLine,
+        protected readonly string $property,
+        protected readonly string $previousValue,
+        protected readonly string $newValue,
     ) {
     }
 

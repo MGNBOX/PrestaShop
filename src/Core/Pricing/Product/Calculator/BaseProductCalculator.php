@@ -13,19 +13,21 @@ use PrestaShop\PrestaShop\Core\Pricing\Product\Provider\ProductProviderInterface
 use PrestaShop\PrestaShop\Core\Pricing\ValueObject\TaxablePrice;
 use PrestaShop\PrestaShop\Core\Pricing\ValueObject\TaxRate;
 
-final class BaseProductCalculator implements ProductCalculatorInterface
+/**
+ * First calculator in the pipeline: fetches the base product price from the provider
+ * and applies the combination price impact when relevant.
+ */
+class BaseProductCalculator implements ProductCalculatorInterface
 {
     public function __construct(
-        private readonly ProductProviderInterface $productProvider,
+        protected readonly ProductProviderInterface $productProvider,
     ) {
     }
 
     public function compute(ProductPriceInterface $productPrice): void
     {
         $basePrice = $this->productProvider->getBasePrice($productPrice->getProductId());
-        $unitPrice = new TaxablePrice($basePrice, TaxRate::zero());
-
-        $productPrice->setUnitPrice($unitPrice);
+        $productPrice->setUnitPrice(new TaxablePrice($basePrice, TaxRate::zero()));
         $productPrice->setOriginalPrice(new TaxablePrice($basePrice, TaxRate::zero()));
 
         if ($productPrice->getCombinationId() > 0) {
@@ -33,13 +35,10 @@ final class BaseProductCalculator implements ProductCalculatorInterface
                 $productPrice->getProductId(),
                 $productPrice->getCombinationId()
             );
-            $productPrice->setUnitPrice(new TaxablePrice($basePrice->plus($impact), TaxRate::zero()));
+            $combinationImpactPrice = new TaxablePrice($impact, TaxRate::zero());
+            $unitPrice = new TaxablePrice($basePrice, TaxRate::zero());
+            $unitPrice->plus($combinationImpactPrice);
+            $productPrice->setUnitPrice($unitPrice);
         }
-
-        // Total = unit price (no quantity multiplication in Phase 1, PriceContext deferred)
-        $productPrice->setTotalPrice(new TaxablePrice(
-            $productPrice->getUnitPrice()->getTaxExcluded(),
-            TaxRate::zero()
-        ));
     }
 }

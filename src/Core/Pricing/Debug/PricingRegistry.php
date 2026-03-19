@@ -10,10 +10,14 @@ namespace PrestaShop\PrestaShop\Core\Pricing\Debug;
 
 use PrestaShop\PrestaShop\Core\Pricing\Product\ProductPriceInterface;
 
-final class PricingRegistry
+/**
+ * Request-scoped collector of all computed ProductPrice instances.
+ * The orchestrator registers each result here for debug toolbar / profiler usage.
+ */
+class PricingRegistry
 {
     /** @var ProductPriceInterface[] */
-    private array $productPrices = [];
+    protected array $productPrices = [];
 
     public function registerProductPrice(ProductPriceInterface $productPrice): void
     {

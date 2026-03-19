@@ -10,6 +10,10 @@ namespace PrestaShop\PrestaShop\Core\Pricing\Product\Provider;
 
 use PrestaShop\Decimal\DecimalNumber;
 
+/**
+ * Data-access layer for product pricing data. Different implementations serve
+ * different contexts (catalog for FO, order_detail for BO, mock for tests).
+ */
 interface ProductProviderInterface
 {
     /**

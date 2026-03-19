@@ -10,19 +10,21 @@ namespace PrestaShop\PrestaShop\Core\Pricing\Product;
 
 use PrestaShop\PrestaShop\Core\Pricing\ValueObject\TaxablePrice;
 
+/**
+ * Mutable DTO carrying the computed prices for a single product (or combination).
+ * Calculators receive this and mutate it in place.
+ */
 interface ProductPriceInterface
 {
     public function getProductId(): int;
 
     public function getCombinationId(): int;
 
+    public function getQuantity(): int;
+
     public function getUnitPrice(): TaxablePrice;
 
     public function setUnitPrice(TaxablePrice $unitPrice): void;
-
-    public function getTotalPrice(): TaxablePrice;
-
-    public function setTotalPrice(TaxablePrice $totalPrice): void;
 
     public function getOriginalPrice(): TaxablePrice;
 

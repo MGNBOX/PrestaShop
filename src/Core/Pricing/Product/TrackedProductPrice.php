@@ -12,26 +12,30 @@ use PrestaShop\PrestaShop\Core\Pricing\ValueObject\PriceBreakdown;
 use PrestaShop\PrestaShop\Core\Pricing\ValueObject\PriceModification;
 use PrestaShop\PrestaShop\Core\Pricing\ValueObject\TaxablePrice;
 
-final class TrackedProductPrice implements ProductPriceInterface
+/**
+ * Debug-aware ProductPrice that auto-records every setter call as a PriceModification
+ * via debug_backtrace, capturing which calculator made the change. Calculators are
+ * completely unaware of the tracking — same interface as ProductPrice.
+ */
+class TrackedProductPrice implements ProductPriceInterface
 {
-    private TaxablePrice $unitPrice;
-    private TaxablePrice $totalPrice;
-    private TaxablePrice $originalPrice;
-    private PriceBreakdown $breakdown;
+    protected TaxablePrice $unitPrice;
+    protected TaxablePrice $originalPrice;
+    protected PriceBreakdown $breakdown;
 
-    private function __construct(
-        private readonly int $productId,
-        private readonly int $combinationId,
+    protected function __construct(
+        protected readonly int $productId,
+        protected readonly int $combinationId,
+        protected readonly int $quantity,
     ) {
         $this->unitPrice = TaxablePrice::zero();
-        $this->totalPrice = TaxablePrice::zero();
         $this->originalPrice = TaxablePrice::zero();
         $this->breakdown = new PriceBreakdown();
     }
 
-    public static function create(int $productId, int $combinationId): self
+    public static function create(int $productId, int $combinationId, int $quantity = 1): self
     {
-        return new self($productId, $combinationId);
+        return new self($productId, $combinationId, $quantity);
     }
 
     public function getProductId(): int
@@ -44,6 +48,11 @@ final class TrackedProductPrice implements ProductPriceInterface
         return $this->combinationId;
     }
 
+    public function getQuantity(): int
+    {
+        return $this->quantity;
+    }
+
     public function getUnitPrice(): TaxablePrice
     {
         return $this->unitPrice;
@@ -53,17 +62,6 @@ final class TrackedProductPrice implements ProductPriceInterface
     {
         $this->recordModification('unitPrice', $this->unitPrice, $unitPrice);
         $this->unitPrice = $unitPrice;
-    }
-
-    public function getTotalPrice(): TaxablePrice
-    {
-        return $this->totalPrice;
-    }
-
-    public function setTotalPrice(TaxablePrice $totalPrice): void
-    {
-        $this->recordModification('totalPrice', $this->totalPrice, $totalPrice);
-        $this->totalPrice = $totalPrice;
     }
 
     public function getOriginalPrice(): TaxablePrice
@@ -82,7 +80,7 @@ final class TrackedProductPrice implements ProductPriceInterface
         return $this->breakdown;
     }
 
-    private function recordModification(string $property, TaxablePrice $previous, TaxablePrice $new): void
+    protected function recordModification(string $property, TaxablePrice $previous, TaxablePrice $new): void
     {
         $trace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 3);
         $caller = $trace[2] ?? [];

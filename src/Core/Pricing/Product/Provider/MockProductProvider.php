@@ -10,15 +10,19 @@ namespace PrestaShop\PrestaShop\Core\Pricing\Product\Provider;
 
 use PrestaShop\Decimal\DecimalNumber;
 
-final class MockProductProvider implements ProductProviderInterface
+/**
+ * In-memory product provider for unit tests. Accepts pre-configured arrays of
+ * base prices and combination impacts.
+ */
+class MockProductProvider implements ProductProviderInterface
 {
     /**
      * @param array<int, string> $basePrices productId => price string
      * @param array<string, string> $combinationImpacts "productId-combinationId" => price impact string
      */
     public function __construct(
-        private readonly array $basePrices = [],
-        private readonly array $combinationImpacts = [],
+        protected readonly array $basePrices = [],
+        protected readonly array $combinationImpacts = [],
     ) {
     }
 

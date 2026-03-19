@@ -30,18 +30,6 @@ class TrackedProductPriceTest extends TestCase
         $this->assertSame('29.99', $step->getNewValue());
     }
 
-    public function testSetTotalPriceRecordsModification(): void
-    {
-        $price = TrackedProductPrice::create(1, 0);
-        $price->setTotalPrice(new TaxablePrice(new DecimalNumber('59.98'), TaxRate::zero()));
-
-        $breakdown = $price->getBreakdown();
-        $this->assertSame(1, $breakdown->count());
-
-        $step = $breakdown->getSteps()[0];
-        $this->assertSame('totalPrice', $step->getProperty());
-    }
-
     public function testSetOriginalPriceRecordsModification(): void
     {
         $price = TrackedProductPrice::create(1, 0);
@@ -59,9 +47,8 @@ class TrackedProductPriceTest extends TestCase
         $price = TrackedProductPrice::create(1, 0);
         $price->setUnitPrice(new TaxablePrice(new DecimalNumber('29.99'), TaxRate::zero()));
         $price->setOriginalPrice(new TaxablePrice(new DecimalNumber('29.99'), TaxRate::zero()));
-        $price->setTotalPrice(new TaxablePrice(new DecimalNumber('29.99'), TaxRate::zero()));
 
-        $this->assertSame(3, $price->getBreakdown()->count());
+        $this->assertSame(2, $price->getBreakdown()->count());
     }
 
     public function testCallerClassIsCaptured(): void
@@ -72,5 +59,11 @@ class TrackedProductPriceTest extends TestCase
         $step = $price->getBreakdown()->getSteps()[0];
         $this->assertSame(self::class, $step->getCallerClass());
         $this->assertGreaterThan(0, $step->getCallerLine());
+    }
+
+    public function testQuantityIsStored(): void
+    {
+        $price = TrackedProductPrice::create(1, 0, 5);
+        $this->assertSame(5, $price->getQuantity());
     }
 }

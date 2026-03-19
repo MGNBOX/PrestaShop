@@ -11,23 +11,25 @@ namespace PrestaShop\PrestaShop\Core\Pricing\Product\Calculator;
 use PrestaShop\PrestaShop\Core\Pricing\Product\ProductPriceInterface;
 use PrestaShop\PrestaShop\Core\Pricing\Rounding\RoundingServiceInterface;
 use PrestaShop\PrestaShop\Core\Pricing\ValueObject\TaxablePrice;
-use PrestaShop\PrestaShop\Core\Pricing\ValueObject\TaxRate;
 
-final class RoundingCalculator implements ProductCalculatorInterface
+/**
+ * Last calculator in the pipeline: applies final rounding to all price fields.
+ * This is the only place where rounding occurs — all prior calculators work at full precision.
+ */
+class RoundingCalculator implements ProductCalculatorInterface
 {
     public function __construct(
-        private readonly RoundingServiceInterface $roundingService,
+        protected readonly RoundingServiceInterface $roundingService,
     ) {
     }
 
     public function compute(ProductPriceInterface $productPrice): void
     {
         $productPrice->setUnitPrice($this->roundTaxablePrice($productPrice->getUnitPrice()));
-        $productPrice->setTotalPrice($this->roundTaxablePrice($productPrice->getTotalPrice()));
         $productPrice->setOriginalPrice($this->roundTaxablePrice($productPrice->getOriginalPrice()));
     }
 
-    private function roundTaxablePrice(TaxablePrice $price): TaxablePrice
+    protected function roundTaxablePrice(TaxablePrice $price): TaxablePrice
     {
         $roundedTaxExcluded = $this->roundingService->round($price->getTaxExcluded());
         $roundedTaxIncluded = $this->roundingService->round($price->getTaxIncluded());

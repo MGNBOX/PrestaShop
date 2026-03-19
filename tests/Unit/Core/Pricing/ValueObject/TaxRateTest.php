@@ -10,6 +10,7 @@ namespace Tests\Unit\Core\Pricing\ValueObject;
 
 use PHPUnit\Framework\TestCase;
 use PrestaShop\Decimal\DecimalNumber;
+use PrestaShop\PrestaShop\Core\Pricing\Exception\InvalidTaxRateException;
 use PrestaShop\PrestaShop\Core\Pricing\ValueObject\TaxRate;
 
 class TaxRateTest extends TestCase
@@ -22,7 +23,7 @@ class TaxRateTest extends TestCase
 
     public function testConstructionRejectsNegativeRate(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidTaxRateException::class);
         new TaxRate(new DecimalNumber('-1'));
     }
 
@@ -47,19 +48,17 @@ class TaxRateTest extends TestCase
         $this->assertTrue($multiplier->equals(new DecimalNumber('1')));
     }
 
-    public function testComputeTaxAmount(): void
+    public function testEqualsWithSameRate(): void
     {
-        $rate = new TaxRate(new DecimalNumber('20'));
-        $taxAmount = $rate->computeTaxAmount(new DecimalNumber('100'));
-        // 100 * 20 / 100 = 20
-        $this->assertTrue($taxAmount->equals(new DecimalNumber('20')));
+        $a = new TaxRate(new DecimalNumber('20'));
+        $b = new TaxRate(new DecimalNumber('20'));
+        $this->assertTrue($a->equals($b));
     }
 
-    public function testComputeTaxAmountWithDecimal(): void
+    public function testEqualsWithDifferentRates(): void
     {
-        $rate = new TaxRate(new DecimalNumber('5.5'));
-        $taxAmount = $rate->computeTaxAmount(new DecimalNumber('200'));
-        // 200 * 5.5 / 100 = 11
-        $this->assertTrue($taxAmount->equals(new DecimalNumber('11')));
+        $a = new TaxRate(new DecimalNumber('20'));
+        $b = new TaxRate(new DecimalNumber('10'));
+        $this->assertFalse($a->equals($b));
     }
 }

@@ -10,13 +10,17 @@ namespace PrestaShop\PrestaShop\Core\Pricing\Product\Calculator;
 
 use PrestaShop\PrestaShop\Core\Pricing\Product\ProductPriceInterface;
 
-final class ProductCalculatorOrchestrator
+/**
+ * Iterates over a priority-sorted list of product calculators and applies each one
+ * sequentially to the given ProductPrice DTO.
+ */
+class ProductCalculatorOrchestrator
 {
     /**
      * @param iterable<ProductCalculatorInterface> $calculators Tagged iterator, priority-sorted
      */
     public function __construct(
-        private readonly iterable $calculators,
+        protected readonly iterable $calculators,
     ) {
     }
 

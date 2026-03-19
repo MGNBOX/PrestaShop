@@ -10,24 +10,26 @@ namespace PrestaShop\PrestaShop\Core\Pricing\Product;
 
 use PrestaShop\PrestaShop\Core\Pricing\ValueObject\TaxablePrice;
 
-final class ProductPrice implements ProductPriceInterface
+/**
+ * Lightweight ProductPrice DTO with no tracking overhead. Setters simply assign values.
+ */
+class ProductPrice implements ProductPriceInterface
 {
-    private TaxablePrice $unitPrice;
-    private TaxablePrice $totalPrice;
-    private TaxablePrice $originalPrice;
+    protected TaxablePrice $unitPrice;
+    protected TaxablePrice $originalPrice;
 
-    private function __construct(
-        private readonly int $productId,
-        private readonly int $combinationId,
+    protected function __construct(
+        protected readonly int $productId,
+        protected readonly int $combinationId,
+        protected readonly int $quantity,
     ) {
         $this->unitPrice = TaxablePrice::zero();
-        $this->totalPrice = TaxablePrice::zero();
         $this->originalPrice = TaxablePrice::zero();
     }
 
-    public static function create(int $productId, int $combinationId): self
+    public static function create(int $productId, int $combinationId, int $quantity = 1): self
     {
-        return new self($productId, $combinationId);
+        return new self($productId, $combinationId, $quantity);
     }
 
     public function getProductId(): int
@@ -40,6 +42,11 @@ final class ProductPrice implements ProductPriceInterface
         return $this->combinationId;
     }
 
+    public function getQuantity(): int
+    {
+        return $this->quantity;
+    }
+
     public function getUnitPrice(): TaxablePrice
     {
         return $this->unitPrice;
@@ -48,16 +55,6 @@ final class ProductPrice implements ProductPriceInterface
     public function setUnitPrice(TaxablePrice $unitPrice): void
     {
         $this->unitPrice = $unitPrice;
-    }
-
-    public function getTotalPrice(): TaxablePrice
-    {
-        return $this->totalPrice;
-    }
-
-    public function setTotalPrice(TaxablePrice $totalPrice): void
-    {
-        $this->totalPrice = $totalPrice;
     }
 
     public function getOriginalPrice(): TaxablePrice

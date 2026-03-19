@@ -10,11 +10,11 @@ namespace PrestaShop\PrestaShop\Core\Pricing\Product\Calculator;
 
 use PrestaShop\PrestaShop\Core\Pricing\Product\ProductPriceInterface;
 
+/**
+ * A single step in the product pricing pipeline. Each implementation mutates the
+ * ProductPrice DTO in place and returns early when not relevant.
+ */
 interface ProductCalculatorInterface
 {
-    /**
-     * Applies a pricing computation step to the ProductPrice, mutating it in place.
-     * Returns early when not relevant for the current context.
-     */
     public function compute(ProductPriceInterface $productPrice): void;
 }

@@ -11,11 +11,15 @@ namespace PrestaShop\PrestaShop\Core\Pricing\Product\Provider;
 use Doctrine\DBAL\Connection;
 use PrestaShop\Decimal\DecimalNumber;
 
-final class CatalogProductProvider implements ProductProviderInterface
+/**
+ * Reads base product prices and combination impacts from the catalog tables
+ * (ps_product, ps_product_attribute). Used in FO / cart context.
+ */
+class CatalogProductProvider implements ProductProviderInterface
 {
     public function __construct(
-        private readonly Connection $connection,
-        private readonly string $dbPrefix,
+        protected readonly Connection $connection,
+        protected readonly string $dbPrefix,
     ) {
     }
 

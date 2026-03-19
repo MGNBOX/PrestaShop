@@ -30,9 +30,6 @@ class BaseProductCalculatorTest extends TestCase
         $this->assertTrue(
             $productPrice->getOriginalPrice()->getTaxExcluded()->equals(new DecimalNumber('29.99'))
         );
-        $this->assertTrue(
-            $productPrice->getTotalPrice()->getTaxExcluded()->equals(new DecimalNumber('29.99'))
-        );
     }
 
     public function testHandlesCombinations(): void

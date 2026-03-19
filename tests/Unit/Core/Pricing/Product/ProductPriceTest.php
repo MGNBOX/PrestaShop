@@ -18,10 +18,17 @@ class ProductPriceTest extends TestCase
 {
     public function testCreate(): void
     {
-        $price = ProductPrice::create(1, 5);
+        $price = ProductPrice::create(1, 5, 3);
 
         $this->assertSame(1, $price->getProductId());
         $this->assertSame(5, $price->getCombinationId());
+        $this->assertSame(3, $price->getQuantity());
+    }
+
+    public function testDefaultQuantityIsOne(): void
+    {
+        $price = ProductPrice::create(1, 0);
+        $this->assertSame(1, $price->getQuantity());
     }
 
     public function testInitialPricesAreZero(): void
@@ -29,7 +36,6 @@ class ProductPriceTest extends TestCase
         $price = ProductPrice::create(1, 0);
 
         $this->assertTrue($price->getUnitPrice()->getTaxExcluded()->equalsZero());
-        $this->assertTrue($price->getTotalPrice()->getTaxExcluded()->equalsZero());
         $this->assertTrue($price->getOriginalPrice()->getTaxExcluded()->equalsZero());
     }
 
@@ -41,16 +47,6 @@ class ProductPriceTest extends TestCase
         $price->setUnitPrice($unitPrice);
 
         $this->assertTrue($price->getUnitPrice()->getTaxExcluded()->equals(new DecimalNumber('29.99')));
-    }
-
-    public function testSetTotalPrice(): void
-    {
-        $price = ProductPrice::create(1, 0);
-        $totalPrice = new TaxablePrice(new DecimalNumber('59.98'), TaxRate::zero());
-
-        $price->setTotalPrice($totalPrice);
-
-        $this->assertTrue($price->getTotalPrice()->getTaxExcluded()->equals(new DecimalNumber('59.98')));
     }
 
     public function testSetOriginalPrice(): void

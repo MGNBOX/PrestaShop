@@ -9,14 +9,19 @@ declare(strict_types=1);
 namespace PrestaShop\PrestaShop\Core\Pricing\ValueObject;
 
 use PrestaShop\Decimal\DecimalNumber;
+use PrestaShop\PrestaShop\Core\Pricing\Exception\InvalidTaxRateException;
+use PrestaShop\PrestaShop\Core\Pricing\PricingConstants;
 
-final class TaxRate
+/**
+ * Represents a tax rate percentage (e.g. 20 for 20% VAT).
+ */
+class TaxRate
 {
     public function __construct(
-        private readonly DecimalNumber $rate,
+        protected readonly DecimalNumber $rate,
     ) {
-        if ($rate->isLowerThan(new DecimalNumber('0'))) {
-            throw new \InvalidArgumentException('Tax rate must be greater than or equal to 0');
+        if ($rate->isNegative()) {
+            throw new InvalidTaxRateException('Tax rate must be greater than or equal to 0');
         }
     }
 
@@ -36,15 +41,15 @@ final class TaxRate
     public function getMultiplier(): DecimalNumber
     {
         return (new DecimalNumber('1'))->plus(
-            $this->rate->dividedBy(new DecimalNumber('100'), 20)
+            $this->rate->dividedBy(new DecimalNumber('100'), PricingConstants::INTERMEDIATE_PRECISION)
         );
     }
 
     /**
-     * Computes the tax amount: taxExcluded * rate / 100.
+     * Checks whether this tax rate is equal to another.
      */
-    public function computeTaxAmount(DecimalNumber $taxExcluded): DecimalNumber
+    public function equals(self $other): bool
     {
-        return $taxExcluded->times($this->rate)->dividedBy(new DecimalNumber('100'), 20);
+        return $this->rate->equals($other->rate);
     }
 }

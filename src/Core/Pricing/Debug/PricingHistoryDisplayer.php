@@ -11,7 +11,11 @@ namespace PrestaShop\PrestaShop\Core\Pricing\Debug;
 use PrestaShop\PrestaShop\Core\Pricing\Product\ProductPriceInterface;
 use PrestaShop\PrestaShop\Core\Pricing\Product\TrackedProductPrice;
 
-final class PricingHistoryDisplayer
+/**
+ * Formats a TrackedProductPrice's PriceBreakdown into human-readable strings
+ * or structured arrays suitable for Twig rendering in the debug toolbar.
+ */
+class PricingHistoryDisplayer
 {
     /**
      * Formats a ProductPrice's breakdown as a human-readable string.
@@ -68,7 +72,7 @@ final class PricingHistoryDisplayer
         return $result;
     }
 
-    private function getShortClassName(string $fqcn): string
+    protected function getShortClassName(string $fqcn): string
     {
         $parts = explode('\\', $fqcn);
 
