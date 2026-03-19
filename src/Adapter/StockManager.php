@@ -146,8 +146,8 @@ class StockManager
         $stockContext = $this->getStockContext((int) $shopId);
 
         $orderScopeCondition = $stockContext['shopGroupId'] > 0
-            ? 'o.id_shop_group = :order_shop_group_id'
-            : 'o.id_shop = :shop_id';
+            ? 'o.id_shop_group = :stock_shop_group_id'
+            : 'o.id_shop = :stock_shop_id';
 
         $updateReservedQuantityQuery .= '
             SET sa.reserved_quantity = (
@@ -177,12 +177,6 @@ class StockManager
             ':error_state' => (int) $errorState,
             ':cancellation_state' => (int) $cancellationState,
         ];
-
-        if ($stockContext['shopGroupId'] > 0) {
-            $strParams[':order_shop_group_id'] = (int) $stockContext['shopGroupId'];
-        } else {
-            $strParams[':shop_id'] = (int) $shopId;
-        }
 
         if ($idProduct) {
             $updateReservedQuantityQuery .= ' AND sa.id_product = :product_id';
