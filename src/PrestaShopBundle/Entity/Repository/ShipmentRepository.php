@@ -31,6 +31,16 @@ class ShipmentRepository extends EntityRepository
      */
     public function findByOrderId(int $orderId)
     {
+        return $this->findBy(['orderId' => $orderId, 'deleted' => false]);
+    }
+
+    /**
+     * @param int $orderId
+     *
+     * @return Shipment[]
+     */
+    public function getAllShipmentsByOrderId(int $orderId)
+    {
         return $this->findBy(['orderId' => $orderId]);
     }
 
@@ -60,6 +70,7 @@ class ShipmentRepository extends EntityRepository
             )
             ->where('sp.id_order_detail = :orderDetailId')
             ->andWhere('s.id_order = :orderId')
+            ->andWhere('s.deleted = false')
             ->groupBy('sp.id_shipment')
             ->setParameter('orderDetailId', $orderDetailId)
             ->setParameter('orderId', $orderId);
@@ -69,17 +80,17 @@ class ShipmentRepository extends EntityRepository
 
     public function findByOrderAndShipmentId(int $orderId, int $shipmentId): ?Shipment
     {
-        return $this->findOneBy(['orderId' => $orderId, 'id' => $shipmentId]);
+        return $this->findOneBy(['orderId' => $orderId, 'id' => $shipmentId, 'deleted' => false]);
     }
 
     public function findById(int $shipmentId): ?Shipment
     {
-        return $this->findOneBy(['id' => $shipmentId]);
+        return $this->findOneBy(['id' => $shipmentId, 'deleted' => false]);
     }
 
     public function findByCarrierId(int $carrierId): array
     {
-        return $this->findBy(['carrierId' => $carrierId]);
+        return $this->findBy(['carrierId' => $carrierId, 'deleted' => false]);
     }
 
     public function save(Shipment $shipment): int
@@ -92,7 +103,7 @@ class ShipmentRepository extends EntityRepository
 
     public function delete(Shipment $shipment): void
     {
-        $this->getEntityManager()->remove($shipment);
+        $shipment->setDeleted(true);
         $this->getEntityManager()->flush();
     }
 
@@ -124,7 +135,9 @@ class ShipmentRepository extends EntityRepository
             ->from($this->tablePrefix . 'shipment', 's')
             ->leftJoin('s', $this->tablePrefix . 'shipment_product', 'sp', 's.id_shipment = sp.id_shipment')
             ->leftJoin('sp', $this->tablePrefix . 'order_detail', 'od', 'sp.id_order_detail = od.id_order_detail')
-            ->leftJoin('s', $this->tablePrefix . 'carrier', 'c', 's.id_carrier = c.id_carrier')->where('s.id_order = :orderId')
+            ->leftJoin('s', $this->tablePrefix . 'carrier', 'c', 's.id_carrier = c.id_carrier')
+            ->where('s.id_order = :orderId')
+            ->andWhere('s.deleted = false')
             ->setParameter('orderId', $orderId)
             ->groupBy('s.id_shipment');
 
@@ -156,9 +169,10 @@ class ShipmentRepository extends EntityRepository
     ): void {
         $conn = $this->getEntityManager()->getConnection();
 
-        // Delete empty shipments
+        // Soft delete empty shipments
         $conn->createQueryBuilder()
-            ->delete($this->tablePrefix . 'shipment')
+            ->update($this->tablePrefix . 'shipment')
+            ->set('deleted', '1')
             ->where('id_order = :orderId')
             ->andWhere(
                 'id_shipment NOT IN (

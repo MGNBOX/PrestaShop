@@ -3078,6 +3078,7 @@ CREATE TABLE `PREFIX_shipment` (
   `delivered_at` datetime DEFAULT NULL,
   `cancelled_at` DATETIME DEFAULT NULL,
   `tracking_number` varchar(255) DEFAULT NULL,
+  `deleted` tinyint(1) NOT NULL DEFAULT 0,
   `date_add` datetime NOT NULL,
   `date_upd` datetime NOT NULL,
   PRIMARY KEY (`id_shipment`)
