@@ -2424,8 +2424,8 @@ class OrderController extends PrestaShopAdminController
     private function orderHasShipment(int $orderId): bool
     {
         /** @var OrderShipment[] $shipments */
-        $shipments = $this->dispatchQuery(new GetOrderShipments($orderId));
+        $shipments = $this->dispatchQuery(new GetOrderShipments($orderId, true));
 
-        return (bool) count($shipments) > 0;
+        return count($shipments) > 0;
     }
 }

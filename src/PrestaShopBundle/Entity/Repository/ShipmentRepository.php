@@ -39,7 +39,7 @@ class ShipmentRepository extends EntityRepository
      *
      * @return Shipment[]
      */
-    public function getAllShipments(int $orderId)
+    public function getAllShipmentsByOrderId(int $orderId)
     {
         return $this->findBy(['orderId' => $orderId]);
     }
