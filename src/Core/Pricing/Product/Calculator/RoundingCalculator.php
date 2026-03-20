@@ -14,10 +14,9 @@ use PrestaShop\PrestaShop\Core\Pricing\ValueObject\ImmutableTaxablePrice;
 use PrestaShop\PrestaShop\Core\Pricing\ValueObject\TaxablePriceInterface;
 
 /**
- * Last calculator in the pipeline: applies final rounding to all price fields.
- * This is the only place where rounding occurs — all prior calculators work at full precision.
- * Produces ImmutableTaxablePrice instances where both tax-excluded and tax-included are
- * independently rounded and will not be recomputed from one another.
+ * Last calculator in the pipeline: rounds the finalPrice only.
+ * originalPrice, unitPrice and discountPrice keep their full precision values.
+ * This is the only place where rounding occurs.
  */
 class RoundingCalculator implements ProductCalculatorInterface
 {
@@ -28,8 +27,7 @@ class RoundingCalculator implements ProductCalculatorInterface
 
     public function compute(ProductPriceInterface $productPrice): void
     {
-        $productPrice->setUnitPrice($this->roundPrice($productPrice->getUnitPrice()));
-        $productPrice->setOriginalPrice($this->roundPrice($productPrice->getOriginalPrice()));
+        $productPrice->setFinalPrice($this->roundPrice($productPrice->getFinalPrice()));
     }
 
     protected function roundPrice(TaxablePriceInterface $price): ImmutableTaxablePrice

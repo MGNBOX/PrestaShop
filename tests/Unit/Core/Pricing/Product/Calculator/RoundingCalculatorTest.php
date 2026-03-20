@@ -13,44 +13,77 @@ use PrestaShop\Decimal\DecimalNumber;
 use PrestaShop\PrestaShop\Core\Pricing\Product\Calculator\RoundingCalculator;
 use PrestaShop\PrestaShop\Core\Pricing\Product\ProductPrice;
 use PrestaShop\PrestaShop\Core\Pricing\Rounding\RoundingService;
+use PrestaShop\PrestaShop\Core\Pricing\ValueObject\ImmutableTaxablePrice;
 use PrestaShop\PrestaShop\Core\Pricing\ValueObject\TaxablePrice;
 use PrestaShop\PrestaShop\Core\Pricing\ValueObject\TaxRate;
 
 class RoundingCalculatorTest extends TestCase
 {
-    public function testRoundsToIntegerInPhase1(): void
+    public function testRoundsFinalPriceToInteger(): void
     {
         $roundingService = new RoundingService(0);
         $calculator = new RoundingCalculator($roundingService);
 
         $productPrice = ProductPrice::create(1, 0);
-        $productPrice->setUnitPrice(TaxablePrice::fromTaxExcluded(new DecimalNumber('29.99'), TaxRate::zero()));
         $productPrice->setOriginalPrice(TaxablePrice::fromTaxExcluded(new DecimalNumber('29.99'), TaxRate::zero()));
+        $productPrice->setFinalPrice(new ImmutableTaxablePrice(
+            new DecimalNumber('29.99'),
+            new DecimalNumber('29.99'),
+            new DecimalNumber('0'),
+            TaxRate::zero(),
+        ));
 
         $calculator->compute($productPrice);
 
-        // 29.99 rounds to 30 with ROUND_HALF_UP at precision 0
+        // finalPrice is rounded to 30
         $this->assertTrue(
-            $productPrice->getUnitPrice()->getTaxExcluded()->equals(new DecimalNumber('30'))
+            $productPrice->getFinalPrice()->getTaxExcluded()->equals(new DecimalNumber('30'))
         );
+        // originalPrice keeps full precision
         $this->assertTrue(
-            $productPrice->getOriginalPrice()->getTaxExcluded()->equals(new DecimalNumber('30'))
+            $productPrice->getOriginalPrice()->getTaxExcluded()->equals(new DecimalNumber('29.99'))
         );
     }
 
-    public function testRoundsDownWhenBelow5(): void
+    public function testRoundsFinalPriceDown(): void
     {
         $roundingService = new RoundingService(0);
         $calculator = new RoundingCalculator($roundingService);
 
         $productPrice = ProductPrice::create(1, 0);
-        $productPrice->setUnitPrice(TaxablePrice::fromTaxExcluded(new DecimalNumber('29.49'), TaxRate::zero()));
-        $productPrice->setOriginalPrice(TaxablePrice::fromTaxExcluded(new DecimalNumber('29.49'), TaxRate::zero()));
+        $productPrice->setFinalPrice(new ImmutableTaxablePrice(
+            new DecimalNumber('29.49'),
+            new DecimalNumber('29.49'),
+            new DecimalNumber('0'),
+            TaxRate::zero(),
+        ));
 
         $calculator->compute($productPrice);
 
         $this->assertTrue(
-            $productPrice->getUnitPrice()->getTaxExcluded()->equals(new DecimalNumber('29'))
+            $productPrice->getFinalPrice()->getTaxExcluded()->equals(new DecimalNumber('29'))
         );
+    }
+
+    public function testDoesNotModifyOtherPriceFields(): void
+    {
+        $roundingService = new RoundingService(0);
+        $calculator = new RoundingCalculator($roundingService);
+
+        $productPrice = ProductPrice::create(1, 0);
+        $productPrice->setUnitPrice(TaxablePrice::fromTaxExcluded(new DecimalNumber('5.75'), TaxRate::zero()));
+        $productPrice->setOriginalPrice(TaxablePrice::fromTaxExcluded(new DecimalNumber('29.99'), TaxRate::zero()));
+        $productPrice->setFinalPrice(new ImmutableTaxablePrice(
+            new DecimalNumber('29.99'),
+            new DecimalNumber('29.99'),
+            new DecimalNumber('0'),
+            TaxRate::zero(),
+        ));
+
+        $calculator->compute($productPrice);
+
+        // unitPrice and originalPrice are untouched
+        $this->assertTrue($productPrice->getUnitPrice()->getTaxExcluded()->equals(new DecimalNumber('5.75')));
+        $this->assertTrue($productPrice->getOriginalPrice()->getTaxExcluded()->equals(new DecimalNumber('29.99')));
     }
 }

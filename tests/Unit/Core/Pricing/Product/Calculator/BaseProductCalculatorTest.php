@@ -10,9 +10,9 @@ namespace Tests\Unit\Core\Pricing\Product\Calculator;
 
 use PHPUnit\Framework\TestCase;
 use PrestaShop\Decimal\DecimalNumber;
+use PrestaShop\PrestaShop\Core\Pricing\Exception\ProductPriceNotFoundException;
 use PrestaShop\PrestaShop\Core\Pricing\Product\Calculator\BaseProductCalculator;
 use PrestaShop\PrestaShop\Core\Pricing\Product\ProductPrice;
-use PrestaShop\PrestaShop\Core\Pricing\Exception\ProductPriceNotFoundException;
 use PrestaShop\PrestaShop\Core\Pricing\Product\Provider\MockProductProvider;
 use PrestaShop\PrestaShop\Core\Pricing\Product\Provider\ProductPriceData;
 
@@ -38,6 +38,10 @@ class BaseProductCalculatorTest extends TestCase
         );
         $this->assertTrue(
             $productPrice->getUnitPrice()->getTaxExcluded()->equals(new DecimalNumber('5.00'))
+        );
+        // finalPrice initialized to same value as originalPrice
+        $this->assertTrue(
+            $productPrice->getFinalPrice()->getTaxExcluded()->equals(new DecimalNumber('29.99'))
         );
     }
 

@@ -17,6 +17,19 @@ use PrestaShop\Decimal\DecimalNumber;
  */
 class ImmutableTaxablePrice implements TaxablePriceInterface
 {
+    /**
+     * Creates an immutable snapshot from any TaxablePriceInterface, freezing its current values.
+     */
+    public static function fromTaxablePrice(TaxablePriceInterface $price): self
+    {
+        return new self(
+            $price->getTaxExcluded(),
+            $price->getTaxIncluded(),
+            $price->getTaxAmount(),
+            $price->getTaxRate(),
+        );
+    }
+
     public function __construct(
         protected readonly DecimalNumber $taxExcluded,
         protected readonly DecimalNumber $taxIncluded,

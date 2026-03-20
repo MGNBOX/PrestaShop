@@ -8,10 +8,13 @@ declare(strict_types=1);
 
 namespace PrestaShop\PrestaShop\Core\Pricing\Product;
 
+use PrestaShop\Decimal\DecimalNumber;
+use PrestaShop\PrestaShop\Core\Pricing\ValueObject\ImmutableTaxablePrice;
 use PrestaShop\PrestaShop\Core\Pricing\ValueObject\PriceBreakdown;
 use PrestaShop\PrestaShop\Core\Pricing\ValueObject\PriceModification;
 use PrestaShop\PrestaShop\Core\Pricing\ValueObject\TaxablePrice;
 use PrestaShop\PrestaShop\Core\Pricing\ValueObject\TaxablePriceInterface;
+use PrestaShop\PrestaShop\Core\Pricing\ValueObject\TaxRate;
 
 /**
  * Debug-aware ProductPrice that auto-records every setter call as a PriceModification
@@ -20,8 +23,10 @@ use PrestaShop\PrestaShop\Core\Pricing\ValueObject\TaxablePriceInterface;
  */
 class TrackedProductPrice implements ProductPriceInterface
 {
-    protected TaxablePriceInterface $unitPrice;
-    protected TaxablePriceInterface $originalPrice;
+    protected TaxablePrice $unitPrice;
+    protected TaxablePrice $originalPrice;
+    protected TaxablePrice $discountPrice;
+    protected ImmutableTaxablePrice $finalPrice;
     protected PriceBreakdown $breakdown;
 
     protected function __construct(
@@ -31,6 +36,13 @@ class TrackedProductPrice implements ProductPriceInterface
     ) {
         $this->unitPrice = TaxablePrice::zero();
         $this->originalPrice = TaxablePrice::zero();
+        $this->discountPrice = TaxablePrice::zero();
+        $this->finalPrice = new ImmutableTaxablePrice(
+            new DecimalNumber('0'),
+            new DecimalNumber('0'),
+            new DecimalNumber('0'),
+            TaxRate::zero(),
+        );
         $this->breakdown = new PriceBreakdown();
     }
 
@@ -54,26 +66,48 @@ class TrackedProductPrice implements ProductPriceInterface
         return $this->quantity;
     }
 
-    public function getUnitPrice(): TaxablePriceInterface
+    public function getUnitPrice(): TaxablePrice
     {
         return $this->unitPrice;
     }
 
-    public function setUnitPrice(TaxablePriceInterface $unitPrice): void
+    public function setUnitPrice(TaxablePrice $unitPrice): void
     {
         $this->recordModification('unitPrice', $this->unitPrice, $unitPrice);
         $this->unitPrice = $unitPrice;
     }
 
-    public function getOriginalPrice(): TaxablePriceInterface
+    public function getOriginalPrice(): TaxablePrice
     {
         return $this->originalPrice;
     }
 
-    public function setOriginalPrice(TaxablePriceInterface $originalPrice): void
+    public function setOriginalPrice(TaxablePrice $originalPrice): void
     {
         $this->recordModification('originalPrice', $this->originalPrice, $originalPrice);
         $this->originalPrice = $originalPrice;
+    }
+
+    public function getDiscountPrice(): TaxablePrice
+    {
+        return $this->discountPrice;
+    }
+
+    public function setDiscountPrice(TaxablePrice $discountPrice): void
+    {
+        $this->recordModification('discountPrice', $this->discountPrice, $discountPrice);
+        $this->discountPrice = $discountPrice;
+    }
+
+    public function getFinalPrice(): ImmutableTaxablePrice
+    {
+        return $this->finalPrice;
+    }
+
+    public function setFinalPrice(ImmutableTaxablePrice $finalPrice): void
+    {
+        $this->recordModification('finalPrice', $this->finalPrice, $finalPrice);
+        $this->finalPrice = $finalPrice;
     }
 
     public function getBreakdown(): PriceBreakdown

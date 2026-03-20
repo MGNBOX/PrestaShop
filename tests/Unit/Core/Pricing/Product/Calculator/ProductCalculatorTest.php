@@ -11,14 +11,14 @@ namespace Tests\Unit\Core\Pricing\Product\Calculator;
 use Closure;
 use PHPUnit\Framework\TestCase;
 use PrestaShop\Decimal\DecimalNumber;
+use PrestaShop\PrestaShop\Core\Pricing\Product\Calculator\ProductCalculator;
 use PrestaShop\PrestaShop\Core\Pricing\Product\Calculator\ProductCalculatorInterface;
-use PrestaShop\PrestaShop\Core\Pricing\Product\Calculator\ProductPriceCalculator;
 use PrestaShop\PrestaShop\Core\Pricing\Product\ProductPrice;
 use PrestaShop\PrestaShop\Core\Pricing\Product\ProductPriceInterface;
 use PrestaShop\PrestaShop\Core\Pricing\ValueObject\TaxablePrice;
 use PrestaShop\PrestaShop\Core\Pricing\ValueObject\TaxRate;
 
-class ProductPriceCalculatorTest extends TestCase
+class ProductCalculatorTest extends TestCase
 {
     public function testIteratesCalculatorsInOrder(): void
     {
@@ -31,17 +31,17 @@ class ProductPriceCalculatorTest extends TestCase
             $executionOrder[] = 'second';
         });
 
-        $orchestrator = new ProductPriceCalculator([$calculator1, $calculator2]);
+        $productCalculator = new ProductCalculator([$calculator1, $calculator2]);
         $productPrice = ProductPrice::create(1, 0);
 
-        $orchestrator->compute($productPrice);
+        $productCalculator->compute($productPrice);
 
         $this->assertSame(['first', 'second'], $executionOrder);
     }
 
     public function testEmptyPipelineLeavesProductPriceUnchanged(): void
     {
-        $calculator = new ProductPriceCalculator([]);
+        $calculator = new ProductCalculator([]);
         $productPrice = ProductPrice::create(1, 0);
 
         $calculator->compute($productPrice);
@@ -55,10 +55,10 @@ class ProductPriceCalculatorTest extends TestCase
             $pp->setUnitPrice(TaxablePrice::fromTaxExcluded(new DecimalNumber('42'), TaxRate::zero()));
         });
 
-        $orchestrator = new ProductPriceCalculator([$calculator]);
+        $productCalculator = new ProductCalculator([$calculator]);
         $productPrice = ProductPrice::create(1, 0);
 
-        $orchestrator->compute($productPrice);
+        $productCalculator->compute($productPrice);
 
         $this->assertTrue($productPrice->getUnitPrice()->getTaxExcluded()->equals(new DecimalNumber('42')));
     }

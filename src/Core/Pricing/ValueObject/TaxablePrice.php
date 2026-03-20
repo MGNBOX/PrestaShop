@@ -109,8 +109,7 @@ class TaxablePrice implements TaxablePriceInterface
      */
     protected function syncFromTaxExcluded(): void
     {
-        $this->taxAmount = $this->taxExcluded->times($this->taxRate->getRate())
-            ->dividedBy(new DecimalNumber('100'), PricingConstants::INTERMEDIATE_PRECISION);
         $this->taxIncluded = $this->taxExcluded->times($this->taxRate->getMultiplier());
+        $this->taxAmount = $this->taxIncluded->minus($this->taxExcluded);
     }
 }
