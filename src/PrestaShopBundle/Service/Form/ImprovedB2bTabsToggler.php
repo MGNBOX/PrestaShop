@@ -14,7 +14,10 @@ use Symfony\Contracts\Service\ResetInterface;
 
 final class ImprovedB2bTabsToggler
 {
-    private const TAB_CLASS_NAMES = [
+    /**
+     * List of tabs that should be enabled/disabled depending on the feature flag 'improved_b2b'.
+     */
+    public const TAB_CLASS_NAMES = [
         'AdminBusinessEntity',
         'AdminBusinessEntities',
         'AdminCustomersB2B',
