@@ -829,7 +829,7 @@ class OrderController extends PrestaShopAdminController
         $submittedData = $request->request->all('edit_shipment');
 
         if (!$form->isSubmitted() || !$form->isValid()) {
-            $this->addFlash('error', 'An error occured while editing shipment');
+            $this->addFlash('error', 'An error occurred while editing shipment');
 
             return $this->redirectToRoute('admin_orders_view', ['orderId' => $orderId]);
         }
@@ -847,9 +847,8 @@ class OrderController extends PrestaShopAdminController
     }
 
     #[AdminSecurity("is_granted('update', 'AdminOrders')", redirectRoute: 'admin_orders_view', redirectQueryParamsToKeep: ['orderId'], message: 'You do not have permission to edit this.')]
-    public function getFulfillShipmentForm(int $orderId, Request $request): Response
+    public function getFulfillShipmentForm(int $orderId, int $shipmentId): Response
     {
-        $shipmentId = (int) $request->query->get('shipmentId');
         $formData = $this->dispatchQuery(new GetShipmentForEditing($orderId, $shipmentId))->toArray();
         $formData['shipment_id'] = $shipmentId;
         $form = $this->createForm(FulfillShipmentType::class, $formData, ['order_id' => $orderId, 'shipment_id' => $shipmentId]);
@@ -869,9 +868,8 @@ class OrderController extends PrestaShopAdminController
      * @return RedirectResponse
      */
     #[AdminSecurity("is_granted('update', 'AdminOrders')", redirectRoute: 'admin_orders_view', redirectQueryParamsToKeep: ['orderId'], message: 'You do not have permission to edit this.')]
-    public function fulfillShipmentAction(int $orderId, Request $request): RedirectResponse
+    public function fulfillShipmentAction(int $orderId, int $shipmentId, Request $request): RedirectResponse
     {
-        $shipmentId = (int) $request->query->get('shipmentId');
         $formData = $this->dispatchQuery(new GetShipmentForEditing($orderId, $shipmentId))->toArray();
         $formData['shipment_id'] = $shipmentId;
         $form = $this->createForm(FulfillShipmentType::class, $formData, ['order_id' => $orderId, 'shipment_id' => $shipmentId]);

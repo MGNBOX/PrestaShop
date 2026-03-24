@@ -10,6 +10,8 @@ export default class FulfillShipmentManager {
 
   private shipmentId: number|null = null;
 
+  private orderId: number|null = null;
+
   private router = new Router();
 
   constructor() {
@@ -36,12 +38,13 @@ export default class FulfillShipmentManager {
       return;
     }
 
-    const {shipmentId} = link.dataset;
+    const {orderId, shipmentId} = link.dataset;
 
-    if (!shipmentId) {
-      throw new Error('error while getting shipmentId');
+    if (!orderId || !shipmentId) {
+      throw new Error('error while getting orderId or shipmentId');
     }
 
+    this.orderId = Number(orderId);
     this.shipmentId = Number(shipmentId);
 
     this.refreshFulfillShipmentForm();
@@ -56,14 +59,17 @@ export default class FulfillShipmentManager {
 
     modal.dataset.state = 'loading';
 
+    console.log(this.formRoute);
+    console.log(this.router.generate(this.formRoute, {
+      orderId: this.orderId,
+      shipmentId: this.shipmentId,
+    }));
     try {
       const response = await fetch(this.router.generate(this.formRoute, {
+        orderId: this.orderId,
         shipmentId: this.shipmentId,
       }), {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
       });
 
       if (!response.ok) {

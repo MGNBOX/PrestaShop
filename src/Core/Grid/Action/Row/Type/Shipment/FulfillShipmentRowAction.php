@@ -47,7 +47,9 @@ final class FulfillShipmentRowAction extends AbstractRowAction
         $resolver
             ->setRequired([
                 'shipment_id_field',
+                'order_id_field',
             ])
-            ->setAllowedTypes('shipment_id_field', 'string');
+            ->setAllowedTypes('shipment_id_field', 'string')
+            ->setAllowedTypes('order_id_field', 'string');
     }
 }

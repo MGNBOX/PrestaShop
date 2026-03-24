@@ -265,7 +265,7 @@ admin_orders_shipment_get_edit_form:
     expose: true
 
 admin_orders_shipment_get_fulfill_form:
-  path: /{orderId}/shipment/fulfill-form
+  path: /{orderId}/shipment/{shipmentId}/fulfill-form
   methods: [ GET ]
   defaults:
     _controller: PrestaShopBundle\Controller\Admin\Sell\Order\OrderController::getFulfillShipmentForm
@@ -285,7 +285,7 @@ admin_orders_merge_shipment:
     shipmentId: \d+
 
 admin_orders_fulfill_shipment:
-  path: /{orderId}/shipment/fulfill
+  path: /{orderId}/shipment/{shipmentId}/fulfill
   methods: [ POST ]
   defaults:
     _controller: PrestaShopBundle\Controller\Admin\Sell\Order\OrderController::fulfillShipmentAction
