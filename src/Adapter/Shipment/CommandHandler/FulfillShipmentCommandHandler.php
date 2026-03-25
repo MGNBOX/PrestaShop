@@ -39,7 +39,7 @@ class FulfillShipmentCommandHandler implements FulfillShipmentCommandHandlerInte
     public function handle(FulfillShipmentCommand $command): void
     {
         $shipmentId = $command->getShipmentId()->getValue();
-        $trackingNumber = $command->getTrackingNumber();
+        $trackingNumber = $command->getTrackingNumber()->getValue();
 
         $shipment = $this->shipmentRepository->findById($shipmentId);
 
