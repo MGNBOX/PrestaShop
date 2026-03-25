@@ -47,6 +47,7 @@ admin_orders_generate_delivery_slip_pdf:
   defaults:
     _controller: PrestaShopBundle\Controller\Admin\Sell\Order\OrderController::generateDeliverySlipPdfAction
     _legacy_controller: AdminOrders
+    _legacy_link: AdminOrders:generateDeliverySlipPdf
   requirements:
     orderId: \d+
 
@@ -56,6 +57,7 @@ admin_orders_generate_shipment_delivery_slip_pdf:
   defaults:
     _controller: PrestaShopBundle\Controller\Admin\Sell\Order\OrderController::generateShipmentDeliverySlipPdfAction
     _legacy_controller: AdminOrders
+    _legacy_link: AdminOrders:generateShipmentDeliverySlipPdf
   options:
     expose: true
   requirements:
@@ -67,6 +69,7 @@ admin_orders_generate_shipments_delivery_slip_pdf:
   defaults:
     _controller: PrestaShopBundle\Controller\Admin\Sell\Order\OrderController::generateShipmentsDeliverySlipPdfAction
     _legacy_controller: AdminOrders
+    _legacy_link: AdminOrders:generateShipmentsDeliverySlipPdf
   options:
     expose: true
   requirements:
