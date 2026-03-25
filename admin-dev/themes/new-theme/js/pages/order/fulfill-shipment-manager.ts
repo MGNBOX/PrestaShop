@@ -59,11 +59,6 @@ export default class FulfillShipmentManager {
 
     modal.dataset.state = 'loading';
 
-    console.log(this.formRoute);
-    console.log(this.router.generate(this.formRoute, {
-      orderId: this.orderId,
-      shipmentId: this.shipmentId,
-    }));
     try {
       const response = await fetch(this.router.generate(this.formRoute, {
         orderId: this.orderId,
