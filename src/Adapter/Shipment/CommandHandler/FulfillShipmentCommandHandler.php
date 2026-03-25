@@ -15,7 +15,6 @@ use PrestaShop\PrestaShop\Core\Domain\Shipment\CommandHandler\FulfillShipmentCom
 use PrestaShop\PrestaShop\Core\Domain\Shipment\Exception\CannotSaveShipmentException;
 use PrestaShop\PrestaShop\Core\Domain\Shipment\Exception\ShipmentNotFoundException;
 use PrestaShopBundle\Entity\Repository\ShipmentRepository;
-use PrestaShopException;
 use Symfony\Contracts\Translation\TranslatorInterface;
 use Throwable;
 
@@ -42,27 +41,23 @@ class FulfillShipmentCommandHandler implements FulfillShipmentCommandHandlerInte
         $shipmentId = $command->getShipmentId()->getValue();
         $trackingNumber = $command->getTrackingNumber();
 
-        try {
-            $shipment = $this->shipmentRepository->findById($shipmentId);
+        $shipment = $this->shipmentRepository->findById($shipmentId);
 
-            if (!$shipment) {
-                throw new PrestaShopException(sprintf('Shipment with id %d not found', $shipmentId));
-            }
-
-            $shipment->setTrackingNumber($trackingNumber);
-            $shipment->setPackedAt(new DateTime());
-
-            $this->shipmentRepository->save($shipment);
-        } catch (PrestaShopException $e) {
+        if (!$shipment) {
             throw new ShipmentNotFoundException(
                 $this->translator->trans(
                     'Could not find shipment with id "%id%".',
                     ['%id%' => $shipmentId],
                     'Admin.Shipment.Error'
-                ),
-                0,
-                $e
+                )
             );
+        }
+
+        try {
+            $shipment->setTrackingNumber($trackingNumber);
+            $shipment->setPackedAt(new DateTime());
+
+            $this->shipmentRepository->save($shipment);
         } catch (Throwable $e) {
             throw new CannotSaveShipmentException(
                 $this->translator->trans(
