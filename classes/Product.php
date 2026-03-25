@@ -6,6 +6,7 @@
  */
 
 use PrestaShop\Decimal\DecimalNumber;
+use PrestaShop\PrestaShop\Adapter\ContainerFinder;
 use PrestaShop\PrestaShop\Core\Domain\Product\Pack\ValueObject\PackStockType;
 use PrestaShop\PrestaShop\Core\Domain\Product\ProductSettings;
 use PrestaShop\PrestaShop\Core\Domain\Product\Stock\ValueObject\OutOfStockType;
@@ -16,6 +17,10 @@ use PrestaShop\PrestaShop\Core\Domain\Product\ValueObject\ProductType;
 use PrestaShop\PrestaShop\Core\Domain\Product\ValueObject\RedirectType;
 use PrestaShop\PrestaShop\Core\Domain\Product\ValueObject\Reference;
 use PrestaShop\PrestaShop\Core\Domain\Product\ValueObject\Upc;
+use PrestaShop\PrestaShop\Core\FeatureFlag\FeatureFlagSettings;
+use PrestaShop\PrestaShop\Core\FeatureFlag\FeatureFlagStateCheckerInterface;
+use PrestaShop\PrestaShop\Core\Pricing\Product\Calculator\ProductCalculatorInterface;
+use PrestaShop\PrestaShop\Core\Pricing\Product\ProductPrice;
 use PrestaShop\PrestaShop\Core\Util\DateTime\DateTime as DateTimeUtil;
 use PrestaShopBundle\Form\Admin\Type\FormattedTextareaType;
 
@@ -397,6 +402,10 @@ class ProductCore extends ObjectModel
 
     /** @var int|null */
     protected static $psEcotaxTaxRulesGroupId = null;
+
+    protected static ?FeatureFlagStateCheckerInterface $featureFlagManager = null;
+
+    protected static ?ProductCalculatorInterface $productCalculator = null;
 
     /**
      * Product can be temporary saved in database
@@ -1198,6 +1207,8 @@ class ProductCore extends ObjectModel
         static::$_incat = [];
         static::$_combinations = [];
         static::$psEcotaxTaxRulesGroupId = null;
+        static::$featureFlagManager = null;
+        static::$productCalculator = null;
         Cache::clean('Product::*');
     }
 
@@ -3363,6 +3374,30 @@ class ProductCore extends ObjectModel
             throw new PrestaShopException('Product ID is invalid.');
         }
 
+        // New pricing engine (Phase 1)
+        if (self::isNewPricingEnabled()) {
+            $calculator = self::getProductCalculator();
+            if ($calculator !== null) {
+                $productPrice = ProductPrice::create(
+                    (int) $id_product,
+                    (int) ($id_product_attribute ?? 0),
+                    (int) $quantity
+                );
+                $calculator->compute($productPrice);
+
+                // Phase 1: no tax computation, no discounts, no ecotax
+                // TaxRate::zero means tax excl = tax incl, $usetax is irrelevant
+                if ($only_reduc) {
+                    return 0.0;
+                }
+
+                $specific_price_output = null;
+                $price = (float) (string) $productPrice->getFinalPrice()->getTaxExcluded();
+
+                return Tools::ps_round($price, (int) ($decimals ?? 6));
+            }
+        }
+
         // Initializations
         $id_group = null;
         if ($id_customer) {
@@ -5458,107 +5493,133 @@ class ProductCore extends ObjectModel
             $quantityToUseForPriceCalculations = (int) $row['minimal_quantity'];
         }
 
-        // We save value in $priceTaxExcluded and $priceTaxIncluded before they may be rounded
-        $row['price_tax_exc'] = $priceTaxExcluded = Product::getPriceStatic(
-            (int) $row['id_product'],
-            false,
-            $id_product_attribute,
-            self::$_taxCalculationMethod == PS_TAX_EXC ? Context::getContext()->getComputingPrecision() : 6,
-            null,
-            false,
-            true,
-            $quantityToUseForPriceCalculations
-        );
+        // New pricing engine (Phase 1): single compute() call replaces multiple getPriceStatic calls
+        if (self::isNewPricingEnabled() && self::getProductCalculator() !== null) {
+            $calculator = self::getProductCalculator();
+            $productPrice = ProductPrice::create(
+                (int) $row['id_product'],
+                (int) $id_product_attribute,
+                $quantityToUseForPriceCalculations
+            );
+            $calculator->compute($productPrice);
 
-        if (self::$_taxCalculationMethod == PS_TAX_EXC) {
-            $row['price_tax_exc'] = Tools::ps_round($priceTaxExcluded, Context::getContext()->getComputingPrecision());
-            $row['price'] = $priceTaxIncluded = Product::getPriceStatic(
-                (int) $row['id_product'],
-                true,
-                $id_product_attribute,
-                6,
-                null,
-                false,
-                true,
-                $quantityToUseForPriceCalculations
-            );
-            $row['price_without_reduction'] = $row['price_without_reduction_without_tax'] = Product::getPriceStatic(
-                (int) $row['id_product'],
-                false,
-                $id_product_attribute,
-                2,
-                null,
-                false,
-                false,
-                $quantityToUseForPriceCalculations
-            );
+            // Phase 1: no tax computation, no discounts — tax excl = tax incl
+            $finalPriceFloat = (float) (string) $productPrice->getFinalPrice()->getTaxExcluded();
+
+            $row['price_tax_exc'] = $finalPriceFloat;
+            $row['price'] = $finalPriceFloat;
+            $row['price_without_reduction'] = $finalPriceFloat;
+            $row['price_without_reduction_without_tax'] = $finalPriceFloat;
+            $row['reduction'] = 0.0;
+            $row['reduction_without_tax'] = 0.0;
+            $row['specific_prices'] = null;
+
+            // Local variables used downstream for unit price computation (lines after this block)
+            $priceTaxExcluded = $finalPriceFloat;
+            $priceTaxIncluded = $finalPriceFloat;
         } else {
-            $priceTaxIncluded = Product::getPriceStatic(
+            // We save value in $priceTaxExcluded and $priceTaxIncluded before they may be rounded
+            $row['price_tax_exc'] = $priceTaxExcluded = Product::getPriceStatic(
                 (int) $row['id_product'],
-                true,
+                false,
                 $id_product_attribute,
-                6,
+                self::$_taxCalculationMethod == PS_TAX_EXC ? Context::getContext()->getComputingPrecision() : 6,
                 null,
                 false,
                 true,
                 $quantityToUseForPriceCalculations
             );
-            $row['price'] = Tools::ps_round($priceTaxIncluded, Context::getContext()->getComputingPrecision());
-            $row['price_without_reduction'] = Product::getPriceStatic(
+
+            if (self::$_taxCalculationMethod == PS_TAX_EXC) {
+                $row['price_tax_exc'] = Tools::ps_round($priceTaxExcluded, Context::getContext()->getComputingPrecision());
+                $row['price'] = $priceTaxIncluded = Product::getPriceStatic(
+                    (int) $row['id_product'],
+                    true,
+                    $id_product_attribute,
+                    6,
+                    null,
+                    false,
+                    true,
+                    $quantityToUseForPriceCalculations
+                );
+                $row['price_without_reduction'] = $row['price_without_reduction_without_tax'] = Product::getPriceStatic(
+                    (int) $row['id_product'],
+                    false,
+                    $id_product_attribute,
+                    2,
+                    null,
+                    false,
+                    false,
+                    $quantityToUseForPriceCalculations
+                );
+            } else {
+                $priceTaxIncluded = Product::getPriceStatic(
+                    (int) $row['id_product'],
+                    true,
+                    $id_product_attribute,
+                    6,
+                    null,
+                    false,
+                    true,
+                    $quantityToUseForPriceCalculations
+                );
+                $row['price'] = Tools::ps_round($priceTaxIncluded, Context::getContext()->getComputingPrecision());
+                $row['price_without_reduction'] = Product::getPriceStatic(
+                    (int) $row['id_product'],
+                    true,
+                    $id_product_attribute,
+                    6,
+                    null,
+                    false,
+                    false,
+                    $quantityToUseForPriceCalculations
+                );
+                $row['price_without_reduction_without_tax'] = Product::getPriceStatic(
+                    (int) $row['id_product'],
+                    false,
+                    $id_product_attribute,
+                    6,
+                    null,
+                    false,
+                    false,
+                    $quantityToUseForPriceCalculations
+                );
+            }
+
+            $row['reduction'] = Product::getPriceStatic(
                 (int) $row['id_product'],
+                (bool) $usetax,
+                $id_product_attribute,
+                6,
+                null,
                 true,
-                $id_product_attribute,
-                6,
+                true,
+                $quantityToUseForPriceCalculations,
+                true,
                 null,
-                false,
-                false,
-                $quantityToUseForPriceCalculations
+                null,
+                null,
+                $specific_prices
             );
-            $row['price_without_reduction_without_tax'] = Product::getPriceStatic(
+
+            $row['reduction_without_tax'] = Product::getPriceStatic(
                 (int) $row['id_product'],
                 false,
                 $id_product_attribute,
                 6,
                 null,
-                false,
-                false,
-                $quantityToUseForPriceCalculations
+                true,
+                true,
+                $quantityToUseForPriceCalculations,
+                true,
+                null,
+                null,
+                null,
+                $specific_prices
             );
+
+            $row['specific_prices'] = $specific_prices;
         }
-
-        $row['reduction'] = Product::getPriceStatic(
-            (int) $row['id_product'],
-            (bool) $usetax,
-            $id_product_attribute,
-            6,
-            null,
-            true,
-            true,
-            $quantityToUseForPriceCalculations,
-            true,
-            null,
-            null,
-            null,
-            $specific_prices
-        );
-
-        $row['reduction_without_tax'] = Product::getPriceStatic(
-            (int) $row['id_product'],
-            false,
-            $id_product_attribute,
-            6,
-            null,
-            true,
-            true,
-            $quantityToUseForPriceCalculations,
-            true,
-            null,
-            null,
-            null,
-            $specific_prices
-        );
-
-        $row['specific_prices'] = $specific_prices;
 
         /* Get quantity of the base product.
          * For products without combinations - self explanatory.
@@ -8109,5 +8170,42 @@ class ProductCore extends ObjectModel
             ], 'id_product = ' . (int) $this->id);
             $this->id_shop_default = $firstAssociatedShop;
         }
+    }
+
+    protected static function isNewPricingEnabled(): bool
+    {
+        $manager = self::getFeatureFlagManager();
+
+        return $manager !== null && $manager->isEnabled(FeatureFlagSettings::FEATURE_FLAG_NEW_PRICING);
+    }
+
+    protected static function getFeatureFlagManager(): ?FeatureFlagStateCheckerInterface
+    {
+        if (!self::$featureFlagManager) {
+            try {
+                $containerFinder = new ContainerFinder(Context::getContext());
+                $container = $containerFinder->getContainer();
+                self::$featureFlagManager = $container->get(FeatureFlagStateCheckerInterface::class);
+            } catch (Throwable) {
+                // Resilience: if container is not available, fall back to legacy pricing
+            }
+        }
+
+        return self::$featureFlagManager;
+    }
+
+    protected static function getProductCalculator(): ?ProductCalculatorInterface
+    {
+        if (!self::$productCalculator) {
+            try {
+                $containerFinder = new ContainerFinder(Context::getContext());
+                $container = $containerFinder->getContainer();
+                self::$productCalculator = $container->get('prestashop.pricing.cart.product_calculator');
+            } catch (Throwable) {
+                // Resilience: if container is not available, fall back to legacy pricing
+            }
+        }
+
+        return self::$productCalculator;
     }
 }
