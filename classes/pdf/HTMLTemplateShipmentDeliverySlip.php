@@ -1,4 +1,5 @@
 <?php
+
 /**
  * For the full copyright and license information, please view the
  * docs/licenses/LICENSE.txt file that was distributed with this source code.
@@ -27,7 +28,7 @@ class HTMLTemplateShipmentDeliverySlipCore extends HTMLTemplate
     /**
      * @throws PrestaShopException
      */
-    public function __construct(array $shipmentData, Smarty $smarty, $bulk_mode = false)
+    public function __construct(array $shipmentData, Smarty $smarty)
     {
         if (is_array($shipmentData) && isset($shipmentData['shipment'])) {
             $this->shipment = $shipmentData['shipment'];
