@@ -8,6 +8,16 @@
 
 PrestaShop is an open-source e-commerce platform built on Symfony. It follows a progressive migration from a legacy architecture (ObjectModel, legacy controllers) toward a modern Domain-Driven Design approach (CQRS, Symfony controllers, Doctrine).
 
+## Branching & Versioning
+
+PrestaShop follows [SemVer](https://semver.org/). Active branches merge upward: `9.1.x` → `develop`. Target the lowest applicable branch.
+
+- **`9.1.x`**: Current stable (patch releases). Bug fixes and minor improvements only — no new features.
+- **`develop`**: Next minor (9.2.0). New features and improvements go here. No breaking changes.
+- **`8.2.x`**: LTS, security fixes only. Rarely modified.
+
+Breaking changes are only allowed in major versions. See [ADR 0017](https://github.com/PrestaShop/adr/blob/master/0017-backward-compatibility-promise.md) for the backward compatibility promise. More architecture decisions at https://github.com/PrestaShop/adr.
+
 ## Architecture layers
 
 | Layer | Location | Role |
@@ -59,6 +69,7 @@ PrestaShop is an open-source e-commerce platform built on Symfony. It follows a 
 | `create-skill` | [skills/create-skill/SKILL.md](skills/create-skill/SKILL.md) | "create a skill for …" |
 | `domain-context-generator` | [skills/domain-context-generator/SKILL.md](skills/domain-context-generator/SKILL.md) | "generate context for [Domain]" |
 | `component-context-generator` | [skills/component-context-generator/SKILL.md](skills/component-context-generator/SKILL.md) | "generate context for [Component]" |
+| `create-pr` | [skills/create-pr/SKILL.md](skills/create-pr/SKILL.md) | "create a PR", "open a pull request", "submit a PR" |
 
 ## Domain contexts
 
