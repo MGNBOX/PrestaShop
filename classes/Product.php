@@ -713,7 +713,14 @@ class ProductCore extends ObjectModel
             // Keep base price
             $this->base_price = $this->price;
 
-            $this->price = Product::getPriceStatic((int) $this->id, false, null, 6, null, false, true, 1, false, null, null, null, $this->specificPrice);
+            if (self::isNewPricingEnabled()) {
+                $productPrice = ProductPrice::create((int) $this->id, 0);
+                self::getProductCalculator()->compute($productPrice);
+                $this->price = (float) (string) $productPrice->getFinalPrice()->getTaxExcluded();
+                $this->specificPrice = null;
+            } else {
+                $this->price = Product::getPriceStatic((int) $this->id, false, null, 6, null, false, true, 1, false, null, null, null, $this->specificPrice);
+            }
             $this->tags = Tag::getProductTags((int) $this->id);
 
             $this->loadStockData();
@@ -3376,26 +3383,23 @@ class ProductCore extends ObjectModel
 
         // New pricing engine (Phase 1)
         if (self::isNewPricingEnabled()) {
-            $calculator = self::getProductCalculator();
-            if ($calculator !== null) {
-                $productPrice = ProductPrice::create(
-                    (int) $id_product,
-                    (int) ($id_product_attribute ?? 0),
-                    (int) $quantity
-                );
-                $calculator->compute($productPrice);
+            $productPrice = ProductPrice::create(
+                (int) $id_product,
+                (int) ($id_product_attribute ?? 0),
+                (int) $quantity
+            );
+            self::getProductCalculator()->compute($productPrice);
 
-                // Phase 1: no tax computation, no discounts, no ecotax
-                // TaxRate::zero means tax excl = tax incl, $usetax is irrelevant
-                if ($only_reduc) {
-                    return 0.0;
-                }
-
-                $specific_price_output = null;
-                $price = (float) (string) $productPrice->getFinalPrice()->getTaxExcluded();
-
-                return Tools::ps_round($price, (int) ($decimals ?? 6));
+            // Phase 1: no tax computation, no discounts, no ecotax
+            // TaxRate::zero means tax excl = tax incl, $usetax is irrelevant
+            if ($only_reduc) {
+                return 0.0;
             }
+
+            $specific_price_output = null;
+            $price = (float) (string) $productPrice->getFinalPrice()->getTaxExcluded();
+
+            return Tools::ps_round($price, (int) ($decimals ?? 6));
         }
 
         // Initializations
@@ -5494,14 +5498,13 @@ class ProductCore extends ObjectModel
         }
 
         // New pricing engine (Phase 1): single compute() call replaces multiple getPriceStatic calls
-        if (self::isNewPricingEnabled() && self::getProductCalculator() !== null) {
-            $calculator = self::getProductCalculator();
+        if (self::isNewPricingEnabled()) {
             $productPrice = ProductPrice::create(
                 (int) $row['id_product'],
                 (int) $id_product_attribute,
                 $quantityToUseForPriceCalculations
             );
-            $calculator->compute($productPrice);
+            self::getProductCalculator()->compute($productPrice);
 
             // Phase 1: no tax computation, no discounts — tax excl = tax incl
             $finalPriceFloat = (float) (string) $productPrice->getFinalPrice()->getTaxExcluded();
@@ -8194,16 +8197,12 @@ class ProductCore extends ObjectModel
         return self::$featureFlagManager;
     }
 
-    protected static function getProductCalculator(): ?ProductCalculatorInterface
+    protected static function getProductCalculator(): ProductCalculatorInterface
     {
         if (!self::$productCalculator) {
-            try {
-                $containerFinder = new ContainerFinder(Context::getContext());
-                $container = $containerFinder->getContainer();
-                self::$productCalculator = $container->get('prestashop.pricing.cart.product_calculator');
-            } catch (Throwable) {
-                // Resilience: if container is not available, fall back to legacy pricing
-            }
+            $containerFinder = new ContainerFinder(Context::getContext());
+            $container = $containerFinder->getContainer();
+            self::$productCalculator = $container->get('prestashop.pricing.cart.product_calculator');
         }
 
         return self::$productCalculator;

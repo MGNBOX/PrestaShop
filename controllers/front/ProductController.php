@@ -568,17 +568,12 @@ class ProductControllerCore extends ProductPresentingFrontControllerCore
 
         // New pricing engine (Phase 1): use ProductCalculator directly instead of getPrice
         if ($this->isNewPricingEnabled()) {
-            $calculator = $this->getProductCalculator();
-            if ($calculator !== null) {
-                $productPrice = ProductPrice::create(
-                    (int) $this->product->id,
-                    (int) $id_product_attribute,
-                );
-                $calculator->compute($productPrice);
-                $product_price = (float) (string) $productPrice->getFinalPrice()->getTaxExcluded();
-            } else {
-                $product_price = $this->product->getPrice(Product::$_taxCalculationMethod == PS_TAX_INC, $id_product_attribute, 6, null, false, false);
-            }
+            $productPrice = ProductPrice::create(
+                (int) $this->product->id,
+                (int) $id_product_attribute,
+            );
+            $this->getProductCalculator()->compute($productPrice);
+            $product_price = (float) (string) $productPrice->getFinalPrice()->getTaxExcluded();
         } else {
             $product_price = $this->product->getPrice(Product::$_taxCalculationMethod == PS_TAX_INC, $id_product_attribute, 6, null, false, false);
         }
@@ -1667,17 +1662,13 @@ class ProductControllerCore extends ProductPresentingFrontControllerCore
             $featureFlagManager = $this->container->get(FeatureFlagStateCheckerInterface::class);
 
             return $featureFlagManager !== null && $featureFlagManager->isEnabled(FeatureFlagSettings::FEATURE_FLAG_NEW_PRICING);
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return false;
         }
     }
 
-    protected function getProductCalculator(): ?ProductCalculatorInterface
+    protected function getProductCalculator(): ProductCalculatorInterface
     {
-        try {
-            return $this->container->get('prestashop.pricing.cart.product_calculator');
-        } catch (\Throwable) {
-            return null;
-        }
+        return $this->container->get('prestashop.pricing.cart.product_calculator');
     }
 }
