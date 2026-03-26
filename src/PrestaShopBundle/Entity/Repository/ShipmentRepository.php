@@ -1,4 +1,5 @@
 <?php
+
 /**
  * For the full copyright and license information, please view the
  * docs/licenses/LICENSE.txt file that was distributed with this source code.
@@ -162,26 +163,6 @@ class ShipmentRepository extends EntityRepository
             ->setParameter('orderDetailId', $orderDetailId)
             ->setParameter('orderId', $orderId)
             ->executeStatement();
-    }
-
-    /**
-     * Get shipment to order detail ID mapping for a given order.
-     *
-     * @return array<int, array{id_shipment: int, id_order_detail: int}>
-     */
-    public function getShipmentProductMappingByOrderId(int $orderId): array
-    {
-        $conn = $this->getEntityManager()->getConnection();
-
-        $qb = $conn->createQueryBuilder();
-        $qb->select('sp.id_shipment', 'sp.id_order_detail')
-            ->from($this->tablePrefix . 'shipment_product', 'sp')
-            ->innerJoin('sp', $this->tablePrefix . 'shipment', 's', 's.id_shipment = sp.id_shipment')
-            ->where('s.id_order = :orderId')
-            ->setParameter('orderId', $orderId)
-            ->orderBy('sp.id_shipment');
-
-        return $qb->executeQuery()->fetchAllAssociative();
     }
 
     public function deleteEmptyShipmentByOrder(

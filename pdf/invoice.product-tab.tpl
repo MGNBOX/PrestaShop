@@ -3,20 +3,6 @@
  * docs/licenses/LICENSE.txt file that was distributed with this source code.
  *}
 
-{**
-* If the order contains shipment, it means that the order was made with the feature flag "improved shipment" enabled,
-* this template is only used for virtual products.
-*}
-{if $has_shipment}
-	<table width="100%" cellpadding="4" cellspacing="0" style="margin-bottom: 5px;">
-		<tr>
-			<td style="font-weight: bold; font-size: 9pt; padding: 8px;">
-				{l s='Virtual product(s)' d='Shop.Pdf' pdf='true'}
-			</td>
-		</tr>
-	</table>
-{/if}
-
 <table class="product" width="100%" cellpadding="4" cellspacing="0">
 
   {assign var='widthColProduct' value=$layout.product.width}
@@ -147,26 +133,25 @@
   <!-- END PRODUCTS -->
 
   <!-- CART RULES -->
-  {if !$has_shipment}
-    {assign var="shipping_discount_tax_incl" value="0"}
-    {foreach from=$cart_rules item=cart_rule name="cart_rules_loop"}
-      {if $smarty.foreach.cart_rules_loop.first}
-        <tr class="discount">
-          <th class="header" colspan="{$layout._colCount}">
-            {l s='Discounts' d='Shop.Pdf' pdf='true'}
-          </th>
-        </tr>
-      {/if}
+
+  {assign var="shipping_discount_tax_incl" value="0"}
+  {foreach from=$cart_rules item=cart_rule name="cart_rules_loop"}
+    {if $smarty.foreach.cart_rules_loop.first}
       <tr class="discount">
-        <td class="white right" colspan="{$layout._colCount - 1}">
-          {$cart_rule.name}
-        </td>
-        <td class="right white">
-          - {displayPrice currency=$order->id_currency price=$cart_rule.value_tax_excl}
-        </td>
+        <th class="header" colspan="{$layout._colCount}">
+          {l s='Discounts' d='Shop.Pdf' pdf='true'}
+        </th>
       </tr>
-    {/foreach}
-  {/if}
+    {/if}
+    <tr class="discount">
+      <td class="white right" colspan="{$layout._colCount - 1}">
+        {$cart_rule.name}
+      </td>
+      <td class="right white">
+        - {displayPrice currency=$order->id_currency price=$cart_rule.value_tax_excl}
+      </td>
+    </tr>
+  {/foreach}
 
   </tbody>
 

@@ -227,44 +227,13 @@ class HTMLTemplateInvoiceCore extends HTMLTemplate
             unset($order_detail); // don't overwrite the last order_detail later
         }
 
-        $shipmentsWithProducts = $this->getOrderShipmentsWithProducts($this->order->id);
-        $orderHasShipment = !empty($shipmentsWithProducts);
-
-        $productsByShipment = [];
-
         // Sort products by Reference ID (and if equals (like combination) by Supplier Reference)
         $sorter = new Sorter();
         $order_details = $sorter->natural($order_details, Sorter::ORDER_DESC, 'product_reference', 'product_supplier_reference');
 
-        if ($orderHasShipment) {
-            $orderDetailToShipmentId = [];
-            foreach ($shipmentsWithProducts as $shipmentWithProducts) {
-                $shipmentId = $shipmentWithProducts['shipmentId'];
-
-                $productsByShipment['physical_products'][$shipmentId] = [
-                    'products' => [],
-                    'carrierName' => $shipmentWithProducts['carrierName'],
-                    'trackingNumber' => $shipmentWithProducts['trackingNumber'],
-                ];
-
-                foreach ($shipmentWithProducts['orderDetailIds'] as $orderDetailId) {
-                    $orderDetailToShipmentId[$orderDetailId] = $shipmentId;
-                }
-            }
-
-            foreach ($order_details as $order_detail) {
-                $orderDetailId = $order_detail['id_order_detail'];
-
-                if (isset($orderDetailToShipmentId[$orderDetailId])) {
-                    $shipmentId = $orderDetailToShipmentId[$orderDetailId];
-                    $productsByShipment['physical_products'][$shipmentId]['products'][] = $order_detail;
-                } elseif ($order_detail['is_virtual']) {
-                    if (!isset($productsByShipment['virtual_products'])) {
-                        $productsByShipment['virtual_products'] = ['products' => []];
-                    }
-                    $productsByShipment['virtual_products']['products'][] = $order_detail;
-                }
-            }
+        $shipmentCarrierNames = $this->getCarrierNamesFromShipments($this->order->id);
+        if (!empty($shipmentCarrierNames)) {
+            $carrier->name = $shipmentCarrierNames;
         }
 
         $cart_rules = $this->order->getCartRules();
@@ -369,8 +338,6 @@ class HTMLTemplateInvoiceCore extends HTMLTemplate
         }
 
         $data = [
-            'has_shipment' => $orderHasShipment,
-            'products_by_shipment' => $productsByShipment,
             'order' => $this->order,
             'order_invoice' => $this->order_invoice,
             'order_details' => $order_details,
@@ -398,7 +365,6 @@ class HTMLTemplateInvoiceCore extends HTMLTemplate
             'summary_tab' => $this->smarty->fetch($this->getTemplate('invoice.summary-tab')),
             'product_tab' => $this->smarty->fetch($this->getTemplate('invoice.product-tab')),
             'tax_tab' => $this->getTaxTabContent(),
-            'discount_tab' => $this->smarty->fetch($this->getTemplate('invoice.discount-tab')),
             'payment_tab' => $this->smarty->fetch($this->getTemplate('invoice.payment-tab')),
             'note_tab' => $this->smarty->fetch($this->getTemplate('invoice.note-tab')),
             'total_tab' => $this->smarty->fetch($this->getTemplate('invoice.total-tab')),
@@ -421,6 +387,10 @@ class HTMLTemplateInvoiceCore extends HTMLTemplate
             && !empty($address->vat_number)
             && $address->id_country != Configuration::get('VATNUMBER_COUNTRY');
         $carrier = new Carrier($this->order->id_carrier);
+        $shipmentCarrierNames = $this->getCarrierNamesFromShipments($this->order->id);
+        if (!empty($shipmentCarrierNames)) {
+            $carrier->name = $shipmentCarrierNames;
+        }
 
         $data = [
             'tax_exempt' => $tax_exempt,
@@ -530,68 +500,29 @@ class HTMLTemplateInvoiceCore extends HTMLTemplate
     }
 
     /**
-     * Get shipments with products (array of order details IDs) for an order.
-     *
-     * @return array Array of shipment data with products
+     * Get all carrier names from shipments for an order, joined by ", ".
+     * Falls back to an empty string if no shipments exist or on error.
      */
-    private function getOrderShipmentsWithProducts(int $orderId): array
+    private function getCarrierNamesFromShipments(int $orderId): string
     {
         try {
             $shipments = $this->shipmentRepository->findByOrderId($orderId);
         } catch (Throwable $e) {
-            return [];
+            return '';
         }
 
         if (empty($shipments)) {
-            return [];
+            return '';
         }
 
-        $shipmentProductMapping = $this->getShipmentProductMapping($orderId);
-
-        $result = [];
+        $carrierNames = [];
         foreach ($shipments as $shipment) {
-            $shipmentId = $shipment->getId();
             $carrier = new Carrier($shipment->getCarrierId());
-
-            $orderDetailIds = $shipmentProductMapping[$shipmentId] ?? [];
-
-            $result[] = [
-                'shipmentId' => $shipmentId,
-                'orderDetailIds' => $orderDetailIds,
-                'carrierName' => $carrier->name,
-                'trackingNumber' => $shipment->getTrackingNumber(),
-            ];
-        }
-
-        return $result;
-    }
-
-    /**
-     * Get shipment to order detail ID mapping.
-     * Returns an array where keys are shipment IDs and values are arrays of order detail IDs.
-     *
-     * @return array<int, int[]>
-     */
-    private function getShipmentProductMapping(int $orderId): array
-    {
-        $results = $this->shipmentRepository->getShipmentProductMappingByOrderId($orderId);
-
-        if (empty($results)) {
-            return [];
-        }
-
-        $mapping = [];
-        foreach ($results as $row) {
-            $shipmentId = (int) $row['id_shipment'];
-            $orderDetailId = (int) $row['id_order_detail'];
-
-            if (!isset($mapping[$shipmentId])) {
-                $mapping[$shipmentId] = [];
+            if ($carrier->name && !in_array($carrier->name, $carrierNames)) {
+                $carrierNames[] = $carrier->name;
             }
-
-            $mapping[$shipmentId][] = $orderDetailId;
         }
 
-        return $mapping;
+        return implode(', ', $carrierNames);
     }
 }
