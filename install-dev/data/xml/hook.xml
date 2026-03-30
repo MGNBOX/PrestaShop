@@ -2876,7 +2876,7 @@
     <hook id="actionCheckoutBuildProcess">
       <name>actionCheckoutBuildProcess</name>
       <title>Build checkout process</title>
-      <description>This hook is called before rendering checkout. Only the module configured in PS_CHECKOUT_PROCESS_PROVIDER_MODULE is executed and can return a CheckoutProcess instance.</description>
+      <description>This hook is triggered before the checkout is rendered. Modules may return a checkout process provider. The provider is used only when exactly one enabled and valid provider is available.</description>
     </hook>
     <hook id="actionCheckoutStepRenderTemplate">
       <name>actionCheckoutStepRenderTemplate</name>

@@ -3,6 +3,31 @@
  * For the full copyright and license information, please view the
  * docs/licenses/LICENSE.txt file that was distributed with this source code.
  */
+
+use PrestaShop\PrestaShop\Adapter\Order\Checkout\CheckoutProcessProviderInterface;
+use PrestaShopBundle\Translation\TranslatorComponent;
+
+class PsOnePageCheckoutTestProvider implements CheckoutProcessProviderInterface
+{
+    public function __construct(
+        private readonly Context $context,
+        private readonly bool $enabled
+    ) {
+    }
+
+    public function isEnabled(): bool
+    {
+        return $this->enabled;
+    }
+
+    public function buildCheckoutProcess(
+        $session,
+        TranslatorComponent $translator
+    ): CheckoutProcess {
+        return new CheckoutProcess($this->context, $session);
+    }
+}
+
 class Ps_OnePageCheckoutProvider extends Module
 {
     public const OUTPUT_MODE_CONFIG_KEY = 'CHECKOUT_PROCESS_PROVIDER_TEST_OUTPUT';
@@ -34,10 +59,12 @@ class Ps_OnePageCheckoutProvider extends Module
 
     public function hookActionCheckoutBuildProcess(array $params)
     {
-        if (Configuration::get(static::OUTPUT_MODE_CONFIG_KEY) === 'invalid') {
+        $mode = (string) Configuration::get(static::OUTPUT_MODE_CONFIG_KEY);
+
+        if ($mode === 'invalid') {
             return 'invalid';
         }
 
-        return new CheckoutProcess($this->context, $params['checkoutSession']);
+        return new PsOnePageCheckoutTestProvider($this->context, $mode !== 'disabled');
     }
 }

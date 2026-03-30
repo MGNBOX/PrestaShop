@@ -10,81 +10,61 @@ namespace PrestaShop\PrestaShop\Adapter\Order\Checkout;
 
 use CheckoutProcess;
 use CheckoutSession;
-use Configuration;
 use Hook;
-use Module;
 use PrestaShopBundle\Translation\TranslatorComponent;
 
+/**
+ * Resolves the checkout process provided by modules through the checkout hook.
+ */
 class CheckoutProcessProviderResolver
 {
-    public const PROVIDER_MODULE_CONFIG_KEY = 'PS_CHECKOUT_PROCESS_PROVIDER_MODULE';
-
     /**
-     * Returns the checkout process provided by the configured checkout module.
+     * Returns null when no valid provider is available or when several providers
+     * are enabled at the same time, so the checkout falls back to the native process.
      *
-     * Returns null when the checkout must fall back to the native process.
-     *
-     * @param CheckoutSession $session Current checkout session
-     * @param TranslatorComponent $translator Translator used by the provider
-     *
-     * @return CheckoutProcess|null Module checkout process, or null to use the native checkout
+     * @param CheckoutSession $session
+     * @param TranslatorComponent $translator
      */
     public function resolve(CheckoutSession $session, TranslatorComponent $translator): ?CheckoutProcess
     {
-        $providerModuleName = $this->getProviderModuleName();
-        if (null === $providerModuleName) {
+        $providers = $this->getValidProviders();
+        $providersCount = count($providers);
+
+        if (0 === $providersCount) {
             return null;
         }
 
-        $providerModuleId = $this->getProviderModuleId($providerModuleName);
-        if (null === $providerModuleId) {
+        if ($providersCount > 1) {
             return null;
         }
 
-        $hookOutput = Hook::exec('actionCheckoutBuildProcess', [
-            'checkoutSession' => $session,
-            'translator' => $translator,
-        ], $providerModuleId, true);
+        /** @var CheckoutProcessProviderInterface $provider */
+        $provider = reset($providers);
+        $checkoutProcess = $provider->buildCheckoutProcess($session, $translator);
 
-        if (!is_array($hookOutput) || !array_key_exists($providerModuleName, $hookOutput)) {
-            return null;
-        }
-
-        $providerOutput = $hookOutput[$providerModuleName];
-        if ($providerOutput instanceof CheckoutProcess) {
-            return $providerOutput;
-        }
-
-        return null;
+        return $checkoutProcess instanceof CheckoutProcess ? $checkoutProcess : null;
     }
 
     /**
-     * @return string|null
+     * @return array<string, CheckoutProcessProviderInterface>
      */
-    protected function getProviderModuleName(): ?string
+    protected function getValidProviders(): array
     {
-        $providerModuleName = strtolower(trim((string) Configuration::get(self::PROVIDER_MODULE_CONFIG_KEY)));
+        $providers = [];
+        $hookOutput = Hook::exec('actionCheckoutBuildProcess', [], null, true);
 
-        return '' !== $providerModuleName ? $providerModuleName : null;
-    }
-
-    /**
-     * @param string $providerModuleName
-     *
-     * @return int|null
-     */
-    protected function getProviderModuleId(string $providerModuleName): ?int
-    {
-        $providerModuleId = (int) Module::getModuleIdByName($providerModuleName);
-        if ($providerModuleId <= 0) {
-            return null;
+        if (!is_array($hookOutput)) {
+            return $providers;
         }
 
-        $providerModule = Module::getInstanceByName($providerModuleName);
-        if (!$providerModule instanceof Module || !$providerModule->isEnabledForShopContext()) {
-            return null;
+        foreach ($hookOutput as $moduleName => $provider) {
+            if (!$provider instanceof CheckoutProcessProviderInterface || !$provider->isEnabled()) {
+                continue;
+            }
+
+            $providers[$moduleName] = $provider;
         }
 
-        return $providerModuleId;
+        return $providers;
     }
 }

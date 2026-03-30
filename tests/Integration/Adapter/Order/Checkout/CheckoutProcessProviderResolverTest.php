@@ -24,6 +24,7 @@ use Tests\Resources\DatabaseDump;
 class CheckoutProcessProviderResolverTest extends KernelTestCase
 {
     private const MODULE_NAME = 'ps_onepagecheckoutprovider';
+    private const CONFLICTING_MODULE_NAME = 'ps_conflictingcheckoutprovider';
     private const OUTPUT_MODE_CONFIG_KEY = 'CHECKOUT_PROCESS_PROVIDER_TEST_OUTPUT';
     private const TABLES_TO_RESTORE = [
         'configuration',
@@ -55,10 +56,12 @@ class CheckoutProcessProviderResolverTest extends KernelTestCase
     {
         $moduleManager = ModuleManagerBuilder::getInstance()->build();
 
-        if ($moduleManager->isInstalled(self::MODULE_NAME)) {
-            $module = Module::getInstanceByName(self::MODULE_NAME);
-            if ($module instanceof Module) {
-                $module->uninstall();
+        foreach ([self::MODULE_NAME, self::CONFLICTING_MODULE_NAME] as $moduleName) {
+            if ($moduleManager->isInstalled($moduleName)) {
+                $module = Module::getInstanceByName($moduleName);
+                if ($module instanceof Module) {
+                    $module->uninstall();
+                }
             }
         }
 
@@ -71,10 +74,8 @@ class CheckoutProcessProviderResolverTest extends KernelTestCase
         parent::tearDown();
     }
 
-    public function testResolveReturnsNullWhenConfiguredModuleDoesNotExist(): void
+    public function testResolveReturnsNullWhenNoProviderIsInstalled(): void
     {
-        Configuration::updateValue(CheckoutProcessProviderResolver::PROVIDER_MODULE_CONFIG_KEY, 'missingcheckoutprovider');
-
         $resolvedProcess = $this->checkoutProcessProviderResolver->resolve(
             $this->createMock(CheckoutSession::class),
             $this->createMock(TranslatorComponent::class)
@@ -83,10 +84,9 @@ class CheckoutProcessProviderResolverTest extends KernelTestCase
         $this->assertNull($resolvedProcess);
     }
 
-    public function testResolveReturnsCheckoutProcessProvidedByConfiguredModule(): void
+    public function testResolveReturnsCheckoutProcessWhenExactlyOneValidProviderIsInstalled(): void
     {
-        $this->installProviderModule();
-        Configuration::updateValue(CheckoutProcessProviderResolver::PROVIDER_MODULE_CONFIG_KEY, self::MODULE_NAME);
+        $this->installModule(self::MODULE_NAME);
 
         $session = $this->createMock(CheckoutSession::class);
         $resolvedProcess = $this->checkoutProcessProviderResolver->resolve(
@@ -98,10 +98,9 @@ class CheckoutProcessProviderResolverTest extends KernelTestCase
         $this->assertSame($session, $resolvedProcess->getCheckoutSession());
     }
 
-    public function testResolveReturnsNullWhenConfiguredModuleReturnsInvalidHookOutput(): void
+    public function testResolveReturnsNullWhenProviderReturnsInvalidHookOutput(): void
     {
-        $this->installProviderModule();
-        Configuration::updateValue(CheckoutProcessProviderResolver::PROVIDER_MODULE_CONFIG_KEY, self::MODULE_NAME);
+        $this->installModule(self::MODULE_NAME);
         Configuration::updateValue(self::OUTPUT_MODE_CONFIG_KEY, 'invalid');
 
         $resolvedProcess = $this->checkoutProcessProviderResolver->resolve(
@@ -112,11 +111,37 @@ class CheckoutProcessProviderResolverTest extends KernelTestCase
         $this->assertNull($resolvedProcess);
     }
 
-    private function installProviderModule(): void
+    public function testResolveReturnsNullWhenProviderIsDisabled(): void
+    {
+        $this->installModule(self::MODULE_NAME);
+        Configuration::updateValue(self::OUTPUT_MODE_CONFIG_KEY, 'disabled');
+
+        $resolvedProcess = $this->checkoutProcessProviderResolver->resolve(
+            $this->createMock(CheckoutSession::class),
+            $this->createMock(TranslatorComponent::class)
+        );
+
+        $this->assertNull($resolvedProcess);
+    }
+
+    public function testResolveReturnsNullWhenSeveralValidProvidersAreInstalled(): void
+    {
+        $this->installModule(self::MODULE_NAME);
+        $this->installModule(self::CONFLICTING_MODULE_NAME);
+
+        $resolvedProcess = $this->checkoutProcessProviderResolver->resolve(
+            $this->createMock(CheckoutSession::class),
+            $this->createMock(TranslatorComponent::class)
+        );
+
+        $this->assertNull($resolvedProcess);
+    }
+
+    private function installModule(string $moduleName): void
     {
         $moduleManager = ModuleManagerBuilder::getInstance()->build();
 
-        $this->assertTrue((bool) $moduleManager->install(self::MODULE_NAME));
+        $this->assertTrue((bool) $moduleManager->install($moduleName));
 
         Cache::clean(Hook::MODULE_LIST_BY_HOOK_KEY . '*');
     }
