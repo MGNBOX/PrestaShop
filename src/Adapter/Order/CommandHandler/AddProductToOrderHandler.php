@@ -98,9 +98,9 @@ final class AddProductToOrderHandler extends AbstractOrderHandler implements Add
         OrderAmountUpdater $orderAmountUpdater,
         OrderProductQuantityUpdater $orderProductQuantityUpdater,
         OrderDetailUpdater $orderDetailUpdater,
-        private ?OrderDetailRepository $orderDetailRepository = null,
-        private ?FeatureFlagStateCheckerInterface $featureFlagStateCheckerInterface = null,
-        private ?ShipmentProductAssigner $shipmentProductAssigner = null,
+        private OrderDetailRepository $orderDetailRepository,
+        private FeatureFlagStateCheckerInterface $featureFlagStateCheckerInterface,
+        private ShipmentProductAssigner $shipmentProductAssigner,
     ) {
         $this->context = Context::getContext();
         $this->translator = $translator;
@@ -204,11 +204,8 @@ final class AddProductToOrderHandler extends AbstractOrderHandler implements Add
             $this->orderAmountUpdater->update($order, $cart, null !== $invoice ? (int) $invoice->id : null);
 
             if (
-                $this->featureFlagStateCheckerInterface !== null
-                && $this->featureFlagStateCheckerInterface->isEnabled(FeatureFlagSettings::FEATURE_FLAG_IMPROVED_SHIPMENT)
-                && $command->isVirtual() !== true
-                && $this->shipmentProductAssigner !== null
-                && $this->orderDetailRepository !== null
+                $this->featureFlagStateCheckerInterface->isEnabled(FeatureFlagSettings::FEATURE_FLAG_IMPROVED_SHIPMENT)
+                && !empty($command->isVirtual()) && $command->isVirtual() === false
             ) {
                 $orderDetail = $this->orderDetailRepository->findByOrderIdAndProductId(
                     $command->getOrderId(),

@@ -60,19 +60,10 @@ class AddProductToOrderCommand
      */
     private $hasFreeShipping;
 
-    /**
-     * @var int|null
-     */
     private ?int $shipmentId = null;
 
-    /**
-     * @var int|null
-     */
     private ?int $carrierId = null;
 
-    /**
-     * @var bool|null
-     */
     private ?bool $isVirtual = null;
 
     /**
@@ -269,25 +260,16 @@ class AddProductToOrderCommand
         return $this->hasFreeShipping;
     }
 
-    /**
-     * @return int|null
-     */
     public function getShipmentId(): ?int
     {
         return $this->shipmentId;
     }
 
-    /**
-     * @return int|null
-     */
     public function getCarrierId(): ?int
     {
         return $this->carrierId;
     }
 
-    /**
-     * @return bool|null
-     */
     public function isVirtual(): ?bool
     {
         return $this->isVirtual;
