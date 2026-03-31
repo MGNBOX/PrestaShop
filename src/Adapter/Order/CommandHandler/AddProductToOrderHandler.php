@@ -205,7 +205,7 @@ final class AddProductToOrderHandler extends AbstractOrderHandler implements Add
 
             if (
                 $this->featureFlagStateCheckerInterface->isEnabled(FeatureFlagSettings::FEATURE_FLAG_IMPROVED_SHIPMENT)
-                && !empty($command->isVirtual()) && $command->isVirtual() === false
+                && $command->isVirtual() !== null && $command->isVirtual() === false
             ) {
                 $orderDetail = $this->orderDetailRepository->findByOrderIdAndProductId(
                     $command->getOrderId(),

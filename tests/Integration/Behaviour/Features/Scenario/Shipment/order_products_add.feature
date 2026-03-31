@@ -56,6 +56,7 @@ Feature: Add order products with shipments
       | amount        | 3                  |
       | price         | 15                 |
       | shipment_id   | shipment2          |
+      | is_virtual    | false              |
     Then order "bo_order1" should contain 3 products "Test Added Product"
     And the available stock for product "Test Added Product" should be 97
     And product "Test Added Product" in order "bo_order1" has following details:
@@ -93,6 +94,7 @@ Feature: Add order products with shipments
       | amount        | 2                  |
       | price         | 15                 |
       | carrier_id    | pickup_carrier2    |
+      | is_virtual    | false              |
     Then order "bo_order2" should contain 2 products "Test Added Product"
     And the available stock for product "Test Added Product" should be 98
     And product "Test Added Product" in order "bo_order2" has following details:

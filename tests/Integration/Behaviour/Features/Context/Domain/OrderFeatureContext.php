@@ -214,6 +214,10 @@ class OrderFeatureContext extends AbstractDomainFeatureContext
             if (!empty($data['carrier_id'])) {
                 $carrierId = (int) SharedStorage::getStorage()->get($data['carrier_id']);
             }
+            $isVirtual = null;
+            if (isset($data['is_virtual'])) {
+                $isVirtual = PrimitiveUtils::castStringBooleanIntoBoolean($data['is_virtual']);
+            }
             $this->getCommandBus()->handle(
                 AddProductToOrderCommand::withNewInvoice(
                     $orderId,
@@ -224,7 +228,8 @@ class OrderFeatureContext extends AbstractDomainFeatureContext
                     (int) $data['amount'],
                     $hasFreeShipping,
                     $shipmentId,
-                    $carrierId
+                    $carrierId,
+                    $isVirtual
                 )
             );
         } catch (InvalidProductQuantityException $e) {
