@@ -20,7 +20,6 @@ import {
   dataProducts,
   FakerDiscount,
   FakerProduct,
-  utilsCore,
   utilsDate,
   type BrowserContext,
   type Page,
@@ -115,7 +114,7 @@ describe('BO - Catalog - Discounts : Set period', async () => {
       expect(pageTitle).to.contains(boDiscountsPage.pageTitle);
     });
 
-    it(`should click on create discount button and choose the type '${discountEndDateBeforeStart.discountType}'`, async function () {
+    it(`should click on create discount and choose the type '${discountEndDateBeforeStart.discountType}'`, async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'chooseDiscountType', baseContext);
 
       await boDiscountsPage.clickOnCreateDiscountButton(page);
@@ -161,7 +160,7 @@ describe('BO - Catalog - Discounts : Set period', async () => {
     it('should create a discount with period never expires', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'createDiscount_3', baseContext);
 
-      let errorMessage = await boDiscountsCreatePage.createDiscount(page, discountPeriodNeverExpiresData);
+      const errorMessage = await boDiscountsCreatePage.createDiscount(page, discountPeriodNeverExpiresData);
       expect(errorMessage).to.contains(boDiscountsCreatePage.successfulCreationMessage);
 
       const endDate = await boDiscountsCreatePage.getDiscountDate(page, 'end');
@@ -178,13 +177,13 @@ describe('BO - Catalog - Discounts : Set period', async () => {
     });
 
     it('should check that the selected tab is All', async function () {
-      await testContext.addContextItem(this, 'testIdentifier', 'getSelectedGroup', baseContext);
+      await testContext.addContextItem(this, 'testIdentifier', 'getSelectedGroup_2', baseContext);
 
       const activeGroup = await boDiscountsPage.getActiveTab(page);
       expect(activeGroup).to.equal('All');
     });
 
-    it('should check the number of discounts', async function () {
+    it('should check the number of discounts in All tab', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'checkNumberOfDiscounts', baseContext);
 
       const number = await boDiscountsPage.getNumberOfElementInGrid(page);
@@ -200,8 +199,8 @@ describe('BO - Catalog - Discounts : Set period', async () => {
       expect(activeGroup).to.equal('Active');
     });
 
-    it('should check the number of discounts', async function () {
-      await testContext.addContextItem(this, 'testIdentifier', 'checkNumberOfDiscounts', baseContext);
+    it('should check the number of discounts in Active tab', async function () {
+      await testContext.addContextItem(this, 'testIdentifier', 'checkNumberOfDiscounts_2', baseContext);
 
       const number = await boDiscountsPage.getNumberOfElementInGrid(page);
       expect(number).to.equal(1);
@@ -216,8 +215,8 @@ describe('BO - Catalog - Discounts : Set period', async () => {
       expect(activeGroup).to.equal('Scheduled');
     });
 
-    it('should check the number of discounts', async function () {
-      await testContext.addContextItem(this, 'testIdentifier', 'checkNumberOfDiscounts', baseContext);
+    it('should check the number of discounts in Schedule tab', async function () {
+      await testContext.addContextItem(this, 'testIdentifier', 'checkNumberOfDiscounts_3', baseContext);
 
       const number = await boDiscountsPage.getNumberOfElementInGrid(page);
       expect(number).to.equal(0);
@@ -232,11 +231,20 @@ describe('BO - Catalog - Discounts : Set period', async () => {
       expect(activeGroup).to.equal('Expired');
     });
 
-    it('should check the number of discounts', async function () {
-      await testContext.addContextItem(this, 'testIdentifier', 'checkNumberOfDiscounts', baseContext);
+    it('should check the number of discounts in Expired tab', async function () {
+      await testContext.addContextItem(this, 'testIdentifier', 'checkNumberOfDiscounts_4', baseContext);
 
       const number = await boDiscountsPage.getNumberOfElementInGrid(page);
       expect(number).to.equal(0);
+    });
+
+    it('should go back to the All tab', async function () {
+      await testContext.addContextItem(this, 'testIdentifier', 'goBackAllTab', baseContext);
+
+      await boDiscountsPage.goToTab(page, 'All');
+
+      const activeGroup = await boDiscountsPage.getActiveTab(page);
+      expect(activeGroup).to.equal('All');
     });
 
     it('should view my shop', async function () {
@@ -284,7 +292,9 @@ describe('BO - Catalog - Discounts : Set period', async () => {
       const voucherErrorText = await foHummingbirdCartPage.getCartRuleErrorMessage(page);
       expect(voucherErrorText).to.equal(foHummingbirdCartPage.VoucherNotWithTheseProductsErrorMessage);
     });
+  });
 
+  describe('Edit discount and check it in FO', async () => {
     it('should go back to BO', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'goBackToBO', baseContext);
 
@@ -297,7 +307,6 @@ describe('BO - Catalog - Discounts : Set period', async () => {
     it('should go to edit discount page', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'goToEditDiscountPage', baseContext);
 
-      await boDiscountsPage.goToTab(page, 'All');
       await boDiscountsPage.goToEditDiscountPage(page, 1);
 
       const pageTitle = await boDiscountsCreatePage.getPageTitle(page);
@@ -312,7 +321,7 @@ describe('BO - Catalog - Discounts : Set period', async () => {
     });
 
     it('should go to Discounts page', async function () {
-      await testContext.addContextItem(this, 'testIdentifier', 'goBackToDiscountsPage', baseContext);
+      await testContext.addContextItem(this, 'testIdentifier', 'goBackToDiscountsPage_2', baseContext);
 
       await boDiscountsCreatePage.clickOnBreadCrumbLink(page, 'discounts');
 
@@ -327,15 +336,15 @@ describe('BO - Catalog - Discounts : Set period', async () => {
       expect(activeGroup).to.equal('All');
     });
 
-    it('should check the number of discounts', async function () {
-      await testContext.addContextItem(this, 'testIdentifier', 'checkNumberOfDiscounts', baseContext);
+    it('should check the number of discounts in All tab', async function () {
+      await testContext.addContextItem(this, 'testIdentifier', 'checkNumberOfDiscounts_5', baseContext);
 
       const number = await boDiscountsPage.getNumberOfElementInGrid(page);
       expect(number).to.equal(1);
     });
 
     it('should click on the Active tab', async function () {
-      await testContext.addContextItem(this, 'testIdentifier', 'clickOnActiveTab', baseContext);
+      await testContext.addContextItem(this, 'testIdentifier', 'clickOnActiveTab_2', baseContext);
 
       await boDiscountsPage.goToTab(page, 'active');
 
@@ -343,15 +352,15 @@ describe('BO - Catalog - Discounts : Set period', async () => {
       expect(activeGroup).to.equal('Active');
     });
 
-    it('should check the number of discounts', async function () {
-      await testContext.addContextItem(this, 'testIdentifier', 'checkNumberOfDiscounts', baseContext);
+    it('should check the number of discounts in Active tab', async function () {
+      await testContext.addContextItem(this, 'testIdentifier', 'checkNumberOfDiscounts_6', baseContext);
 
       const number = await boDiscountsPage.getNumberOfElementInGrid(page);
       expect(number).to.equal(0);
     });
 
     it('should click on the Scheduled tab', async function () {
-      await testContext.addContextItem(this, 'testIdentifier', 'clickOnScheduledTab', baseContext);
+      await testContext.addContextItem(this, 'testIdentifier', 'clickOnScheduledTab_2', baseContext);
 
       await boDiscountsPage.goToTab(page, 'scheduled');
 
@@ -359,15 +368,15 @@ describe('BO - Catalog - Discounts : Set period', async () => {
       expect(activeGroup).to.equal('Scheduled');
     });
 
-    it('should check the number of discounts', async function () {
-      await testContext.addContextItem(this, 'testIdentifier', 'checkNumberOfDiscounts', baseContext);
+    it('should check the number of discounts in Scheduled tab', async function () {
+      await testContext.addContextItem(this, 'testIdentifier', 'checkNumberOfDiscounts_7', baseContext);
 
       const number = await boDiscountsPage.getNumberOfElementInGrid(page);
       expect(number).to.equal(0);
     });
 
     it('should click on the Expired tab', async function () {
-      await testContext.addContextItem(this, 'testIdentifier', 'clickOnExpiredTab', baseContext);
+      await testContext.addContextItem(this, 'testIdentifier', 'clickOnExpiredTab_2', baseContext);
 
       await boDiscountsPage.goToTab(page, 'expired');
 
@@ -375,11 +384,20 @@ describe('BO - Catalog - Discounts : Set period', async () => {
       expect(activeGroup).to.equal('Expired');
     });
 
-    it('should check the number of discounts', async function () {
-      await testContext.addContextItem(this, 'testIdentifier', 'checkNumberOfDiscounts', baseContext);
+    it('should check the number of discounts in Expired tab', async function () {
+      await testContext.addContextItem(this, 'testIdentifier', 'checkNumberOfDiscounts_8', baseContext);
 
       const number = await boDiscountsPage.getNumberOfElementInGrid(page);
       expect(number).to.equal(1);
+    });
+
+    it('should go back to the All tab', async function () {
+      await testContext.addContextItem(this, 'testIdentifier', 'goBackAllTab_2', baseContext);
+
+      await boDiscountsPage.goToTab(page, 'All');
+
+      const activeGroup = await boDiscountsPage.getActiveTab(page);
+      expect(activeGroup).to.equal('All');
     });
 
     it('should go back to FO', async function () {
@@ -392,7 +410,7 @@ describe('BO - Catalog - Discounts : Set period', async () => {
     });
 
     it('should add the promo code and check the error message', async function () {
-      await testContext.addContextItem(this, 'testIdentifier', 'addPromoCode_1', baseContext);
+      await testContext.addContextItem(this, 'testIdentifier', 'addPromoCode_2', baseContext);
 
       await foHummingbirdCartPage.reloadPage(page);
       await foHummingbirdCartPage.addPromoCode(page, discountPeriodNeverExpiresData.discountCode);
