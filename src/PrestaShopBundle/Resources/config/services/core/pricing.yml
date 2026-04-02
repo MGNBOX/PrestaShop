@@ -63,4 +63,5 @@ services:
 
   # Debug
   PrestaShop\PrestaShop\Core\Pricing\Debug\PricingRegistry: ~
-  PrestaShop\PrestaShop\Core\Pricing\Debug\PricingHistoryDisplayer: ~
+  PrestaShop\PrestaShop\Core\Pricing\Debug\ProductPriceHistoryDisplayer: ~
+  PrestaShop\PrestaShop\Core\Pricing\Debug\CartPriceHistoryDisplayer: ~

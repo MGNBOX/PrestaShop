@@ -10,12 +10,13 @@ namespace PrestaShop\PrestaShop\Core\Pricing\Debug;
 
 use PrestaShop\PrestaShop\Core\Pricing\Product\ProductPriceInterface;
 use PrestaShop\PrestaShop\Core\Pricing\Product\TrackedProductPrice;
+use PrestaShop\PrestaShop\Core\Pricing\ValueObject\PriceBreakdown;
 
 /**
  * Formats a TrackedProductPrice's PriceBreakdown into human-readable strings
  * or structured arrays suitable for Twig rendering in the debug toolbar.
  */
-class PricingHistoryDisplayer
+class ProductPriceHistoryDisplayer
 {
     /**
      * Formats a ProductPrice's breakdown as a human-readable string.
@@ -26,7 +27,28 @@ class PricingHistoryDisplayer
             return 'No tracking data available';
         }
 
-        $breakdown = $productPrice->getBreakdown();
+        return $this->formatBreakdownAsString($productPrice->getBreakdown());
+    }
+
+    /**
+     * Formats a ProductPrice's breakdown as a structured array for rendering.
+     *
+     * @return array<int, array{caller: string, line: int, property: string, previous: string, new: string}>
+     */
+    public function formatAsArray(ProductPriceInterface $productPrice): array
+    {
+        if (!$productPrice instanceof TrackedProductPrice) {
+            return [];
+        }
+
+        return $this->formatBreakdownAsArray($productPrice->getBreakdown());
+    }
+
+    /**
+     * @return string
+     */
+    public function formatBreakdownAsString(PriceBreakdown $breakdown): string
+    {
         if ($breakdown->count() === 0) {
             return 'No modifications recorded';
         }
@@ -48,18 +70,12 @@ class PricingHistoryDisplayer
     }
 
     /**
-     * Formats a ProductPrice's breakdown as a structured array for rendering.
-     *
      * @return array<int, array{caller: string, line: int, property: string, previous: string, new: string}>
      */
-    public function formatAsArray(ProductPriceInterface $productPrice): array
+    public function formatBreakdownAsArray(PriceBreakdown $breakdown): array
     {
-        if (!$productPrice instanceof TrackedProductPrice) {
-            return [];
-        }
-
         $result = [];
-        foreach ($productPrice->getBreakdown()->getSteps() as $step) {
+        foreach ($breakdown->getSteps() as $step) {
             $result[] = [
                 'caller' => $step->getCallerClass(),
                 'line' => $step->getCallerLine(),

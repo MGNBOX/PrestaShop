@@ -16,7 +16,7 @@ use PrestaShop\PrestaShop\Core\Pricing\Product\TrackedProductPrice;
 use PrestaShop\PrestaShop\Core\Pricing\ValueObject\TaxablePrice;
 use PrestaShop\PrestaShop\Core\Pricing\ValueObject\TaxRate;
 
-class PricingHistoryDisplayerTest extends TestCase
+class ProductPriceHistoryDisplayerTest extends TestCase
 {
     public function testFormatNonTrackedDtoReturnsNoData(): void
     {
