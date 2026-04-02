@@ -42,7 +42,7 @@ describe('BO - Catalog - Discounts : Minimum purchase amount (FreeGift)', async 
   let page: Page;
 
   const discountWithoutName: FakerDiscount = new FakerDiscount({
-    discountType: 'Free gift',
+    discountType: 'free_gift',
     name: ' ',
     noProductCondition: true,
     minimumPurchaseAmount: true,
@@ -74,13 +74,12 @@ describe('BO - Catalog - Discounts : Minimum purchase amount (FreeGift)', async 
     freeGift: new FakerProduct({name: ' '}),
   });
   const discountData: FakerDiscount = new FakerDiscount({
-    discountType: 'Free gift',
+    discountType: 'free_gift',
     name: 'Test',
     noProductCondition: true,
     minimumPurchaseAmount: true,
     minimumAmountValue: 50,
     minimumAmountTax: 'Tax included',
-    generateDiscountCode: true,
     discountCode: 'test',
     freeGift: new FakerProduct({name: ' '}),
   });
@@ -146,14 +145,14 @@ describe('BO - Catalog - Discounts : Minimum purchase amount (FreeGift)', async 
       expect(errorMessage).to.contains(boDiscountsCreatePage.errorMessageNameRequired);
     });
 
-    it('should delete the free gift', async function () {
+    it('should delete the free_gift', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'deleteFreeGift', baseContext);
 
       const isFreeGiftNotVisible = await boDiscountsCreatePage.deleteFreeGift(page);
       expect(isFreeGiftNotVisible).to.equal(true);
     });
 
-    it('should create a discount without free gift and check the error', async function () {
+    it('should create a discount without free_gift and check the error', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'createDiscount_2', baseContext);
 
       let errorMessage = await boDiscountsCreatePage.createDiscount(page, discountWithoutFreeGift);
@@ -312,7 +311,7 @@ describe('BO - Catalog - Discounts : Minimum purchase amount (FreeGift)', async 
       expect(pageTitle).to.contains(boDiscountsCreatePage.pageTitle);
     });
 
-    it('should edit the free gift', async function () {
+    it('should edit the free_gift', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'editDiscount', baseContext);
 
       const isFreeGiftNotVisible = await boDiscountsCreatePage.deleteFreeGift(page);

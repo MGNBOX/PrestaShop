@@ -38,7 +38,7 @@ describe('BO - Catalog - Discounts : Trigger based on the total quantity of prod
   let page: Page;
 
   const discountWithoutName: FakerDiscount = new FakerDiscount({
-    discountType: 'On cart amount',
+    discountType: 'cart_level',
     name: ' ',
     minimumProductQuantity: true,
     productQuantity: 5,
@@ -73,7 +73,6 @@ describe('BO - Catalog - Discounts : Trigger based on the total quantity of prod
     name: 'test',
     productQuantity: 2,
     discountValue: 10,
-    generateDiscountCode: true,
     discountCode: 'TEST',
   });
   const editDiscountData: FakerDiscount = new FakerDiscount({
@@ -83,7 +82,6 @@ describe('BO - Catalog - Discounts : Trigger based on the total quantity of prod
     discountValue: 10,
     discountCode: 'TEST',
     discountTax: 'Tax included',
-    generateDiscountCode: false,
   });
   const secondEditDiscountData: FakerDiscount = new FakerDiscount({
     ...discountWithoutName,
@@ -92,7 +90,6 @@ describe('BO - Catalog - Discounts : Trigger based on the total quantity of prod
     discountValue: 10,
     discountCode: 'TEST',
     discountTax: 'Tax excluded',
-    generateDiscountCode: false,
   });
   const thirdEditDiscountData: FakerDiscount = new FakerDiscount({
     ...discountWithoutName,
@@ -100,7 +97,6 @@ describe('BO - Catalog - Discounts : Trigger based on the total quantity of prod
     productQuantity: 2,
     discountValue: 100,
     discountTax: 'Tax included',
-    generateDiscountCode: false,
   });
 
   before(async function () {

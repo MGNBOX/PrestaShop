@@ -43,7 +43,7 @@ describe('BO - Catalog - Discounts : Set period', async () => {
   let page: Page;
 
   const discountEndDateBeforeStart: FakerDiscount = new FakerDiscount({
-    discountType: 'On cart amount',
+    discountType: 'cart_level',
     name: 'Test',
     dateFrom: '2024-01-01',
     dateTo: '1810-01-01',
@@ -52,7 +52,6 @@ describe('BO - Catalog - Discounts : Set period', async () => {
     discountValue: 10,
     discountReductionType: '€',
     discountTax: 'Tax included',
-    generateDiscountCode: true,
     discountCode: 'CODE10',
   });
   const discountStartDateLetter: FakerDiscount = new FakerDiscount({
@@ -127,10 +126,10 @@ describe('BO - Catalog - Discounts : Set period', async () => {
     it('should check the start and the end date', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'checkDate', baseContext);
 
-      const startDate = await boDiscountsCreatePage.getDiscountDate(page, 'start');
+      const startDate = await boDiscountsCreatePage.getValue(page, 'validFrom');
       expect(startDate).to.contains(today);
 
-      const endDate = await boDiscountsCreatePage.getDiscountDate(page, 'end');
+      const endDate = await boDiscountsCreatePage.getValue(page, 'validTo');
       expect(endDate).to.not.contains(today);
     });
 
@@ -153,7 +152,7 @@ describe('BO - Catalog - Discounts : Set period', async () => {
       errorMessage = await boDiscountsCreatePage.getErrorMessageInvalidInput(page, 'date');
       expect(errorMessage).to.contains(boDiscountsCreatePage.errorMessageExpirationDateBeforeStart);
 
-      const startDate = await boDiscountsCreatePage.getDiscountDate(page, 'start');
+      const startDate = await boDiscountsCreatePage.getValue(page, 'validFrom');
       expect(startDate).to.contains(today);
     });
 
@@ -163,7 +162,7 @@ describe('BO - Catalog - Discounts : Set period', async () => {
       const errorMessage = await boDiscountsCreatePage.createDiscount(page, discountPeriodNeverExpiresData);
       expect(errorMessage).to.contains(boDiscountsCreatePage.successfulCreationMessage);
 
-      const endDate = await boDiscountsCreatePage.getDiscountDate(page, 'end');
+      const endDate = await boDiscountsCreatePage.getValue(page, 'validTo');
       expect(endDate).to.equal('');
     });
 

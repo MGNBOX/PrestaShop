@@ -39,13 +39,12 @@ describe('BO - Catalog - Discounts : Minimum purchase amount (On free shipping)'
   let page: Page;
 
   const discountData: FakerDiscount = new FakerDiscount({
-    discountType: 'On free shipping',
+    discountType: 'free_shipping',
     name: 'Test',
     noProductCondition: true,
     minimumPurchaseAmount: true,
     minimumAmountValue: 50,
     minimumAmountTax: 'Tax included',
-    generateDiscountCode: true,
     discountCode: 'TEST',
   });
   const discountErrorWithoutName: FakerDiscount = new FakerDiscount({

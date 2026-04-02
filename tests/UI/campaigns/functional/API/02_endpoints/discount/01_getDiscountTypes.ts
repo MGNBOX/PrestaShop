@@ -18,7 +18,7 @@ import {
 
 const baseContext: string = 'functional_API_endpoints_discount_getDiscountTypes';
 
-describe('API : GET /discount-types', async () => {
+describe('API : GET /admin-api/discount-types', async () => {
   let apiContext: APIRequestContext;
   let browserContext: BrowserContext;
   let page: Page;
