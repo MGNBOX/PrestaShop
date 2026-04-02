@@ -10,7 +10,8 @@ services:
     class: 'PrestaShop\PrestaShop\Core\Util\HelperCard\DocumentationLinkProvider'
     arguments:
       - '@=service("prestashop.adapter.legacy.context").getContext().language ? service("prestashop.adapter.legacy.context").getContext().language.iso_code : "en-US"'
-      - "team":
+      - 
+        "team":
           "en": "https://docs.prestashop-project.org/v.8-documentation/user-guide/configuring-shop/advanced-parameters/team"
           "fr": "https://docs.prestashop-project.org/v.8-documentation/french-1/guide-utilisateur/configurer-boutique/parametres-avances/equipe"
           "es": "https://docs.prestashop-project.org/1.7-documentation/v/spanish/guia-usuario/configurar-tienda/parametros-avanzados/equipo"
