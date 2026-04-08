@@ -10,6 +10,10 @@ use PrestaShop\PrestaShop\Adapter\Presenter\Product\ProductListingPresenter;
 use PrestaShop\PrestaShop\Adapter\Product\PriceFormatter;
 use PrestaShop\PrestaShop\Adapter\Product\ProductColorsRetriever;
 use PrestaShop\PrestaShop\Core\Domain\Product\ValueObject\RedirectType;
+use PrestaShop\PrestaShop\Core\FeatureFlag\FeatureFlagSettings;
+use PrestaShop\PrestaShop\Core\FeatureFlag\FeatureFlagStateCheckerInterface;
+use PrestaShop\PrestaShop\Core\Pricing\Product\Calculator\ProductCalculatorInterface;
+use PrestaShop\PrestaShop\Core\Pricing\Product\ProductPrice;
 use PrestaShop\PrestaShop\Core\Product\ProductExtraContentFinder;
 use PrestaShopBundle\Security\Admin\LegacyAdminTokenValidator;
 
@@ -562,7 +566,17 @@ class ProductControllerCore extends ProductPresentingFrontControllerCore
         }
         unset($quantity_discount);
 
-        $product_price = $this->product->getPrice(Product::$_taxCalculationMethod == PS_TAX_INC, $id_product_attribute, 6, null, false, false);
+        // New pricing engine (Phase 1): use ProductCalculator directly instead of getPrice
+        if ($this->isNewPricingEnabled()) {
+            $productPrice = ProductPrice::create(
+                (int) $this->product->id,
+                (int) $id_product_attribute,
+            );
+            $this->getProductCalculator()->compute($productPrice);
+            $product_price = (float) (string) $productPrice->getFinalPrice()->getTaxExcluded();
+        } else {
+            $product_price = $this->product->getPrice(Product::$_taxCalculationMethod == PS_TAX_INC, $id_product_attribute, 6, null, false, false);
+        }
 
         $this->quantity_discounts = $this->formatQuantityDiscounts($quantity_discounts, $product_price, (float) $tax, $this->product->ecotax);
 
@@ -628,8 +642,13 @@ class ProductControllerCore extends ProductPresentingFrontControllerCore
 
                 // Call getPriceStatic in order to set $combination_specific_price
                 if (!isset($combination_prices_set[(int) $row['id_product_attribute']])) {
-                    $combination_specific_price = null;
-                    Product::getPriceStatic((int) $this->product->id, false, $row['id_product_attribute'], 6, null, false, true, 1, false, null, null, null, $combination_specific_price);
+                    if ($this->isNewPricingEnabled()) {
+                        // Phase 1: no specific prices — specific_price concept will be replaced by the calculator pipeline
+                        $combination_specific_price = null;
+                    } else {
+                        $combination_specific_price = null;
+                        Product::getPriceStatic((int) $this->product->id, false, $row['id_product_attribute'], 6, null, false, true, 1, false, null, null, null, $combination_specific_price);
+                    }
                     $combination_prices_set[(int) $row['id_product_attribute']] = true;
                     $this->combinations[$row['id_product_attribute']]['specific_price'] = $combination_specific_price;
                 }
@@ -1635,5 +1654,21 @@ class ProductControllerCore extends ProductPresentingFrontControllerCore
     public function setPreviewMode(bool $enabled = true)
     {
         $this->isPreview = $enabled;
+    }
+
+    protected function isNewPricingEnabled(): bool
+    {
+        try {
+            $featureFlagManager = $this->container->get(FeatureFlagStateCheckerInterface::class);
+
+            return $featureFlagManager !== null && $featureFlagManager->isEnabled(FeatureFlagSettings::FEATURE_FLAG_NEW_PRICING);
+        } catch (Throwable) {
+            return false;
+        }
+    }
+
+    protected function getProductCalculator(): ProductCalculatorInterface
+    {
+        return $this->container->get('prestashop.pricing.cart.product_calculator');
     }
 }
