@@ -37,7 +37,7 @@ const baseContext: string = 'functional_BO_catalog_discounts_catalogPriceRules_C
 describe('BO - Catalog - Discounts : CRUD country', async () => {
   let browserContext: BrowserContext;
   let page: Page;
-  const customerData: FakerCustomer = new FakerCustomer({email: 'test@test.com', password: 123456789});
+  const customerData: FakerCustomer = new FakerCustomer({email: 'test@test.com', password: '123456789'});
   const addressData: FakerAddress = new FakerAddress({
     email: customerData.email,
     country: 'United Arab Emirates',
