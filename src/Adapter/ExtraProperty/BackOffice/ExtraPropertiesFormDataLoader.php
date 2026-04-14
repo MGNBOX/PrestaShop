@@ -9,6 +9,8 @@ declare(strict_types=1);
 namespace PrestaShop\PrestaShop\Adapter\ExtraProperty\BackOffice;
 
 use Doctrine\DBAL\Connection;
+use PrestaShop\PrestaShop\Core\Domain\ExtraProperty\QueryResult\ExtraPropertyDefinitionInfo;
+use PrestaShop\PrestaShop\Core\ExtraProperty\ExtraPropertyDefinitionCollection;
 use PrestaShop\PrestaShop\Core\ExtraProperty\ExtraPropertyNaming;
 use Throwable;
 
@@ -35,13 +37,13 @@ class ExtraPropertiesFormDataLoader
      * @param string $entityName
      * @param int $entityId
      * @param int $shopId Current shop context ID (used for lang/shop scopes)
-     * @param array<int, array<string, mixed>> $definitions Already filtered definitions (display_bo=1)
+     * @param ExtraPropertyDefinitionCollection $definitions Already filtered definitions (display_form=1)
      *
      * @return array<string, array<string, mixed>>
      */
-    public function load(string $entityName, int $entityId, int $shopId, array $definitions): array
+    public function load(string $entityName, int $entityId, int $shopId, ExtraPropertyDefinitionCollection $definitions): array
     {
-        if ($entityId <= 0 || empty($definitions)) {
+        if ($entityId <= 0 || $definitions->isEmpty()) {
             return [];
         }
 
@@ -63,25 +65,20 @@ class ExtraPropertiesFormDataLoader
         return $result;
     }
 
-    /**
-     * @param array<int, array<string, mixed>> $definitions
-     */
-    protected function resolveStorageEntityName(string $fallbackEntityName, array $definitions): string
+    protected function resolveStorageEntityName(string $fallbackEntityName, ExtraPropertyDefinitionCollection $definitions): string
     {
-        $definitionEntityName = $definitions[0]['entity_name'] ?? null;
-        if (is_string($definitionEntityName) && '' !== trim($definitionEntityName)) {
-            return trim($definitionEntityName);
+        $first = $definitions->first();
+        if (null !== $first && '' !== trim($first->getEntityName())) {
+            return trim($first->getEntityName());
         }
 
         return $fallbackEntityName;
     }
 
     /**
-     * @param array<int, array<string, mixed>> $definitions
-     *
      * @return array<string, array<string, mixed>>
      */
-    protected function loadEntityScope(string $entityName, int $entityId, array $definitions): array
+    protected function loadEntityScope(string $entityName, int $entityId, ExtraPropertyDefinitionCollection $definitions): array
     {
         $columnToPropertyMap = $this->buildColumnPropertyMap($definitions, 'common');
         if (empty($columnToPropertyMap)) {
@@ -119,18 +116,16 @@ class ExtraPropertiesFormDataLoader
             if (!array_key_exists($columnName, $row)) {
                 continue;
             }
-            $result[$propertyPath['module_name']][$propertyPath['field_name']] = $row[$columnName];
+            $result[$propertyPath['module_name']][$propertyPath['property_name']] = $row[$columnName];
         }
 
         return $result;
     }
 
     /**
-     * @param array<int, array<string, mixed>> $definitions
-     *
      * @return array<string, array<string, mixed>>
      */
-    protected function loadLangScope(string $entityName, int $entityId, int $shopId, array $definitions): array
+    protected function loadLangScope(string $entityName, int $entityId, int $shopId, ExtraPropertyDefinitionCollection $definitions): array
     {
         $columnToPropertyMap = $this->buildColumnPropertyMap($definitions, 'lang');
         if (empty($columnToPropertyMap) || $shopId <= 0) {
@@ -176,7 +171,7 @@ class ExtraPropertiesFormDataLoader
                 if (!array_key_exists($columnName, $row)) {
                     continue;
                 }
-                $result[$propertyPath['module_name']][$propertyPath['field_name']][$idLang] = $row[$columnName];
+                $result[$propertyPath['module_name']][$propertyPath['property_name']][$idLang] = $row[$columnName];
             }
         }
 
@@ -184,11 +179,9 @@ class ExtraPropertiesFormDataLoader
     }
 
     /**
-     * @param array<int, array<string, mixed>> $definitions
-     *
      * @return array<string, array<string, mixed>>
      */
-    protected function loadShopScope(string $entityName, int $entityId, int $shopId, array $definitions): array
+    protected function loadShopScope(string $entityName, int $entityId, int $shopId, ExtraPropertyDefinitionCollection $definitions): array
     {
         $columnToPropertyMap = $this->buildColumnPropertyMap($definitions, 'shop');
         if (empty($columnToPropertyMap) || $shopId <= 0) {
@@ -226,34 +219,32 @@ class ExtraPropertiesFormDataLoader
             if (!array_key_exists($columnName, $row)) {
                 continue;
             }
-            $result[$propertyPath['module_name']][$propertyPath['field_name']] = $row[$columnName];
+            $result[$propertyPath['module_name']][$propertyPath['property_name']] = $row[$columnName];
         }
 
         return $result;
     }
 
     /**
-     * @param array<int, array<string, mixed>> $definitions
-     *
-     * @return array<string, array{module_name: string, field_name: string}>
+     * @return array<string, array{module_name: string, property_name: string}>
      */
-    protected function buildColumnPropertyMap(array $definitions, string $scope): array
+    protected function buildColumnPropertyMap(ExtraPropertyDefinitionCollection $definitions, string $scope): array
     {
         $result = [];
         foreach ($definitions as $definition) {
-            if (($definition['field_scope'] ?? null) !== $scope) {
+            if ($definition->getFieldScope() !== $scope) {
                 continue;
             }
-            $columnName = (string) ($definition['storage_column_name'] ?? '');
-            $fieldName = (string) ($definition['field_name'] ?? '');
-            $moduleName = ExtraPropertyNaming::displayModuleKey($definition['module_name'] ?? null);
+            $propertyName = $definition->getPropertyName();
+            $moduleName = ExtraPropertyNaming::displayModuleKey($definition->getModuleName());
 
-            if ('' === $columnName || '' === $fieldName) {
+            if ('' === $propertyName) {
                 continue;
             }
+            $columnName = ExtraPropertyNaming::storageColumnName($definition->getModuleName() ?? '', $propertyName);
             $result[$columnName] = [
                 'module_name' => $moduleName,
-                'field_name' => $fieldName,
+                'property_name' => $propertyName,
             ];
         }
 

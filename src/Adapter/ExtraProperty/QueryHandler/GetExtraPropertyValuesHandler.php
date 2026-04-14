@@ -12,9 +12,10 @@ use Doctrine\DBAL\Connection;
 use PrestaShop\PrestaShop\Core\CommandBus\Attributes\AsQueryHandler;
 use PrestaShop\PrestaShop\Core\Domain\ExtraProperty\Query\GetExtraPropertyValues;
 use PrestaShop\PrestaShop\Core\Domain\ExtraProperty\QueryHandler\GetExtraPropertyValuesHandlerInterface;
+use PrestaShop\PrestaShop\Core\Domain\ExtraProperty\QueryResult\ExtraPropertyDefinitionInfo;
 use PrestaShop\PrestaShop\Core\Domain\ExtraProperty\QueryResult\ExtraPropertyValuesResult;
 use PrestaShop\PrestaShop\Core\ExtraProperty\ExtraPropertyNaming;
-use PrestaShop\PrestaShop\Core\ExtraProperty\Registry\EntityExtraFieldRegistryInterface;
+use PrestaShop\PrestaShop\Core\ExtraProperty\Repository\ExtraPropertyDefinitionRepositoryInterface;
 use Throwable;
 
 /**
@@ -36,7 +37,7 @@ use Throwable;
 class GetExtraPropertyValuesHandler implements GetExtraPropertyValuesHandlerInterface
 {
     public function __construct(
-        protected readonly EntityExtraFieldRegistryInterface $registry,
+        protected readonly ExtraPropertyDefinitionRepositoryInterface $repository,
         protected readonly Connection $connection,
         protected readonly string $prefix,
     ) {
@@ -51,7 +52,7 @@ class GetExtraPropertyValuesHandler implements GetExtraPropertyValuesHandlerInte
             return new ExtraPropertyValuesResult([]);
         }
 
-        $allDefinitions = $this->registry->getByEntityNameAllScopes($query->getEntityName());
+        $allDefinitions = $this->repository->getByEntityNameAllScopes($query->getEntityName());
         if (empty($allDefinitions)) {
             return new ExtraPropertyValuesResult([]);
         }
@@ -60,7 +61,7 @@ class GetExtraPropertyValuesHandler implements GetExtraPropertyValuesHandlerInte
         if ($query->isDisplayApiOnly()) {
             $allDefinitions = array_values(array_filter(
                 $allDefinitions,
-                static fn (array $def): bool => !empty($def['display_api'])
+                static fn (ExtraPropertyDefinitionInfo $def): bool => $def->isDisplayApi()
             ));
         }
 
@@ -86,12 +87,9 @@ class GetExtraPropertyValuesHandler implements GetExtraPropertyValuesHandlerInte
     }
 
     /**
-     * Loads common-scope extra properties (one row per entity from *_extra).
+     * @param list<ExtraPropertyDefinitionInfo> $allDefinitions
      *
-     * @param GetExtraPropertyValues $query
-     * @param array<int, array<string, mixed>> $allDefinitions
-     *
-     * @return array<string, array<string, mixed>> Grouped by module display key; scalar values
+     * @return array<string, array<string, mixed>>
      */
     protected function loadCommonScope(GetExtraPropertyValues $query, array $allDefinitions): array
     {
@@ -131,22 +129,16 @@ class GetExtraPropertyValuesHandler implements GetExtraPropertyValuesHandlerInte
             if (!array_key_exists($columnName, $row)) {
                 continue;
             }
-            $result[$propertyPath['module_name']][$propertyPath['field_name']] = $row[$columnName];
+            $result[$propertyPath['module_name']][$propertyPath['property_name']] = $row[$columnName];
         }
 
         return $result;
     }
 
     /**
-     * Loads lang-scope extra properties (all languages) from *_extra_lang.
+     * @param list<ExtraPropertyDefinitionInfo> $allDefinitions
      *
-     * Returns values indexed by id_lang (int) so the caller can apply
-     * locale-string conversion if needed (e.g. Admin API responses).
-     *
-     * @param GetExtraPropertyValues $query
-     * @param array<int, array<string, mixed>> $allDefinitions
-     *
-     * @return array<string, array<string, mixed>> Grouped by module; field values are [id_lang => value]
+     * @return array<string, array<string, mixed>>
      */
     protected function loadLangScope(GetExtraPropertyValues $query, array $allDefinitions): array
     {
@@ -190,7 +182,7 @@ class GetExtraPropertyValuesHandler implements GetExtraPropertyValuesHandlerInte
                 if (!array_key_exists($columnName, $row)) {
                     continue;
                 }
-                $result[$propertyPath['module_name']][$propertyPath['field_name']][$idLang] = $row[$columnName];
+                $result[$propertyPath['module_name']][$propertyPath['property_name']][$idLang] = $row[$columnName];
             }
         }
 
@@ -198,14 +190,9 @@ class GetExtraPropertyValuesHandler implements GetExtraPropertyValuesHandlerInte
     }
 
     /**
-     * Loads shop-scope extra properties (all shops) from *_extra_shop.
+     * @param list<ExtraPropertyDefinitionInfo> $allDefinitions
      *
-     * Returns values indexed by id_shop (int).
-     *
-     * @param GetExtraPropertyValues $query
-     * @param array<int, array<string, mixed>> $allDefinitions
-     *
-     * @return array<string, array<string, mixed>> Grouped by module; field values are [id_shop => value]
+     * @return array<string, array<string, mixed>>
      */
     protected function loadShopScope(GetExtraPropertyValues $query, array $allDefinitions): array
     {
@@ -249,7 +236,7 @@ class GetExtraPropertyValuesHandler implements GetExtraPropertyValuesHandlerInte
                 if (!array_key_exists($columnName, $row)) {
                     continue;
                 }
-                $result[$propertyPath['module_name']][$propertyPath['field_name']][$idShop] = $row[$columnName];
+                $result[$propertyPath['module_name']][$propertyPath['property_name']][$idShop] = $row[$columnName];
             }
         }
 
@@ -259,28 +246,28 @@ class GetExtraPropertyValuesHandler implements GetExtraPropertyValuesHandlerInte
     /**
      * Builds a storage-column → property-path map for a given scope.
      *
-     * @param array<int, array<string, mixed>> $allDefinitions
+     * @param list<ExtraPropertyDefinitionInfo> $allDefinitions
      * @param string $scope 'common', 'lang', or 'shop'
      *
-     * @return array<string, array{module_name: string, field_name: string}>
+     * @return array<string, array{module_name: string, property_name: string}>
      */
     protected function buildColumnPropertyMap(array $allDefinitions, string $scope): array
     {
         $map = [];
         foreach ($allDefinitions as $def) {
-            if (($def['field_scope'] ?? '') !== $scope) {
+            if ($def->getFieldScope() !== $scope) {
                 continue;
             }
 
-            $fieldName = (string) ($def['field_name'] ?? '');
-            $storageColumn = (string) ($def['storage_column_name'] ?? '');
-            if ('' === $fieldName || '' === $storageColumn) {
+            $fieldName = $def->getPropertyName();
+            if ('' === $fieldName) {
                 continue;
             }
 
+            $storageColumn = ExtraPropertyNaming::storageColumnName($def->getModuleName() ?? '', $fieldName);
             $map[$storageColumn] = [
-                'module_name' => ExtraPropertyNaming::displayModuleKey($def['module_name'] ?? null),
-                'field_name' => $fieldName,
+                'module_name' => ExtraPropertyNaming::displayModuleKey($def->getModuleName()),
+                'property_name' => $fieldName,
             ];
         }
 

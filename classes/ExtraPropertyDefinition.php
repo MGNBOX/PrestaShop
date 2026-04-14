@@ -8,7 +8,7 @@
  * ObjectModel mapped on the extra_property_definition registry table.
  *
  * Represents a single declared extra property definition.
- * Used for programmatic read/update of definition flags (display_front, display_api, display_bo, etc.)
+ * Used for programmatic read/update of definition flags (display_api, display_form, etc.)
  * via the standard ObjectModel CRUD API.
  */
 class ExtraPropertyDefinitionCore extends ObjectModel
@@ -17,25 +17,22 @@ class ExtraPropertyDefinitionCore extends ObjectModel
     public $entity_name;
 
     /** @var string Storage scope: entity, lang or shop */
-    public $field_scope = 'common';
+    public $scope = 'common';
 
     /** @var string|null Technical module name owning this field */
     public $module_name;
 
-    /** @var string Technical extra field name */
-    public $field_name;
-
-    /** @var string Physical SQL column name used in *_extra tables */
-    public $storage_column_name;
+    /** @var string Technical extra property name */
+    public $property_name;
 
     /** @var string|null Symfony field type used in forms */
-    public $symfony_field_type;
+    public $form_field_type;
 
-    /** @var string ExtraPropertyType enum label (matches extra_property_definition.field_type ENUM); DDL on value tables via ColumnDefinitionMapper */
-    public $field_type = 'string';
+    /** @var string ExtraPropertyType enum label (matches extra_property_definition.type ENUM); DDL on value tables via ColumnDefinitionMapper */
+    public $type = 'string';
 
     /** @var string|null Form placement path (Symfony form path) */
-    public $property_path;
+    public $form_position;
 
     /** @var string SQL index strategy applied on the storage column */
     public $sql_index = 'none';
@@ -43,14 +40,11 @@ class ExtraPropertyDefinitionCore extends ObjectModel
     /** @var string|null Validation method name */
     public $validator;
 
-    /** @var bool Whether the field is exposed in front office */
-    public $display_front = false;
-
     /** @var bool Whether the field is exposed in Admin API */
     public $display_api = false;
 
     /** @var bool Whether the field is exposed in back office */
-    public $display_bo = true;
+    public $display_form = true;
 
     /** @var bool Whether the field is exposed in back office grids */
     public $display_grid = false;
@@ -79,18 +73,16 @@ class ExtraPropertyDefinitionCore extends ObjectModel
         'multilang' => false,
         'fields' => [
             'entity_name' => ['type' => self::TYPE_STRING, 'validate' => 'isTableOrIdentifier', 'required' => true, 'size' => 64],
-            'field_scope' => ['type' => self::TYPE_STRING, 'validate' => 'isGenericName', 'required' => true, 'size' => 16],
-            'module_name' => ['type' => self::TYPE_STRING, 'validate' => 'isModuleName', 'allow_null' => true, 'size' => 64],
-            'field_name' => ['type' => self::TYPE_STRING, 'validate' => 'isTableOrIdentifier', 'required' => true, 'size' => 64],
-            'storage_column_name' => ['type' => self::TYPE_STRING, 'validate' => 'isTableOrIdentifier', 'required' => true, 'size' => 64],
-            'field_type' => ['type' => self::TYPE_STRING, 'validate' => 'isGenericName', 'required' => true, 'size' => 16],
-            'symfony_field_type' => ['type' => self::TYPE_STRING, 'validate' => 'isString', 'allow_null' => true, 'size' => 255],
-            'property_path' => ['type' => self::TYPE_STRING, 'validate' => 'isString', 'allow_null' => true, 'size' => 255],
+            'scope' => ['type' => self::TYPE_STRING, 'validate' => 'isGenericName', 'required' => true, 'size' => 16],
+            'module_name' => ['type' => self::TYPE_STRING, 'validate' => 'isModuleName', 'allow_null' => true, 'size' => 64, 'default' => null],
+            'property_name' => ['type' => self::TYPE_STRING, 'validate' => 'isTableOrIdentifier', 'required' => true, 'size' => 64],
+            'type' => ['type' => self::TYPE_STRING, 'validate' => 'isGenericName', 'required' => true, 'size' => 16],
+            'form_field_type' => ['type' => self::TYPE_STRING, 'validate' => 'isString', 'allow_null' => true, 'size' => 255],
+            'form_position' => ['type' => self::TYPE_STRING, 'validate' => 'isString', 'allow_null' => true, 'size' => 255],
             'sql_index' => ['type' => self::TYPE_STRING, 'validate' => 'isGenericName', 'required' => true, 'size' => 16],
             'validator' => ['type' => self::TYPE_STRING, 'validate' => 'isString', 'allow_null' => true, 'size' => 255],
-            'display_front' => ['type' => self::TYPE_BOOL, 'validate' => 'isBool'],
             'display_api' => ['type' => self::TYPE_BOOL, 'validate' => 'isBool'],
-            'display_bo' => ['type' => self::TYPE_BOOL, 'validate' => 'isBool'],
+            'display_form' => ['type' => self::TYPE_BOOL, 'validate' => 'isBool'],
             'display_grid' => ['type' => self::TYPE_BOOL, 'validate' => 'isBool'],
             'grid_position' => ['type' => self::TYPE_STRING, 'validate' => 'isTableOrIdentifier', 'allow_null' => true, 'size' => 64],
             'title_wording' => ['type' => self::TYPE_STRING, 'validate' => 'isString', 'allow_null' => true, 'size' => 191],

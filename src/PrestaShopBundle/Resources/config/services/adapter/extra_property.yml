@@ -20,6 +20,19 @@ services:
       $connection: '@doctrine.dbal.default_connection'
       $prefix: '%database_prefix%'
 
+  # ─── Cached repository decorator (read-only, production use) ─────────────────
+
+  PrestaShop\PrestaShop\Adapter\ExtraProperty\Repository\CachedExtraPropertyDefinitionRepository:
+    public: false
+    arguments:
+      $repository: '@PrestaShop\PrestaShop\Adapter\ExtraProperty\Repository\ExtraPropertyDefinitionRepository'
+      $cacheApp: '@?cache.app'
+      $filesystemDefinitionCache: '@prestashop.extra_property.definition.filesystem_cache'
+
+  PrestaShop\PrestaShop\Core\ExtraProperty\Repository\ExtraPropertyDefinitionRepositoryInterface:
+    alias: 'PrestaShop\PrestaShop\Adapter\ExtraProperty\Repository\CachedExtraPropertyDefinitionRepository'
+    public: true
+
   # ─── Schema manager (raw DDL, no cache) ──────────────────────────────────────
 
   PrestaShop\PrestaShop\Adapter\ExtraProperty\Schema\ExtraPropertySchemaManager:
@@ -42,36 +55,20 @@ services:
     alias: 'PrestaShop\PrestaShop\Adapter\ExtraProperty\Schema\CacheInvalidatingSchemaManager'
     public: false
 
-  # ─── Registry (raw, not cached) ──────────────────────────────────────────────
+  # ─── Registry (write-only, invalidates cache directly) ───────────────────────
 
-  PrestaShop\PrestaShop\Adapter\ExtraProperty\Registry\ExtraPropertyRegistry:
+  PrestaShop\PrestaShop\Core\ExtraProperty\Registry\ExtraPropertyRegistry:
     public: false
     arguments:
       $repository: '@PrestaShop\PrestaShop\Adapter\ExtraProperty\Repository\ExtraPropertyDefinitionRepository'
       $schemaManager: '@PrestaShop\PrestaShop\Core\ExtraProperty\Schema\ExtraPropertySchemaManagerInterface'
-      $logger: '@?logger'
-
-  # ─── Cached registry decorator (production use) ──────────────────────────────
-
-  PrestaShop\PrestaShop\Adapter\ExtraProperty\Registry\CachedExtraPropertyRegistry:
-    public: false
-    arguments:
-      $registry: '@PrestaShop\PrestaShop\Adapter\ExtraProperty\Registry\ExtraPropertyRegistry'
       $cacheApp: '@?cache.app'
       $filesystemDefinitionCache: '@prestashop.extra_property.definition.filesystem_cache'
-
-  # ─── Interfaces → CachedExtraPropertyRegistry ────────────────────────────────
-
-  PrestaShop\PrestaShop\Core\ExtraProperty\Registry\EntityExtraFieldRegistryInterface:
-    alias: 'PrestaShop\PrestaShop\Adapter\ExtraProperty\Registry\CachedExtraPropertyRegistry'
-    public: true
+      $cacheKeyPrefix: !php/const 'PrestaShop\PrestaShop\Adapter\ExtraProperty\Repository\CachedExtraPropertyDefinitionRepository::CACHE_KEY_PREFIX'
+      $logger: '@?logger'
 
   PrestaShop\PrestaShop\Core\ExtraProperty\Registry\ExtraPropertyRegistryInterface:
-    alias: 'PrestaShop\PrestaShop\Adapter\ExtraProperty\Registry\CachedExtraPropertyRegistry'
-    public: true
-
-  PrestaShop\PrestaShop\Core\ExtraProperty\Repository\ExtraPropertyDefinitionRepositoryInterface:
-    alias: 'PrestaShop\PrestaShop\Adapter\ExtraProperty\Registry\CachedExtraPropertyRegistry'
+    alias: 'PrestaShop\PrestaShop\Core\ExtraProperty\Registry\ExtraPropertyRegistry'
     public: true
 
   # ─── Reader ──────────────────────────────────────────────────────────────────
@@ -101,10 +98,17 @@ services:
     alias: 'PrestaShop\PrestaShop\Adapter\ExtraProperty\Storage\ExtraPropertyWriter'
     public: true
 
+  # ─── Value validator ─────────────────────────────────────────────────────────
+
+  PrestaShop\PrestaShop\Core\ExtraProperty\Storage\ExtraPropertyValueValidator:
+    public: true
+    arguments:
+      $translator: '@?translator'
+
   PrestaShop\PrestaShop\Adapter\ExtraProperty\Storage\ExtraPropertyValueProvider:
     public: false
     arguments:
-      $registry: '@PrestaShop\PrestaShop\Core\ExtraProperty\Registry\EntityExtraFieldRegistryInterface'
+      $repository: '@PrestaShop\PrestaShop\Core\ExtraProperty\Repository\ExtraPropertyDefinitionRepositoryInterface'
       $reader: '@PrestaShop\PrestaShop\Core\ExtraProperty\Storage\ExtraPropertyReaderInterface'
 
   PrestaShop\PrestaShop\Core\ExtraProperty\Storage\ExtraPropertyValueProviderInterface:
@@ -116,7 +120,7 @@ services:
   PrestaShop\PrestaShop\Adapter\ExtraProperty\BackOffice\ExtraPropertiesFormDefinitionProvider:
     public: false
     arguments:
-      $registry: '@PrestaShop\PrestaShop\Core\ExtraProperty\Registry\EntityExtraFieldRegistryInterface'
+      $repository: '@PrestaShop\PrestaShop\Core\ExtraProperty\Repository\ExtraPropertyDefinitionRepositoryInterface'
 
   PrestaShop\PrestaShop\Adapter\ExtraProperty\BackOffice\ExtraPropertiesFormDataLoader:
     public: false
@@ -147,17 +151,11 @@ services:
 
   # ─── CQRS query handlers ──────────────────────────────────────────────────────
 
-  PrestaShop\PrestaShop\Adapter\ExtraProperty\QueryHandler\GetExtraPropertyDefinitionsHandler:
-    public: false
-    autoconfigure: true
-    arguments:
-      $repository: '@PrestaShop\PrestaShop\Core\ExtraProperty\Repository\ExtraPropertyDefinitionRepositoryInterface'
-
   PrestaShop\PrestaShop\Adapter\ExtraProperty\QueryHandler\GetExtraPropertyValuesHandler:
     public: false
     autoconfigure: true
     arguments:
-      $registry: '@PrestaShop\PrestaShop\Core\ExtraProperty\Registry\EntityExtraFieldRegistryInterface'
+      $repository: '@PrestaShop\PrestaShop\Core\ExtraProperty\Repository\ExtraPropertyDefinitionRepositoryInterface'
       $connection: '@doctrine.dbal.default_connection'
       $prefix: '%database_prefix%'
 
@@ -168,7 +166,7 @@ services:
   PrestaShopBundle\ApiPlatform\ExtraProperties\ExtraPropertiesApiService:
     public: false
     arguments:
-      $registry: '@PrestaShop\PrestaShop\Core\ExtraProperty\Registry\EntityExtraFieldRegistryInterface'
+      $repository: '@PrestaShop\PrestaShop\Core\ExtraProperty\Repository\ExtraPropertyDefinitionRepositoryInterface'
       $connection: '@doctrine.dbal.default_connection'
       $dbPrefix: '%database_prefix%'
       $requestStack: '@request_stack'

@@ -32,7 +32,7 @@ final class FormHandlerFactory implements FormHandlerFactoryInterface
     private $isDemoModeEnabled;
 
     /**
-     * @var ExtraPropertiesFormDataPersister|null
+     * @var ExtraPropertiesFormDataPersister
      */
     private $extraPropertiesFormDataPersister;
 
@@ -40,13 +40,13 @@ final class FormHandlerFactory implements FormHandlerFactoryInterface
      * @param HookDispatcherInterface $hookDispatcher
      * @param TranslatorInterface $translator
      * @param bool $isDemoModeEnabled
-     * @param ExtraPropertiesFormDataPersister|null $extraPropertiesFormDataPersister
+     * @param ExtraPropertiesFormDataPersister $extraPropertiesFormDataPersister
      */
     public function __construct(
         HookDispatcherInterface $hookDispatcher,
         TranslatorInterface $translator,
         $isDemoModeEnabled,
-        ?ExtraPropertiesFormDataPersister $extraPropertiesFormDataPersister = null
+        ExtraPropertiesFormDataPersister $extraPropertiesFormDataPersister
     ) {
         $this->hookDispatcher = $hookDispatcher;
         $this->translator = $translator;

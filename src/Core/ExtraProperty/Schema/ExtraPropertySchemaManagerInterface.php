@@ -8,6 +8,8 @@ declare(strict_types=1);
 
 namespace PrestaShop\PrestaShop\Core\ExtraProperty\Schema;
 
+use PrestaShop\PrestaShop\Core\ExtraProperty\ExtraPropertySqlIndex;
+
 /**
  * Manages the DDL (Data Definition Language) operations on extra storage tables.
  *
@@ -26,9 +28,9 @@ interface ExtraPropertySchemaManagerInterface
      * @param string $fieldScope Normalized scope: "common", "lang", or "shop"
      * @param string $columnName
      * @param string $sqlColumnDefinition Full SQL column definition fragment (from ColumnDefinitionMapper)
-     * @param string $sqlIndex Index strategy: "none", "key", or "unique"
+     * @param ExtraPropertySqlIndex $sqlIndex Index strategy to apply on the column
      */
-    public function ensureExtraTableAndColumn(string $entityName, string $fieldScope, string $columnName, string $sqlColumnDefinition, string $sqlIndex): void;
+    public function ensureExtraTableAndColumn(string $entityName, string $fieldScope, string $columnName, string $sqlColumnDefinition, ExtraPropertySqlIndex $sqlIndex): void;
 
     /**
      * Drops the custom column from the extra table when table and column exist.

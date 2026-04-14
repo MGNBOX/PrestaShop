@@ -8,6 +8,9 @@ declare(strict_types=1);
 
 namespace PrestaShop\PrestaShop\Core\ExtraProperty\Storage;
 
+use PrestaShop\PrestaShop\Core\Domain\ExtraProperty\QueryResult\ExtraPropertyDefinitionInfo;
+use PrestaShop\PrestaShop\Core\ExtraProperty\ExtraPropertyDefinitionCollection;
+
 /**
  * Reads extra property values for a given entity instance.
  *
@@ -22,7 +25,7 @@ interface ExtraPropertyReaderInterface
      * Format:
      * [
      *     'module_technical_name' => [
-     *         'field_name' => 'value_or_array',
+     *         'property_name' => 'value_or_array',
      *     ],
      * ]
      *
@@ -35,8 +38,7 @@ interface ExtraPropertyReaderInterface
      * @param int|null $langId
      * @param int|null $shopId
      * @param bool $isLangMultishop Whether lang scope is shop-aware
-     * @param bool $displayFrontOnly When true, only definitions with display_front = 1 are returned
-     * @param array<int, array<string, mixed>>|null $preloadedDefinitionRows When set (e.g. from ObjectModel), skips a duplicate repository read; must match getByEntityNameAllScopes() shape
+     * @param ExtraPropertyDefinitionCollection|null $preloadedDefinitions When set (e.g. from ObjectModel), skips a duplicate repository read
      *
      * @return array<string, array<string, mixed>>
      */
@@ -47,8 +49,7 @@ interface ExtraPropertyReaderInterface
         ?int $langId = null,
         ?int $shopId = null,
         bool $isLangMultishop = false,
-        bool $displayFrontOnly = false,
-        ?array $preloadedDefinitionRows = null
+        ?ExtraPropertyDefinitionCollection $preloadedDefinitions = null
     ): array;
 
     /**
@@ -59,7 +60,7 @@ interface ExtraPropertyReaderInterface
      * @param string|null $moduleName Null returns definitions for all modules (including core)
      * @param string|null $fieldScope When provided, filters by scope
      *
-     * @return array<int, array<string, mixed>>
+     * @return list<ExtraPropertyDefinitionInfo>
      */
     public function getDefinitionsByModule(string $entityName, ?string $moduleName, ?string $fieldScope = null): array;
 }

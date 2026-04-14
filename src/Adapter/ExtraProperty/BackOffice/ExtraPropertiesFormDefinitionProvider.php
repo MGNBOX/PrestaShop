@@ -8,59 +8,38 @@ declare(strict_types=1);
 
 namespace PrestaShop\PrestaShop\Adapter\ExtraProperty\BackOffice;
 
-use PrestaShop\PrestaShop\Core\ExtraProperty\Registry\EntityExtraFieldRegistryInterface;
-use PrestaShop\PrestaShop\Core\ExtraProperty\ExtraPropertyNaming;
+use PrestaShop\PrestaShop\Core\ExtraProperty\ExtraPropertyDefinitionCollection;
+use PrestaShop\PrestaShop\Core\ExtraProperty\Repository\ExtraPropertyDefinitionRepositoryInterface;
 
 /**
  * Provides extra field definitions for Back Office Symfony forms.
  *
- * Filters on display_bo=1 and normalizes module_name to '_core'.
+ * Filters on display_form=1 and returns a typed ExtraPropertyDefinitionCollection.
  */
 class ExtraPropertiesFormDefinitionProvider
 {
     public function __construct(
-        protected readonly EntityExtraFieldRegistryInterface $registry,
+        protected readonly ExtraPropertyDefinitionRepositoryInterface $repository,
     ) {
     }
 
-    /**
-     * @return array<int, array<string, mixed>>
-     */
-    public function getDefinitionsForEntity(string $entityName): array
+    public function getDefinitionsForEntity(string $entityName): ExtraPropertyDefinitionCollection
     {
-        $definitions = $this->findDefinitionsWithEntityFallbacks($entityName);
-        if (empty($definitions)) {
-            return [];
-        }
+        $collection = $this->findCollectionWithEntityFallbacks($entityName);
 
-        $result = [];
-        foreach ($definitions as $definition) {
-            if (empty($definition['display_bo'])) {
-                continue;
-            }
-            $definition['module_name'] = !empty($definition['module_name'])
-                ? (string) $definition['module_name']
-                : ExtraPropertyNaming::CORE_MODULE_KEY;
-
-            $result[] = $definition;
-        }
-
-        return $result;
+        return $collection->withDisplayForm();
     }
 
-    /**
-     * @return array<int, array<string, mixed>>
-     */
-    protected function findDefinitionsWithEntityFallbacks(string $entityName): array
+    protected function findCollectionWithEntityFallbacks(string $entityName): ExtraPropertyDefinitionCollection
     {
         foreach ($this->buildEntityNameCandidates($entityName) as $candidate) {
-            $definitions = $this->registry->getByEntityNameAllScopes($candidate);
-            if (!empty($definitions)) {
-                return $definitions;
+            $collection = $this->repository->getDefinitionCollection($candidate);
+            if (!$collection->isEmpty()) {
+                return $collection;
             }
         }
 
-        return [];
+        return ExtraPropertyDefinitionCollection::empty();
     }
 
     /**

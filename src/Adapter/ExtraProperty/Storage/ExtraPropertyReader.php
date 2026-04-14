@@ -9,6 +9,8 @@ declare(strict_types=1);
 namespace PrestaShop\PrestaShop\Adapter\ExtraProperty\Storage;
 
 use Doctrine\DBAL\Connection;
+use PrestaShop\PrestaShop\Core\Domain\ExtraProperty\QueryResult\ExtraPropertyDefinitionInfo;
+use PrestaShop\PrestaShop\Core\ExtraProperty\ExtraPropertyDefinitionCollection;
 use PrestaShop\PrestaShop\Core\ExtraProperty\ExtraPropertyNaming;
 use PrestaShop\PrestaShop\Core\ExtraProperty\ExtraPropertyScope;
 use PrestaShop\PrestaShop\Core\ExtraProperty\ExtraPropertyScopeGrouper;
@@ -41,12 +43,12 @@ class ExtraPropertyReader implements ExtraPropertyReaderInterface
         ?int $langId = null,
         ?int $shopId = null,
         bool $isLangMultishop = false,
-        bool $displayFrontOnly = false,
-        ?array $preloadedDefinitionRows = null
+        ?ExtraPropertyDefinitionCollection $preloadedDefinitions = null
     ): array {
-        $allDefinitions = null !== $preloadedDefinitionRows
-            ? $preloadedDefinitionRows
+        $allDefinitions = null !== $preloadedDefinitions
+            ? $preloadedDefinitions->toArray()
             : $this->repository->getByEntityNameAllScopes($entityName);
+
         if (empty($allDefinitions)) {
             return [];
         }
@@ -68,8 +70,7 @@ class ExtraPropertyReader implements ExtraPropertyReaderInterface
                 $propertiesByModule,
                 $langId,
                 $shopId,
-                $isLangMultishop,
-                $displayFrontOnly
+                $isLangMultishop
             );
         }
 
@@ -83,25 +84,25 @@ class ExtraPropertyReader implements ExtraPropertyReaderInterface
     {
         $allDefinitions = $this->repository->getByEntityNameAllScopes($entityName);
         $normalizedModule = empty($moduleName) ? null : $moduleName;
-        $normalizedScope = $fieldScope;
 
-        $result = [];
-        foreach ($allDefinitions as $definition) {
-            $defModule = !empty($definition['module_name']) ? $definition['module_name'] : null;
-            if ($normalizedModule !== null && $defModule !== $normalizedModule) {
-                continue;
-            }
-            if (null !== $normalizedScope && ($definition['field_scope'] ?? null) !== $normalizedScope) {
-                continue;
-            }
-            $result[] = $definition;
-        }
+        return array_values(array_filter(
+            $allDefinitions,
+            static function (ExtraPropertyDefinitionInfo $definition) use ($normalizedModule, $fieldScope): bool {
+                $defModule = $definition->getModuleName();
+                if (null !== $normalizedModule && $defModule !== $normalizedModule) {
+                    return false;
+                }
+                if (null !== $fieldScope && $definition->getFieldScope() !== $fieldScope) {
+                    return false;
+                }
 
-        return $result;
+                return true;
+            }
+        ));
     }
 
     /**
-     * @param array<int, array<string, mixed>> $definitions
+     * @param list<ExtraPropertyDefinitionInfo> $definitions
      * @param array<string, array<string, mixed>> $propertiesByModule
      */
     protected function hydrateExtraPropertiesScope(
@@ -113,32 +114,27 @@ class ExtraPropertyReader implements ExtraPropertyReaderInterface
         array &$propertiesByModule,
         ?int $langId,
         ?int $shopId,
-        bool $isLangMultishop,
-        bool $displayFrontOnly
+        bool $isLangMultishop
     ): void {
         $extraTableName = ExtraPropertyNaming::extraTableName($entityName, $fieldScope);
 
         $columnToPropertyMap = [];
         foreach ($definitions as $definition) {
-            if ($displayFrontOnly && empty($definition['display_front'])) {
+            $propertyName = $definition->getPropertyName();
+            if ('' === $propertyName) {
                 continue;
             }
 
-            $fieldName = (string) ($definition['field_name'] ?? '');
-            if ('' === $fieldName) {
-                continue;
-            }
-
-            $moduleName = ExtraPropertyNaming::displayModuleKey($definition['module_name'] ?? null);
+            $moduleName = ExtraPropertyNaming::displayModuleKey($definition->getModuleName());
             $propertiesByModule[$moduleName] ??= [];
-            $propertiesByModule[$moduleName][$fieldName] ??= null;
+            $propertiesByModule[$moduleName][$propertyName] ??= null;
 
-            $columnName = (string) ($definition['storage_column_name'] ?? ExtraPropertyNaming::storageColumnName((string) ($definition['module_name'] ?? ''), $fieldName));
+            $columnName = ExtraPropertyNaming::storageColumnName($definition->getModuleName() ?? '', $propertyName);
             if ('' === $columnName) {
                 continue;
             }
 
-            $columnToPropertyMap[$columnName] = ['module_name' => $moduleName, 'field_name' => $fieldName];
+            $columnToPropertyMap[$columnName] = ['module_name' => $moduleName, 'property_name' => $propertyName];
         }
 
         if (empty($columnToPropertyMap) || $entityId <= 0) {
@@ -190,7 +186,7 @@ class ExtraPropertyReader implements ExtraPropertyReaderInterface
             if (!array_key_exists($columnName, $row)) {
                 continue;
             }
-            $propertiesByModule[$propertyPath['module_name']][$propertyPath['field_name']] = $row[$columnName];
+            $propertiesByModule[$propertyPath['module_name']][$propertyPath['property_name']] = $row[$columnName];
         }
     }
 }

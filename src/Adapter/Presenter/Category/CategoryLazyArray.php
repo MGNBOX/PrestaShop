@@ -9,14 +9,12 @@ declare(strict_types=1);
 namespace PrestaShop\PrestaShop\Adapter\Presenter\Category;
 
 use Category;
-use Context;
 use Language;
 use Link;
 use PrestaShop\PrestaShop\Adapter\Image\ImageRetriever;
 use PrestaShop\PrestaShop\Adapter\Presenter\AbstractLazyArray;
 use PrestaShop\PrestaShop\Adapter\Presenter\ExtraPropertiesLazyArray;
 use PrestaShop\PrestaShop\Adapter\Presenter\LazyArrayAttribute;
-use PrestaShop\PrestaShop\Core\ExtraProperty\Storage\ExtraPropertyValueProviderInterface;
 
 class CategoryLazyArray extends AbstractLazyArray
 {
@@ -44,8 +42,7 @@ class CategoryLazyArray extends AbstractLazyArray
         array $category,
         Language $language,
         ImageRetriever $imageRetriever,
-        Link $link,
-        ?ExtraPropertyValueProviderInterface $extraPropertyValueProvider = null
+        Link $link
     ) {
         $this->category = $category;
         $this->language = $language;
@@ -53,9 +50,7 @@ class CategoryLazyArray extends AbstractLazyArray
         $this->link = $link;
         $this->extraPropertiesLazyArray = ExtraPropertiesLazyArray::fromObjectModelClass(
             Category::class,
-            (int) ($this->category['id_category'] ?? $this->category['id'] ?? 0),
-            $extraPropertyValueProvider,
-            Context::getContext()
+            (int) ($this->category['id_category'] ?? $this->category['id'] ?? 0)
         );
 
         parent::__construct();

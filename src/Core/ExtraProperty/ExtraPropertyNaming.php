@@ -18,10 +18,10 @@ namespace PrestaShop\PrestaShop\Core\ExtraProperty;
  *
  * Conventions:
  *  - extra tables  : {entity}_extra / {entity}_extra_lang / {entity}_extra_shop
- *  - storage column: {module_name}_{field_name} (or just {field_name} for core fields)
- *  - form field name: extra_{scope}_{module_name}_{field_name}
- *  - grid column id : extra_{scope}_{module_name}_{field_name}  (same as form field)
- *  - display module key: '_core' for fields without an owning module (module_name = '')
+ *  - storage column: {module_name}_{property_name} (or just {property_name} for core fields)
+ *  - form field name: extra_{scope}_{module_name}_{property_name}
+ *  - grid column id : extra_{scope}_{module_name}_{property_name}  (same as form field)
+ *  - display module key: '_core' for fields without an owning module (module_name IS NULL)
  */
 final class ExtraPropertyNaming
 {
@@ -51,20 +51,20 @@ final class ExtraPropertyNaming
      * Returns the physical SQL storage column name for a given module and field name.
      *
      * Core fields (empty module_name) use the bare field name.
-     * Module fields use '{module_name}_{field_name}'.
+     * Module fields use '{module_name}_{property_name}'.
      *
-     * @param string $moduleName Module technical name, or '' for core fields
-     * @param string $fieldName Field name as declared in the registry
+     * @param string $moduleName Module technical name, or '' for core properties
+     * @param string $propertyName Property name as declared in the registry
      *
      * @return string e.g. 'ps_mymodule_video_link' or 'video_link'
      */
-    public static function storageColumnName(string $moduleName, string $fieldName): string
+    public static function storageColumnName(string $moduleName, string $propertyName): string
     {
-        if ('' === $moduleName) {
-            return $fieldName;
+        if ('' === $moduleName || self::CORE_MODULE_KEY === $moduleName) {
+            return $propertyName;
         }
 
-        return $moduleName . '_' . $fieldName;
+        return $moduleName . '_' . $propertyName;
     }
 
     /**
@@ -75,15 +75,15 @@ final class ExtraPropertyNaming
      *   - submitted value lookups in ExtraPropertiesFormDataPersister
      *   - SELECT aliases in ExtraPropertiesGridQueryBuilderModifier
      *
-     * @param string $moduleName Module technical name, or '_core' / '' for core fields
-     * @param string $fieldName Field name as declared in the registry
+     * @param string $moduleName Module technical name, or '_core' / '' for core properties
+     * @param string $propertyName Property name as declared in the registry
      * @param string $fieldScope 'common' | 'lang' | 'shop'
      *
      * @return string e.g. 'extra_common_ps_mymodule_video_link'
      */
-    public static function formFieldName(string $moduleName, string $fieldName, string $fieldScope): string
+    public static function formFieldName(string $moduleName, string $propertyName, string $fieldScope): string
     {
-        return 'extra_' . $fieldScope . '_' . self::normalizeModuleKey($moduleName) . '_' . $fieldName;
+        return 'extra_' . $fieldScope . '_' . self::normalizeModuleKey($moduleName) . '_' . $propertyName;
     }
 
     /**

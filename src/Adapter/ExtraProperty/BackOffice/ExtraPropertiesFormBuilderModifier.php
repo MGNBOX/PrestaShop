@@ -11,6 +11,7 @@ namespace PrestaShop\PrestaShop\Adapter\ExtraProperty\BackOffice;
 use DateTimeImmutable;
 use DateTimeInterface;
 use Exception;
+use PrestaShop\PrestaShop\Core\Domain\ExtraProperty\QueryResult\ExtraPropertyDefinitionInfo;
 use PrestaShop\PrestaShop\Core\ExtraProperty\ExtraPropertyNaming;
 use PrestaShopBundle\Form\Admin\Type\NavigationTabType;
 use PrestaShopBundle\Form\Admin\Type\TranslatableType;
@@ -30,7 +31,7 @@ use Validate;
  * Adds extra properties fields into an identifiable object form builder.
  *
  * Placement:
- * - if registry property_path is empty => under a fallback container 'extra_properties'
+ * - if registry form_position is empty => under a fallback container 'extra_properties'
  * - else => within the existing sub-form path when possible (dot-separated), otherwise created as nested FormType nodes.
  *
  * Data mapping:
@@ -56,7 +57,7 @@ class ExtraPropertiesFormBuilderModifier
     public function apply(FormBuilderInterface $formBuilder, string $entityName, ?int $entityId, int $shopId): void
     {
         $definitions = $this->definitionProvider->getDefinitionsForEntity($entityName);
-        if (empty($definitions)) {
+        if ($definitions->isEmpty()) {
             return;
         }
 
@@ -66,20 +67,20 @@ class ExtraPropertiesFormBuilderModifier
         }
 
         foreach ($definitions as $definition) {
-            $fieldName = (string) ($definition['field_name'] ?? '');
+            $fieldName = $definition->getPropertyName();
             if ('' === $fieldName) {
                 continue;
             }
 
-            $moduleName = ExtraPropertyNaming::displayModuleKey($definition['module_name'] ?? null);
-            $scope = (string) ($definition['field_scope'] ?? 'common');
+            $moduleName = ExtraPropertyNaming::displayModuleKey($definition->getModuleName());
+            $scope = $definition->getFieldScope();
 
-            $targetPath = trim((string) ($definition['property_path'] ?? ''));
+            $targetPath = trim($definition->getFormPosition() ?? '');
             if ('' === $targetPath) {
                 // On forms with tabs (e.g. product), group all extra fields in one dedicated sub-section.
                 // On simple forms (e.g. category), place fields at root level.
-                $targetPath = ($formBuilder->has(static::DEFAULT_FALLBACK_TAB) || $this->isNavigationTabForm($formBuilder))
-                    ? static::DEFAULT_FALLBACK_TAB . '.' . static::FALLBACK_FORM_SECTION
+                $targetPath = ($formBuilder->has(self::DEFAULT_FALLBACK_TAB) || $this->isNavigationTabForm($formBuilder))
+                    ? self::DEFAULT_FALLBACK_TAB . '.' . self::FALLBACK_FORM_SECTION
                     : '';
             }
 
@@ -93,18 +94,16 @@ class ExtraPropertiesFormBuilderModifier
             [$type, $typeOptions] = $this->resolveFieldTypeAndOptions($definition);
 
             $typeOptions['mapped'] = false;
-            $typeOptions['required'] = false;
+            $typeOptions['required'] = $definition->isFormRequired();
             $defaultLabel = ucfirst(str_replace('_', ' ', $fieldName));
             $typeOptions['label'] = $this->translateLabel(
-                $definition,
-                'title_wording',
-                'title_domain',
+                $definition->getTitleWording(),
+                $definition->getTitleDomain(),
                 $defaultLabel
             );
             $typeOptions['help'] = $this->translateLabel(
-                $definition,
-                'description_wording',
-                'description_domain',
+                $definition->getDescriptionWording(),
+                $definition->getDescriptionDomain(),
                 null
             );
 
@@ -120,11 +119,12 @@ class ExtraPropertiesFormBuilderModifier
     /**
      * @return array{0: class-string<FormTypeInterface>, 1: array<string, mixed>}
      */
-    protected function resolveFieldTypeAndOptions(array $definition): array
+    protected function resolveFieldTypeAndOptions(ExtraPropertyDefinitionInfo $definition): array
     {
-        $scope = (string) ($definition['field_scope'] ?? 'common');
-        $declaredType = !empty($definition['symfony_field_type']) ? (string) $definition['symfony_field_type'] : null;
-        $validator = !empty($definition['validator']) ? (string) $definition['validator'] : null;
+        $scope = $definition->getFieldScope();
+        $declaredType = $definition->getFormFieldType();
+        $validator = $definition->getValidator();
+        $extraOptions = $definition->getFormOptions() ?? [];
 
         $baseType = (null !== $declaredType && class_exists($declaredType)) ? $declaredType : TextType::class;
 
@@ -146,13 +146,6 @@ class ExtraPropertiesFormBuilderModifier
                     if ($value instanceof DateTimeInterface) {
                         $value = $value->format('Y-m-d H:i:s');
                     }
-                    /*
-                    TODO: check if we need to add some more conversions here, for non scalar values returned by forms.
-                    elseif (is_bool($value)) {
-                        // Validate methods frequently expect scalar strings, and Validate::isBool() supports '0'/'1'.
-                        $value = $value ? '1' : '0';
-                    }
-                    */
 
                     if (!call_user_func([Validate::class, $validator], $value)) {
                         $context->addViolation($message);
@@ -163,23 +156,26 @@ class ExtraPropertiesFormBuilderModifier
 
         if ('lang' === $scope) {
             // In BO, use TranslatableType (keys are id_lang) for lang-scoped fields.
+            // $extraOptions are merged into the inner type options so they are forwarded to each language widget.
             return [
                 TranslatableType::class,
                 [
                     'type' => $baseType,
-                    'options' => [
-                        'required' => false,
+                    'options' => array_merge($extraOptions, [
+                        'required' => $definition->isFormRequired(),
                         'constraints' => null !== $fieldConstraint ? [$fieldConstraint] : [],
-                    ],
+                    ]),
                 ],
             ];
         }
 
+        // $extraOptions are merged last so developer-supplied values can override defaults.
         return [
             $baseType,
-            [
-                'constraints' => null !== $fieldConstraint ? [$fieldConstraint] : [],
-            ],
+            array_merge(
+                ['constraints' => null !== $fieldConstraint ? [$fieldConstraint] : []],
+                $extraOptions
+            ),
         ];
     }
 
@@ -204,10 +200,10 @@ class ExtraPropertiesFormBuilderModifier
      *
      * @return mixed
      */
-    protected function normalizeExistingValueForType(array $definition, string $resolvedType, $value)
+    protected function normalizeExistingValueForType(ExtraPropertyDefinitionInfo $definition, string $resolvedType, $value)
     {
-        $scope = (string) ($definition['field_scope'] ?? 'common');
-        $declaredType = !empty($definition['symfony_field_type']) ? (string) $definition['symfony_field_type'] : null;
+        $scope = $definition->getFieldScope();
+        $declaredType = $definition->getFormFieldType();
 
         if ('lang' === $scope) {
             // TranslatableType expects an array keyed by id_lang
@@ -279,7 +275,7 @@ class ExtraPropertiesFormBuilderModifier
             }
 
             $isRoot = 0 === $i;
-            $isExtraFieldsTab = $isRoot && static::DEFAULT_FALLBACK_TAB === $segment;
+            $isExtraFieldsTab = $isRoot && self::DEFAULT_FALLBACK_TAB === $segment;
 
             // Create a container node when missing.
             $builder->add($segment, FormType::class, [
@@ -317,32 +313,14 @@ class ExtraPropertiesFormBuilderModifier
     }
 
     /**
-     * @param array<string, mixed> $definition
-     * @param string $wordingKey
-     * @param string $domainKey
-     * @param string|null $default
-     *
-     * Runtime translation path for BO forms:
-     * - reads wording/domain pairs from extra_property_definition
-     * - translates with Symfony translator in the current BO language
-     * - falls back to $default when wording is missing
-     * - falls back to Admin.Global when domain is missing
-     *
-     * @return string|null
+     * Translates a wording/domain pair from a definition, falling back to $default.
      */
-    protected function translateLabel(array $definition, string $wordingKey, string $domainKey, ?string $default): ?string
+    protected function translateLabel(?string $wording, ?string $domain, ?string $default): ?string
     {
-        $wording = isset($definition[$wordingKey]) && is_scalar($definition[$wordingKey])
-            ? trim((string) $definition[$wordingKey])
-            : '';
-        if ('' === $wording) {
+        if (null === $wording || '' === trim($wording)) {
             return $default;
         }
 
-        $domain = isset($definition[$domainKey]) && is_scalar($definition[$domainKey])
-            ? trim((string) $definition[$domainKey])
-            : 'Admin.Global';
-
-        return $this->translator->trans($wording, [], $domain);
+        return $this->translator->trans($wording, [], $domain ?? 'Admin.Global');
     }
 }

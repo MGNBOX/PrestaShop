@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 namespace PrestaShop\PrestaShop\Adapter\ExtraProperty\Grid;
 
+use PrestaShop\PrestaShop\Core\Domain\ExtraProperty\QueryResult\ExtraPropertyDefinitionInfo;
 use PrestaShop\PrestaShop\Core\ExtraProperty\ExtraPropertyNaming;
 use PrestaShop\PrestaShop\Core\Grid\Column\ColumnCollectionInterface;
 use PrestaShop\PrestaShop\Core\Grid\Column\ColumnInterface;
@@ -18,7 +19,6 @@ use PrestaShop\PrestaShop\Core\Grid\Exception\ColumnNotFoundException;
 use PrestaShop\PrestaShop\Core\Grid\Filter\Filter;
 use PrestaShopBundle\Form\Admin\Type\YesAndNoChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
-use Symfony\Component\Form\Extension\Core\Type\DateTimeType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
@@ -40,7 +40,7 @@ class ExtraPropertiesGridDefinitionModifier
     public function apply(GridDefinition $definition, string $gridId): void
     {
         $definitions = $this->definitionProvider->getDefinitionsForGrid($gridId);
-        if (empty($definitions)) {
+        if ($definitions->isEmpty()) {
             return;
         }
 
@@ -48,29 +48,29 @@ class ExtraPropertiesGridDefinitionModifier
         $filters = $definition->getFilters();
 
         foreach ($definitions as $extraDefinition) {
-            $fieldName = (string) ($extraDefinition['field_name'] ?? '');
+            $fieldName = $extraDefinition->getPropertyName();
             if ('' === $fieldName) {
                 continue;
             }
 
-            $moduleName = ExtraPropertyNaming::displayModuleKey($extraDefinition['module_name'] ?? null);
-            $scope = (string) ($extraDefinition['field_scope'] ?? 'common');
+            $moduleName = ExtraPropertyNaming::displayModuleKey($extraDefinition->getModuleName());
+            $scope = $extraDefinition->getFieldScope();
 
             $columnId = ExtraPropertyNaming::formFieldName($moduleName, $fieldName, $scope);
             if ($this->hasColumnId($columns, $columnId)) {
                 continue;
             }
 
+            $defaultLabel = $this->translator->trans(ucfirst(str_replace('_', ' ', $fieldName)), [], 'Admin.Global');
             $label = $this->translateLabel(
-                $extraDefinition,
-                'title_wording',
-                'title_domain',
-                $this->translator->trans(ucfirst(str_replace('_', ' ', $fieldName)), [], 'Admin.Global')
+                $extraDefinition->getTitleWording(),
+                $extraDefinition->getTitleDomain(),
+                $defaultLabel
             );
 
             $column = $this->buildColumn($gridId, $columnId, $label, $extraDefinition);
 
-            $positionRef = trim((string) ($extraDefinition['grid_position'] ?? ''));
+            $positionRef = trim($extraDefinition->getGridPosition() ?? '');
             if ('' !== $positionRef) {
                 try {
                     $columns->addAfter($positionRef, $column);
@@ -90,17 +90,17 @@ class ExtraPropertiesGridDefinitionModifier
         }
     }
 
-    protected function buildColumn(string $gridId, string $columnId, string $label, array $definition): ColumnInterface
+    protected function buildColumn(string $gridId, string $columnId, string $label, ExtraPropertyDefinitionInfo $definition): ColumnInterface
     {
-        $declaredType = !empty($definition['symfony_field_type']) ? (string) $definition['symfony_field_type'] : null;
-        $scope = (string) ($definition['field_scope'] ?? 'common');
-        $moduleName = ExtraPropertyNaming::displayModuleKey($definition['module_name'] ?? null);
-        $fieldName = (string) ($definition['field_name'] ?? '');
+        $declaredType = $definition->getFormFieldType();
+        $scope = $definition->getFieldScope();
+        $moduleName = ExtraPropertyNaming::displayModuleKey($definition->getModuleName());
+        $fieldName = $definition->getPropertyName();
 
         if (CheckboxType::class === $declaredType && '' !== $fieldName) {
             $primaryField = 'id_' . $gridId;
             $legacyController = $this->guessLegacyController($gridId);
-            $entityName = (string) ($definition['entity_name'] ?? $gridId);
+            $entityName = $definition->getEntityName();
 
             return (new ToggleColumn($columnId))
                 ->setName($label)
@@ -112,7 +112,7 @@ class ExtraPropertiesGridDefinitionModifier
                     'extra_route_params' => [
                         'entityName' => $entityName,
                         'moduleName' => $moduleName,
-                        'fieldName' => $fieldName,
+                        'propertyName' => $fieldName,
                         'scope' => $scope,
                         'shopId' => 'id_shop_default',
                         '_legacy_controller' => $legacyController,
@@ -120,7 +120,7 @@ class ExtraPropertiesGridDefinitionModifier
                 ]);
         }
 
-        if (DateTimeType::class === $declaredType) {
+        if (\Symfony\Component\Form\Extension\Core\Type\DateTimeType::class === $declaredType) {
             return (new DateTimeColumn($columnId))
                 ->setName($label)
                 ->setOptions([
@@ -147,10 +147,9 @@ class ExtraPropertiesGridDefinitionModifier
     /**
      * @return array{0: class-string, 1: array<string, mixed>}
      */
-    protected function resolveFilterTypeAndOptions(array $definition): array
+    protected function resolveFilterTypeAndOptions(ExtraPropertyDefinitionInfo $definition): array
     {
-        $declaredType = !empty($definition['symfony_field_type']) ? (string) $definition['symfony_field_type'] : null;
-        if (CheckboxType::class === $declaredType) {
+        if (CheckboxType::class === $definition->getFormFieldType()) {
             return [YesAndNoChoiceType::class, ['required' => false]];
         }
 
@@ -180,30 +179,14 @@ class ExtraPropertiesGridDefinitionModifier
     }
 
     /**
-     * @param array<string, mixed> $definition
-     * @param string $wordingKey
-     * @param string $domainKey
-     * @param string $default
-     *
-     * Runtime translation path for BO grids:
-     * - reads wording/domain pairs from extra_property_definition
-     * - translates with Symfony translator in the current BO language
-     * - falls back to $default when wording is missing
-     * - falls back to Admin.Global when domain is missing
+     * Translates a wording/domain pair from a definition, falling back to $default.
      */
-    protected function translateLabel(array $definition, string $wordingKey, string $domainKey, string $default): string
+    protected function translateLabel(?string $wording, ?string $domain, string $default): string
     {
-        $wording = isset($definition[$wordingKey]) && is_scalar($definition[$wordingKey])
-            ? trim((string) $definition[$wordingKey])
-            : '';
-        if ('' === $wording) {
+        if (null === $wording || '' === trim($wording)) {
             return $default;
         }
 
-        $domain = isset($definition[$domainKey]) && is_scalar($definition[$domainKey])
-            ? trim((string) $definition[$domainKey])
-            : 'Admin.Global';
-
-        return $this->translator->trans($wording, [], $domain);
+        return $this->translator->trans($wording, [], $domain ?? 'Admin.Global');
     }
 }

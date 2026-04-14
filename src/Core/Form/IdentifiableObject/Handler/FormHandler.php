@@ -40,7 +40,7 @@ final class FormHandler implements FormHandlerInterface
     private $isDemoModeEnabled;
 
     /**
-     * @var ExtraPropertiesFormDataPersister|null
+     * @var ExtraPropertiesFormDataPersister
      */
     private $extraPropertiesFormDataPersister;
 
@@ -49,14 +49,14 @@ final class FormHandler implements FormHandlerInterface
      * @param HookDispatcherInterface $hookDispatcher
      * @param TranslatorInterface $translator
      * @param bool $isDemoModeEnabled
-     * @param ExtraPropertiesFormDataPersister|null $extraPropertiesFormDataPersister
+     * @param ExtraPropertiesFormDataPersister $extraPropertiesFormDataPersister
      */
     public function __construct(
         FormDataHandlerInterface $dataHandler,
         HookDispatcherInterface $hookDispatcher,
         TranslatorInterface $translator,
         $isDemoModeEnabled,
-        ?ExtraPropertiesFormDataPersister $extraPropertiesFormDataPersister = null
+        ExtraPropertiesFormDataPersister $extraPropertiesFormDataPersister
     ) {
         $this->dataHandler = $dataHandler;
         $this->hookDispatcher = $hookDispatcher;
@@ -131,17 +131,15 @@ final class FormHandler implements FormHandlerInterface
 
         $newId = $this->dataHandler->update($id, $data);
 
-        if (null !== $this->extraPropertiesFormDataPersister) {
-            $shopId = $form->getConfig()->hasOption('shop_id')
-                ? (int) $form->getConfig()->getOption('shop_id')
-                : (int) ($data['shop_id'] ?? 1);
-            $this->extraPropertiesFormDataPersister->persist(
-                $form,
-                $this->getExtraPropertyEntityName($form),
-                (int) ($newId ?? $id),
-                $shopId
-            );
-        }
+        $shopId = $form->getConfig()->hasOption('shop_id')
+            ? (int) $form->getConfig()->getOption('shop_id')
+            : (int) ($data['shop_id'] ?? 1);
+        $this->extraPropertiesFormDataPersister->persist(
+            $form,
+            $this->getExtraPropertyEntityName($form),
+            (int) ($newId ?? $id),
+            $shopId
+        );
 
         $this->hookDispatcher->dispatchWithParameters('actionAfterUpdate' . Container::camelize($form->getName()) . 'FormHandler', [
             'id' => $id,
@@ -168,17 +166,15 @@ final class FormHandler implements FormHandlerInterface
 
         $id = $this->dataHandler->create($data);
 
-        if (null !== $this->extraPropertiesFormDataPersister) {
-            $shopId = $form->getConfig()->hasOption('shop_id')
-                ? (int) $form->getConfig()->getOption('shop_id')
-                : (int) ($data['shop_id'] ?? 1);
-            $this->extraPropertiesFormDataPersister->persist(
-                $form,
-                $this->getExtraPropertyEntityName($form),
-                (int) $id,
-                $shopId
-            );
-        }
+        $shopId = $form->getConfig()->hasOption('shop_id')
+            ? (int) $form->getConfig()->getOption('shop_id')
+            : (int) ($data['shop_id'] ?? 1);
+        $this->extraPropertiesFormDataPersister->persist(
+            $form,
+            $this->getExtraPropertyEntityName($form),
+            (int) $id,
+            $shopId
+        );
 
         $this->hookDispatcher->dispatchWithParameters('actionAfterCreate' . Container::camelize($form->getName()) . 'FormHandler', [
             'id' => $id,

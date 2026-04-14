@@ -7,60 +7,38 @@ declare(strict_types=1);
 
 namespace PrestaShop\PrestaShop\Adapter\ExtraProperty\Grid;
 
-use PrestaShop\PrestaShop\Core\ExtraProperty\Registry\EntityExtraFieldRegistryInterface;
-use PrestaShop\PrestaShop\Core\ExtraProperty\ExtraPropertyNaming;
+use PrestaShop\PrestaShop\Core\ExtraProperty\ExtraPropertyDefinitionCollection;
+use PrestaShop\PrestaShop\Core\ExtraProperty\Repository\ExtraPropertyDefinitionRepositoryInterface;
 
 /**
  * Provides extra field definitions for Back Office Symfony grids.
  *
- * Filters on display_grid=1 and normalizes module_name to '_core'.
+ * Filters on display_grid=1 and returns a typed ExtraPropertyDefinitionCollection.
  */
 class ExtraPropertiesGridDefinitionProvider
 {
     public function __construct(
-        protected readonly EntityExtraFieldRegistryInterface $registry,
+        protected readonly ExtraPropertyDefinitionRepositoryInterface $repository,
     ) {
     }
 
-    /**
-     * @return array<int, array<string, mixed>>
-     */
-    public function getDefinitionsForGrid(string $gridId): array
+    public function getDefinitionsForGrid(string $gridId): ExtraPropertyDefinitionCollection
     {
-        $definitions = $this->findDefinitionsWithGridFallbacks($gridId);
-        if (empty($definitions)) {
-            return [];
-        }
+        $collection = $this->findCollectionWithGridFallbacks($gridId);
 
-        $result = [];
-        foreach ($definitions as $definition) {
-            if (empty($definition['display_grid'])) {
-                continue;
-            }
-
-            $definition['module_name'] = !empty($definition['module_name'])
-                ? (string) $definition['module_name']
-                : ExtraPropertyNaming::CORE_MODULE_KEY;
-
-            $result[] = $definition;
-        }
-
-        return $result;
+        return $collection->withDisplayGrid();
     }
 
-    /**
-     * @return array<int, array<string, mixed>>
-     */
-    protected function findDefinitionsWithGridFallbacks(string $gridId): array
+    protected function findCollectionWithGridFallbacks(string $gridId): ExtraPropertyDefinitionCollection
     {
         foreach ($this->buildGridIdCandidates($gridId) as $candidate) {
-            $definitions = $this->registry->getByEntityNameAllScopes($candidate);
-            if (!empty($definitions)) {
-                return $definitions;
+            $collection = $this->repository->getDefinitionCollection($candidate);
+            if (!$collection->isEmpty()) {
+                return $collection;
             }
         }
 
-        return [];
+        return ExtraPropertyDefinitionCollection::empty();
     }
 
     /**

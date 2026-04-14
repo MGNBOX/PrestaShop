@@ -8,15 +8,17 @@ declare(strict_types=1);
 
 namespace PrestaShop\PrestaShop\Core\ExtraProperty;
 
+use PrestaShop\PrestaShop\Core\Domain\ExtraProperty\QueryResult\ExtraPropertyDefinitionInfo;
+
 /**
  * Groups extra property definitions by scope using enum values as source of truth.
  */
 final class ExtraPropertyScopeGrouper
 {
     /**
-     * @param array<int, array<string, mixed>> $definitions
+     * @param list<ExtraPropertyDefinitionInfo> $definitions
      *
-     * @return array<string, array<int, array<string, mixed>>>
+     * @return array<string, list<ExtraPropertyDefinitionInfo>>
      */
     public static function groupDefinitionsByScope(array $definitions): array
     {
@@ -26,7 +28,7 @@ final class ExtraPropertyScopeGrouper
         }
 
         foreach ($definitions as $definition) {
-            $fieldScope = (string) ($definition['field_scope'] ?? '');
+            $fieldScope = $definition->getFieldScope();
             if (!array_key_exists($fieldScope, $definitionsByScope)) {
                 continue;
             }

@@ -6,14 +6,12 @@
 
 namespace PrestaShop\PrestaShop\Adapter\Presenter\Supplier;
 
-use Context;
 use Language;
 use Link;
 use PrestaShop\PrestaShop\Adapter\Image\ImageRetriever;
 use PrestaShop\PrestaShop\Adapter\Presenter\AbstractLazyArray;
 use PrestaShop\PrestaShop\Adapter\Presenter\ExtraPropertiesLazyArray;
 use PrestaShop\PrestaShop\Adapter\Presenter\LazyArrayAttribute;
-use PrestaShop\PrestaShop\Core\ExtraProperty\Storage\ExtraPropertyValueProviderInterface;
 use Supplier;
 
 class SupplierLazyArray extends AbstractLazyArray
@@ -42,8 +40,7 @@ class SupplierLazyArray extends AbstractLazyArray
         array $supplier,
         Language $language,
         ImageRetriever $imageRetriever,
-        Link $link,
-        ?ExtraPropertyValueProviderInterface $extraPropertyValueProvider = null
+        Link $link
     ) {
         $this->supplier = $supplier;
         $this->language = $language;
@@ -51,9 +48,7 @@ class SupplierLazyArray extends AbstractLazyArray
         $this->link = $link;
         $this->extraPropertiesLazyArray = ExtraPropertiesLazyArray::fromObjectModelClass(
             Supplier::class,
-            (int) ($this->supplier['id_supplier'] ?? $this->supplier['id'] ?? 0),
-            $extraPropertyValueProvider,
-            Context::getContext()
+            (int) ($this->supplier['id_supplier'] ?? $this->supplier['id'] ?? 0)
         );
 
         parent::__construct();

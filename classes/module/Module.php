@@ -13,9 +13,9 @@ use PrestaShop\PrestaShop\Adapter\Module\Repository\ModuleRepository;
 use PrestaShop\PrestaShop\Adapter\ServiceLocator;
 use PrestaShop\PrestaShop\Core\Context\LegacyControllerContext;
 use PrestaShop\PrestaShop\Core\Exception\ContainerNotFoundException;
-use PrestaShop\PrestaShop\Core\ExtraProperty\Registry\EntityExtraFieldRegistryInterface;
 use PrestaShop\PrestaShop\Core\ExtraProperty\ExtraPropertyOptions;
 use PrestaShop\PrestaShop\Core\ExtraProperty\ExtraPropertyScope;
+use PrestaShop\PrestaShop\Core\ExtraProperty\Registry\ExtraPropertyRegistryInterface;
 use PrestaShop\PrestaShop\Core\Foundation\Filesystem\FileSystem;
 use PrestaShop\PrestaShop\Core\Module\Legacy\ModuleInterface;
 use PrestaShop\PrestaShop\Core\Module\ModuleOverrideChecker;
@@ -1231,69 +1231,51 @@ abstract class ModuleCore implements ModuleInterface
     /**
      * Register or update an extra property definition for an entity.
      *
-     * Accepts either an ExtraPropertyOptions value object (preferred) or a legacy raw options array.
-     * When an array is passed it is normalized internally via ExtraPropertyOptions::fromArray().
+     * The module name is automatically filled in from $this->name when $options->moduleName is null.
+     * Use ExtraPropertyOptions to configure the field type, scope, labels, display flags, etc.
      *
-     * @param string $entityName
-     * @param string $fieldName
-     * @param ExtraPropertyOptions|array<string, mixed> $options
-     *                                                           Use ExtraPropertyOptions for full type safety; see its constructor for all supported options.
-     *                                                           Legacy array keys: type, enumValues, defaultValue, nullable, module_name, field_scope|scope,
-     *                                                           title_wording, title_domain, description_wording, description_domain,
-     *                                                           sql_index, symfony_field_type, validator,
-     *                                                           display_front, display_api, display_bo, display_grid, property_path, grid_position.
-     *                                                           Labels are stored as wording/domain pairs and translated at runtime in BO.
-     *                                                           For strings to appear in BO translation pages, modules must also expose the same
-     *                                                           wording/domain pairs through explicit $this->trans() usages + module XLF catalogs.
+     * About BO label translations: store wording/domain pairs in the options, and also call
+     * $this->trans() in the module code so strings are discoverable by the BO translation UI.
+     *
+     * @param string $entityName Entity table name (e.g. "product", "customer")
+     * @param string $propertyName Property name within the module (e.g. "video_link")
+     * @param ExtraPropertyOptions $options Typed configuration for the property
      *
      * @return bool
      */
-    public function registerExtraProperty(string $entityName, string $fieldName, ExtraPropertyOptions|array $options = []): bool
+    public function registerExtraProperty(string $entityName, string $propertyName, ?ExtraPropertyOptions $options = null): bool
     {
-        $moduleName = !empty($this->name) ? $this->name : null;
+        $options ??= new ExtraPropertyOptions();
 
-        /** @var EntityExtraFieldRegistryInterface $entityCustomFieldRegistry */
-        $entityCustomFieldRegistry = $this->get(EntityExtraFieldRegistryInterface::class);
+        // Inject the calling module's name when the developer did not explicitly override it.
+        if (null === $options->moduleName && !empty($this->name)) {
+            $options = $options->withModuleName($this->name);
+        }
 
-        $normalizedOptions = $options instanceof ExtraPropertyOptions ? $options->toArray() : $options;
+        /** @var ExtraPropertyRegistryInterface $entityCustomFieldRegistry */
+        $entityCustomFieldRegistry = $this->get(ExtraPropertyRegistryInterface::class);
 
-        return $entityCustomFieldRegistry->register($entityName, $fieldName, $moduleName, $normalizedOptions);
+        return $entityCustomFieldRegistry->register($entityName, $propertyName, $options);
     }
 
     /**
-     * Unregister an extra field definition from the registry table.
+     * Unregister an extra property definition from the registry table.
      *
-     * @param string $entityName
-     * @param string $fieldName
-     * @param ExtraPropertyScope|string $fieldScope Target field scope
-     * @param bool $dropColumn If true, drop the SQL column from *_extra table too
+     * @param string $entityName Entity table name (e.g. "product")
+     * @param string $propertyName Property name within the module (without the module prefix)
+     * @param ExtraPropertyScope $fieldScope Scope of the property to unregister
+     * @param bool $dropColumn If true, also DROP the SQL column from the *_extra table
      *
      * @return bool
      */
-    public function unregisterExtraProperty(string $entityName, string $fieldName, ExtraPropertyScope|string $fieldScope = 'common', bool $dropColumn = false): bool
+    public function unregisterExtraProperty(string $entityName, string $propertyName, ExtraPropertyScope $fieldScope = ExtraPropertyScope::Common, bool $dropColumn = false): bool
     {
         $moduleName = !empty($this->name) ? $this->name : null;
 
-        /** @var EntityExtraFieldRegistryInterface $entityCustomFieldRegistry */
-        $entityCustomFieldRegistry = $this->get(EntityExtraFieldRegistryInterface::class);
+        /** @var ExtraPropertyRegistryInterface $entityCustomFieldRegistry */
+        $entityCustomFieldRegistry = $this->get(ExtraPropertyRegistryInterface::class);
 
-        return $entityCustomFieldRegistry->unregister($entityName, $fieldName, $moduleName, $fieldScope, $dropColumn);
-    }
-
-    /**
-     * Unregister an extra property definition by its registry identifier.
-     *
-     * @param int $idExtraPropertyDefinition
-     * @param bool $dropColumn If true, drop the SQL column from *_extra table too
-     *
-     * @return bool
-     */
-    public function unregisterExtraPropertyById(int $idExtraPropertyDefinition, bool $dropColumn = false): bool
-    {
-        /** @var EntityExtraFieldRegistryInterface $entityCustomFieldRegistry */
-        $entityCustomFieldRegistry = $this->get(EntityExtraFieldRegistryInterface::class);
-
-        return $entityCustomFieldRegistry->unregisterById($idExtraPropertyDefinition, $dropColumn);
+        return $entityCustomFieldRegistry->unregister($entityName, $propertyName, $moduleName, $fieldScope, $dropColumn);
     }
 
     /**

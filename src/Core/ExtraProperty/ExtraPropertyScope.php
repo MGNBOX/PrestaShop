@@ -11,7 +11,7 @@ namespace PrestaShop\PrestaShop\Core\ExtraProperty;
 /**
  * Storage scope for extra property fields.
  *
- * String values match the field_scope ENUM column in extra_property_definition for DB compatibility.
+ * String values match the scope ENUM column in extra_property_definition for DB compatibility.
  * Case names follow PrestaShop's PR convention (Common = entity-level, Lang = per-language, Shop = per-shop).
  */
 enum ExtraPropertyScope: string

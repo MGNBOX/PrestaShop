@@ -14,7 +14,6 @@ use PrestaShop\PrestaShop\Adapter\HookManager;
 use PrestaShop\PrestaShop\Adapter\Image\ImageRetriever;
 use PrestaShop\PrestaShop\Adapter\Product\PriceFormatter;
 use PrestaShop\PrestaShop\Adapter\Product\ProductColorsRetriever;
-use PrestaShop\PrestaShop\Core\ExtraProperty\Storage\ExtraPropertyValueProviderInterface;
 use PrestaShop\PrestaShop\Core\Product\ProductPresentationSettings;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
@@ -55,11 +54,6 @@ class ProductPresenter
      */
     protected $translator;
 
-    /**
-     * @var ExtraPropertyValueProviderInterface|null
-     */
-    protected $extraPropertyValueProvider;
-
     public function __construct(
         ImageRetriever $imageRetriever,
         Link $link,
@@ -67,8 +61,7 @@ class ProductPresenter
         ProductColorsRetriever $productColorsRetriever,
         TranslatorInterface $translator,
         ?HookManager $hookManager = null,
-        ?Configuration $configuration = null,
-        ?ExtraPropertyValueProviderInterface $extraPropertyValueProvider = null
+        ?Configuration $configuration = null
     ) {
         $this->imageRetriever = $imageRetriever;
         $this->link = $link;
@@ -77,7 +70,6 @@ class ProductPresenter
         $this->translator = $translator;
         $this->hookManager = $hookManager ?? new HookManager();
         $this->configuration = $configuration ?? new Configuration();
-        $this->extraPropertyValueProvider = $extraPropertyValueProvider;
     }
 
     public function present(
@@ -95,8 +87,7 @@ class ProductPresenter
             $this->productColorsRetriever,
             $this->translator,
             $this->hookManager,
-            $this->configuration,
-            $this->extraPropertyValueProvider
+            $this->configuration
         );
 
         Hook::exec('actionPresentProduct',

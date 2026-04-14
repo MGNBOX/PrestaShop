@@ -14,8 +14,9 @@ use PrestaShop\PrestaShop\Core\Context\ShopContext;
 use PrestaShop\PrestaShop\Core\Domain\ExtraProperty\Command\UpdateExtraPropertyValuesCommand;
 use PrestaShop\PrestaShop\Core\Domain\ExtraProperty\Query\GetExtraPropertyValues;
 use PrestaShop\PrestaShop\Core\Domain\ExtraProperty\QueryResult\ExtraPropertyValuesResult;
+use PrestaShop\PrestaShop\Core\Domain\ExtraProperty\QueryResult\ExtraPropertyDefinitionInfo;
 use PrestaShop\PrestaShop\Core\ExtraProperty\ExtraPropertyNaming;
-use PrestaShop\PrestaShop\Core\ExtraProperty\Registry\EntityExtraFieldRegistryInterface;
+use PrestaShop\PrestaShop\Core\ExtraProperty\Repository\ExtraPropertyDefinitionRepositoryInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Validator\ConstraintViolation;
 use Symfony\Component\Validator\ConstraintViolationList;
@@ -42,7 +43,7 @@ class ExtraPropertiesApiService
 {
     /**
      * Request attribute key used to store pending extra properties during a write operation.
-     * Structure: ['entity_table' => ['module_name' => ['field_name' => value|locale-array|shop-array]]]
+     * Structure: ['entity_table' => ['module_name' => ['property_name' => value|locale-array|shop-array]]]
      */
     public const PENDING_REQUEST_ATTRIBUTE = '_ps_extra_properties_pending';
 
@@ -70,8 +71,18 @@ class ExtraPropertiesApiService
      */
     private ?array $langLocaleCache = null;
 
+    /**
+     * Request-lifetime cache for the list of API-exposed lang-scoped fields, grouped by module.
+     *
+     * Keyed by entity table name (e.g. 'product') to avoid recomputing it for each normalized item
+     * in collection/bulk operations.
+     *
+     * @var array<string, array<string, array<string, true>>>
+     */
+    private array $langScopedFieldsByEntityTableCache = [];
+
     public function __construct(
-        protected readonly EntityExtraFieldRegistryInterface $registry,
+        protected readonly ExtraPropertyDefinitionRepositoryInterface $repository,
         protected readonly Connection $connection,
         protected readonly string $dbPrefix,
         protected readonly RequestStack $requestStack,
@@ -115,8 +126,8 @@ class ExtraPropertiesApiService
         // PascalCase → snake_case: "CustomerAddress" → "customer_address"
         $entityTable = strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', $shortName));
 
-        // Validate: the registry must have at least one definition for this entity
-        if (empty($this->registry->getByEntityNameAllScopes($entityTable))) {
+        // Validate: the repository must have at least one definition for this entity
+        if (empty($this->repository->getByEntityNameAllScopes($entityTable))) {
             return null;
         }
 
@@ -180,24 +191,24 @@ class ExtraPropertiesApiService
     {
         $violations = new ConstraintViolationList();
 
-        $allDefinitions = $this->registry->getByEntityNameAllScopes($entityTable);
+        $allDefinitions = $this->repository->getByEntityNameAllScopes($entityTable);
         if (empty($allDefinitions) || empty($extraPropertiesByModule)) {
             return $violations;
         }
 
         foreach ($allDefinitions as $def) {
-            if (empty($def['display_api'])) {
+            if (!$def->isDisplayApi()) {
                 continue;
             }
 
-            $validator = (string) ($def['validator'] ?? '');
+            $validator = $def->getValidator() ?? '';
             if ('' === $validator || !method_exists(Validate::class, $validator)) {
                 continue;
             }
 
-            $moduleName = ExtraPropertyNaming::displayModuleKey($def['module_name'] ?? null);
-            $fieldName = (string) ($def['field_name'] ?? '');
-            $scope = (string) ($def['field_scope'] ?? 'common');
+            $moduleName = ExtraPropertyNaming::displayModuleKey($def->getModuleName());
+            $fieldName = $def->getPropertyName();
+            $scope = $def->getFieldScope();
 
             if ('' === $fieldName || !isset($extraPropertiesByModule[$moduleName]) || !array_key_exists($fieldName, $extraPropertiesByModule[$moduleName])) {
                 continue;
@@ -328,10 +339,15 @@ class ExtraPropertiesApiService
             return [];
         }
 
+        // Build the list of API-exposed lang-scope fields so that locale conversion is not ambiguous.
+        // Without this, shop-scope fields keyed by id_shop (e.g. 1) can be mistaken for id_lang keys
+        // and wrongly converted to locales (e.g. "fr-FR") when id_lang=1 exists.
+        $langScopedFieldsByModule = $this->buildLangScopedFieldsByModule($entityTable);
+
         // Convert id_lang → locale string for API presentation
         $langLocaleMap = $this->fetchLangIdLocaleMap();
 
-        return $this->convertLangKeysToLocale($result->getValuesByModule(), $langLocaleMap);
+        return $this->convertLangKeysToLocale($result->getValuesByModule(), $langLocaleMap, $langScopedFieldsByModule);
     }
 
     /**
@@ -346,7 +362,7 @@ class ExtraPropertiesApiService
      */
     protected function persistExtraProperties(string $entityTable, int $entityId, array $extraPropertiesByModule): void
     {
-        $allDefinitions = $this->registry->getByEntityNameAllScopes($entityTable);
+        $allDefinitions = $this->repository->getByEntityNameAllScopes($entityTable);
         if (empty($allDefinitions)) {
             return;
         }
@@ -377,7 +393,7 @@ class ExtraPropertiesApiService
      *
      * Only definitions flagged display_api = 1 and scope 'common' are included.
      *
-     * @param array<int, array<string, mixed>> $allDefinitions
+     * @param list<ExtraPropertyDefinitionInfo> $allDefinitions
      * @param array<string, array<string, mixed>> $extraPropertiesByModule
      *
      * @return array<string, mixed> [storage_column => value]
@@ -386,15 +402,14 @@ class ExtraPropertiesApiService
     {
         $columnValues = [];
         foreach ($allDefinitions as $def) {
-            if (('common' !== ($def['field_scope'] ?? '')) || empty($def['display_api'])) {
+            if ('common' !== $def->getFieldScope() || !$def->isDisplayApi()) {
                 continue;
             }
 
-            $moduleName = ExtraPropertyNaming::displayModuleKey($def['module_name'] ?? null);
-            $fieldName = (string) ($def['field_name'] ?? '');
-            $storageColumn = (string) ($def['storage_column_name'] ?? '');
+            $moduleName = ExtraPropertyNaming::displayModuleKey($def->getModuleName());
+            $fieldName = $def->getPropertyName();
 
-            if ('' === $fieldName || '' === $storageColumn) {
+            if ('' === $fieldName) {
                 continue;
             }
 
@@ -402,6 +417,7 @@ class ExtraPropertiesApiService
                 continue;
             }
 
+            $storageColumn = ExtraPropertyNaming::storageColumnName($def->getModuleName() ?? '', $fieldName);
             $columnValues[$storageColumn] = $extraPropertiesByModule[$moduleName][$fieldName];
         }
 
@@ -414,7 +430,7 @@ class ExtraPropertiesApiService
      * Locale strings (e.g. "fr-FR") in the payload are resolved to id_lang (int).
      * Only definitions flagged display_api = 1 and scope 'lang' are included.
      *
-     * @param array<int, array<string, mixed>> $allDefinitions
+     * @param list<ExtraPropertyDefinitionInfo> $allDefinitions
      * @param array<string, array<string, mixed>> $extraPropertiesByModule
      *
      * @return array<int, array<string, mixed>> [id_lang => [storage_column => value]]
@@ -430,7 +446,7 @@ class ExtraPropertiesApiService
         $localeColumnValues = [];
         foreach ($columnToPropertyMap as $columnName => $propertyPath) {
             $moduleName = $propertyPath['module_name'];
-            $fieldName = $propertyPath['field_name'];
+            $fieldName = $propertyPath['property_name'];
 
             $fieldValue = $extraPropertiesByModule[$moduleName][$fieldName] ?? null;
             if (!is_array($fieldValue)) {
@@ -466,7 +482,7 @@ class ExtraPropertiesApiService
      * Shop IDs (integer keys) in the payload are preserved as-is.
      * Only definitions flagged display_api = 1 and scope 'shop' are included.
      *
-     * @param array<int, array<string, mixed>> $allDefinitions
+     * @param list<ExtraPropertyDefinitionInfo> $allDefinitions
      * @param array<string, array<string, mixed>> $extraPropertiesByModule
      *
      * @return array<int, array<string, mixed>> [id_shop => [storage_column => value]]
@@ -481,7 +497,7 @@ class ExtraPropertiesApiService
         $shopColumnValues = [];
         foreach ($columnToPropertyMap as $columnName => $propertyPath) {
             $moduleName = $propertyPath['module_name'];
-            $fieldName = $propertyPath['field_name'];
+            $fieldName = $propertyPath['property_name'];
 
             $fieldValue = $extraPropertiesByModule[$moduleName][$fieldName] ?? null;
             if (!is_array($fieldValue)) {
@@ -528,28 +544,28 @@ class ExtraPropertiesApiService
     /**
      * Builds a storage-column → property-path map for a given scope, filtered to display_api=1.
      *
-     * @param array<int, array<string, mixed>> $allDefinitions All registry definitions for the entity
+     * @param list<ExtraPropertyDefinitionInfo> $allDefinitions All repository definitions for the entity
      * @param string $scope 'common', 'lang' or 'shop'
      *
-     * @return array<string, array{module_name: string, field_name: string}>
+     * @return array<string, array{module_name: string, property_name: string}>
      */
     private function buildColumnPropertyMap(array $allDefinitions, string $scope): array
     {
         $map = [];
         foreach ($allDefinitions as $def) {
-            if (($def['field_scope'] ?? '') !== $scope || empty($def['display_api'])) {
+            if ($def->getFieldScope() !== $scope || !$def->isDisplayApi()) {
                 continue;
             }
 
-            $fieldName = (string) ($def['field_name'] ?? '');
-            $storageColumn = (string) ($def['storage_column_name'] ?? '');
-            if ('' === $fieldName || '' === $storageColumn) {
+            $fieldName = $def->getPropertyName();
+            if ('' === $fieldName) {
                 continue;
             }
 
+            $storageColumn = ExtraPropertyNaming::storageColumnName($def->getModuleName() ?? '', $fieldName);
             $map[$storageColumn] = [
-                'module_name' => ExtraPropertyNaming::displayModuleKey($def['module_name'] ?? null),
-                'field_name' => $fieldName,
+                'module_name' => ExtraPropertyNaming::displayModuleKey($def->getModuleName()),
+                'property_name' => $fieldName,
             ];
         }
 
@@ -557,17 +573,51 @@ class ExtraPropertiesApiService
     }
 
     /**
+     * Returns a module-keyed set of field names that are lang-scoped and API-exposed.
+     *
+     * @param string $entityTable Entity storage table (e.g. 'product')
+     *
+     * @return array<string, array<string, true>> ['moduleKey' => ['fieldName' => true]]
+     */
+    private function buildLangScopedFieldsByModule(string $entityTable): array
+    {
+        if (isset($this->langScopedFieldsByEntityTableCache[$entityTable])) {
+            return $this->langScopedFieldsByEntityTableCache[$entityTable];
+        }
+
+        $langFields = [];
+        foreach ($this->repository->getByEntityNameAllScopes($entityTable) as $def) {
+            if ('lang' !== $def->getFieldScope() || !$def->isDisplayApi()) {
+                continue;
+            }
+
+            $fieldName = $def->getPropertyName();
+            if ('' === $fieldName) {
+                continue;
+            }
+
+            $moduleKey = ExtraPropertyNaming::displayModuleKey($def->getModuleName());
+            $langFields[$moduleKey][$fieldName] = true;
+        }
+
+        $this->langScopedFieldsByEntityTableCache[$entityTable] = $langFields;
+
+        return $langFields;
+    }
+
+    /**
      * Converts id_lang-keyed values in a module-grouped array to locale-string keys.
      *
-     * Only lang-scope fields (whose values are sub-arrays) are converted.
-     * Common and shop scope values (scalars or shop-id-keyed arrays) are passed through unchanged.
+     * Only fields that are declared as lang-scoped in the registry are converted.
+     * Common and shop scope values are passed through unchanged.
      *
      * @param array<string, array<string, mixed>> $valuesByModule
      * @param array<int, string> $langLocaleMap [id_lang => locale]
+     * @param array<string, array<string, true>> $langScopedFieldsByModule ['moduleKey' => ['fieldName' => true]]
      *
      * @return array<string, array<string, mixed>>
      */
-    private function convertLangKeysToLocale(array $valuesByModule, array $langLocaleMap): array
+    private function convertLangKeysToLocale(array $valuesByModule, array $langLocaleMap, array $langScopedFieldsByModule): array
     {
         if (empty($langLocaleMap)) {
             return $valuesByModule;
@@ -582,10 +632,8 @@ class ExtraPropertiesApiService
                     continue;
                 }
 
-                // Determine whether the keys are id_lang (int) or id_shop (int)
-                // id_lang keys are present in $langLocaleMap; id_shop keys are not
-                $firstKey = array_key_first($value);
-                if (null !== $firstKey && isset($langLocaleMap[(int) $firstKey])) {
+                $isLangScoped = !empty($langScopedFieldsByModule[$moduleName][$fieldName]);
+                if ($isLangScoped) {
                     // Lang-scope: convert id_lang → locale string
                     $converted = [];
                     foreach ($value as $idLang => $langValue) {
@@ -595,10 +643,11 @@ class ExtraPropertiesApiService
                         }
                     }
                     $result[$moduleName][$fieldName] = $converted;
-                } else {
-                    // Shop-scope: keep id_shop integer keys as-is
-                    $result[$moduleName][$fieldName] = $value;
+                    continue;
                 }
+
+                // Shop-scope (or any other array-shaped value): keep keys as-is.
+                $result[$moduleName][$fieldName] = $value;
             }
         }
 

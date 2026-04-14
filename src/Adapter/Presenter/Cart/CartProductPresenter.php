@@ -38,8 +38,7 @@ class CartProductPresenter extends ProductPresenter
             $this->productColorsRetriever,
             $this->translator,
             null,
-            null,
-            $this->extraPropertyValueProvider
+            null
         );
 
         /*

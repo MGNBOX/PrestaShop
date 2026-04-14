@@ -24,21 +24,18 @@ use Symfony\Component\DependencyInjection\Container;
 class DoctrineGridDataFactory implements GridDataFactoryInterface
 {
     /**
-     * @var ExtraPropertiesGridQueryBuilderModifier|null
-     */
-    protected $extraPropertiesGridQueryBuilderModifier;
-
-    /**
      * @param DoctrineQueryBuilderInterface $gridQueryBuilder
      * @param HookDispatcherInterface $hookDispatcher
      * @param QueryParserInterface $queryParser
      * @param string $gridId
+     * @param ExtraPropertiesGridQueryBuilderModifier|null $extraPropertiesGridQueryBuilderModifier
      */
     public function __construct(
         protected DoctrineQueryBuilderInterface $gridQueryBuilder,
         protected HookDispatcherInterface $hookDispatcher,
         protected QueryParserInterface $queryParser,
-        protected string $gridId
+        protected string $gridId,
+        protected ?ExtraPropertiesGridQueryBuilderModifier $extraPropertiesGridQueryBuilderModifier = null
     ) {
     }
 
@@ -97,10 +94,5 @@ class DoctrineGridDataFactory implements GridDataFactoryInterface
         $sqlFormatter = new SqlFormatter(new NullHighlighter());
 
         return $sqlFormatter->format($query);
-    }
-
-    public function setExtraPropertiesGridQueryBuilderModifier(?ExtraPropertiesGridQueryBuilderModifier $modifier): void
-    {
-        $this->extraPropertiesGridQueryBuilderModifier = $modifier;
     }
 }

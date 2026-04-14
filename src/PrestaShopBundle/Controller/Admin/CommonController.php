@@ -11,7 +11,8 @@ use PrestaShop\PrestaShop\Adapter\Tools;
 use PrestaShop\PrestaShop\Core\Domain\Notification\Command\UpdateEmployeeNotificationLastElementCommand;
 use PrestaShop\PrestaShop\Core\Domain\Notification\Query\GetNotificationLastElements;
 use PrestaShop\PrestaShop\Core\Domain\Notification\QueryResult\NotificationsResults;
-use PrestaShop\PrestaShop\Core\ExtraProperty\Registry\EntityExtraFieldRegistryInterface;
+use PrestaShop\PrestaShop\Core\ExtraProperty\ExtraPropertyNaming;
+use PrestaShop\PrestaShop\Core\ExtraProperty\Repository\ExtraPropertyDefinitionRepositoryInterface;
 use PrestaShop\PrestaShop\Core\Grid\Definition\Factory\AbstractGridDefinitionFactory;
 use PrestaShop\PrestaShop\Core\Grid\Definition\Factory\FilterableGridDefinitionFactoryInterface;
 use PrestaShop\PrestaShop\Core\Grid\Definition\Factory\GridDefinitionFactoryProvider;
@@ -23,6 +24,7 @@ use PrestaShopBundle\Entity\Repository\AdminFilterRepository;
 use PrestaShopBundle\Security\Attribute\AdminSecurity;
 use PrestaShopBundle\Service\Grid\ControllerResponseBuilder;
 use ReflectionClass;
+use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -40,7 +42,7 @@ class CommonController extends PrestaShopAdminController
         return parent::getSubscribedServices() + [
             ControllerResponseBuilder::class => ControllerResponseBuilder::class,
             Connection::class => Connection::class,
-            EntityExtraFieldRegistryInterface::class => EntityExtraFieldRegistryInterface::class,
+            ExtraPropertyDefinitionRepositoryInterface::class => ExtraPropertyDefinitionRepositoryInterface::class,
         ];
     }
 
@@ -83,28 +85,29 @@ class CommonController extends PrestaShopAdminController
      *
      * @param string $entityName
      * @param int $entityId
-     * @param string $moduleName normalized module name, can be "_core" for core fields
-     * @param string $fieldName
+     * @param string $moduleName normalized module name, can be "_core" for core properties
+     * @param string $propertyName
      * @param string $scope Supported scopes: "entity" and "shop"
-     * @param int $shopId Shop context for shop-scoped fields (ignored for entity scope)
+     * @param int $shopId Shop context for shop-scoped properties (ignored for entity scope)
      */
     #[AdminSecurity("is_granted('update', request.get('_legacy_controller'))")]
     public function toggleExtraPropertyAction(
         string $entityName,
         int $entityId,
         string $moduleName,
-        string $fieldName,
+        string $propertyName,
         string $scope,
         int $shopId = 0,
+        ParameterBagInterface $parameterBag,
     ): JsonResponse {
-        /** @var EntityExtraFieldRegistryInterface $registry */
-        $registry = $this->container->get(EntityExtraFieldRegistryInterface::class);
+        /** @var ExtraPropertyDefinitionRepositoryInterface $repository */
+        $repository = $this->container->get(ExtraPropertyDefinitionRepositoryInterface::class);
         /** @var Connection $connection */
         $connection = $this->container->get(Connection::class);
         /** @var TranslatorInterface $translator */
         $translator = $this->container->get(TranslatorInterface::class);
 
-        $definitions = $registry->getByEntityNameAllScopes($entityName);
+        $definitions = $repository->getByEntityNameAllScopes($entityName);
         if (empty($definitions)) {
             return new JsonResponse([
                 'status' => false,
@@ -114,12 +117,11 @@ class CommonController extends PrestaShopAdminController
 
         $matched = null;
         foreach ($definitions as $definition) {
-            $defModule = $definition['module_name'] ?? null;
-            $normalizedDefModule = (null === $defModule || '' === (string) $defModule) ? '_core' : (string) $defModule;
+            $normalizedDefModule = null !== $definition->getModuleName() ? $definition->getModuleName() : '_core';
             if (
                 $normalizedDefModule === $moduleName
-                && ($definition['field_name'] ?? null) === $fieldName
-                && ($definition['field_scope'] ?? null) === $scope
+                && $definition->getPropertyName() === $propertyName
+                && $definition->getFieldScope() === $scope
             ) {
                 $matched = $definition;
                 break;
@@ -133,18 +135,13 @@ class CommonController extends PrestaShopAdminController
             ], 404);
         }
 
-        $storageColumn = (string) ($matched['storage_column_name'] ?? '');
-        if ('' === $storageColumn) {
-            return new JsonResponse([
-                'status' => false,
-                'message' => $translator->trans('Field is invalid.', [], 'Admin.Notifications.Error'),
-            ], 400);
-        }
+        $storageColumn = ExtraPropertyNaming::storageColumnName($matched->getModuleName() ?? '', $matched->getPropertyName());
+        $databasePrefix = (string) $parameterBag->get('database_prefix');
 
         $primaryKey = 'id_' . $entityName;
         $tableName = match ($scope) {
-            'shop' => _DB_PREFIX_ . $entityName . '_extra_shop',
-            default => _DB_PREFIX_ . $entityName . '_extra',
+            'shop' => $databasePrefix . $entityName . '_extra_shop',
+            default => $databasePrefix . $entityName . '_extra',
         };
 
         try {

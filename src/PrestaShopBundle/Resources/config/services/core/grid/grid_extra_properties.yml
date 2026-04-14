@@ -5,7 +5,7 @@ services:
   PrestaShop\PrestaShop\Adapter\ExtraProperty\Grid\ExtraPropertiesGridDefinitionProvider:
     public: false
     arguments:
-      $registry: '@PrestaShop\PrestaShop\Core\ExtraProperty\Registry\EntityExtraFieldRegistryInterface'
+      $repository: '@PrestaShop\PrestaShop\Core\ExtraProperty\Repository\ExtraPropertyDefinitionRepositoryInterface'
 
   PrestaShop\PrestaShop\Adapter\ExtraProperty\Grid\ExtraPropertiesGridDefinitionModifier:
     public: false
@@ -25,9 +25,3 @@ services:
       calls:
         - setExtraPropertiesGridDefinitionModifier:
             - '@PrestaShop\PrestaShop\Adapter\ExtraProperty\Grid\ExtraPropertiesGridDefinitionModifier'
-
-    PrestaShop\PrestaShop\Core\Grid\Data\Factory\DoctrineGridDataFactory:
-      calls:
-        - setExtraPropertiesGridQueryBuilderModifier:
-            - '@PrestaShop\PrestaShop\Adapter\ExtraProperty\Grid\ExtraPropertiesGridQueryBuilderModifier'
-

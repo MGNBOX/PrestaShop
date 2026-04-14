@@ -13,8 +13,8 @@ namespace PrestaShop\PrestaShop\Core\Domain\ExtraProperty\QueryResult;
  *
  * Structure:
  * [
- *   '_core'    => ['field_name' => value, ...],
- *   'mymodule' => ['field_name' => value, ...],
+ *   '_core'    => ['property_name' => value, ...],
+ *   'mymodule' => ['property_name' => value, ...],
  * ]
  *
  * For lang-scope fields, each value is itself an array keyed by id_lang (int).

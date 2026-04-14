@@ -10,14 +10,18 @@ namespace PrestaShop\PrestaShop\Adapter\Presenter;
 
 use Context;
 use ObjectModel;
+use PrestaShop\PrestaShop\Adapter\ContainerFinder;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Storage\ExtraPropertyValueProviderInterface;
 
 /**
- * Resolves front-office extra field values (grouped by module) for presentation.
+ * Resolves extra field values (grouped by module) for an entity instance.
  *
  * This is not an AbstractLazyArray: it only encapsulates the call to
- * ExtraPropertyValueProviderInterface::getFrontExtraProperties() using entity metadata
+ * ExtraPropertyValueProviderInterface::getExtraProperties() using entity metadata
  * from ObjectModel definitions (table + primary key) and the current context (lang / shop).
+ *
+ * The static factories resolve the ExtraPropertyValueProviderInterface and the current
+ * Context internally so callers only need to supply the entity identity.
  */
 final class ExtraPropertiesLazyArray
 {
@@ -28,6 +32,7 @@ final class ExtraPropertiesLazyArray
      * @param int $entityId Entity row id
      * @param int $langId Language id for lang-scoped fields
      * @param int $shopId Shop id for shop / lang multishop resolution
+     * @param bool $isLangMultishop Whether lang-scoped fields should also be filtered by shop (FO multishop pattern)
      */
     public function __construct(
         private readonly ?ExtraPropertyValueProviderInterface $provider,
@@ -36,6 +41,7 @@ final class ExtraPropertiesLazyArray
         private readonly int $entityId,
         private readonly int $langId,
         private readonly int $shopId,
+        private readonly bool $isLangMultishop = false,
     ) {
     }
 
@@ -43,16 +49,20 @@ final class ExtraPropertiesLazyArray
      * Builds a resolver from a loaded ObjectModel instance (uses $object->def and $object->id).
      *
      * @param ObjectModel $object
-     * @param ExtraPropertyValueProviderInterface|null $provider
-     * @param Context $context
      */
-    public static function fromObjectModel(
-        ObjectModel $object,
-        ?ExtraPropertyValueProviderInterface $provider,
-        Context $context
-    ): self {
+    public static function fromObjectModel(ObjectModel $object): self
+    {
+        $provider = null;
+        try {
+            $containerFinder = new ContainerFinder(Context::getContext());
+            /** @var ExtraPropertyValueProviderInterface $provider */
+            $provider = $containerFinder->getContainer()->get(ExtraPropertyValueProviderInterface::class);
+        } catch (\Throwable) {
+        }
+
         /** @var array<string, mixed> $def */
         $def = ObjectModel::getDefinition($object);
+        $context = Context::getContext();
 
         return new self(
             $provider,
@@ -60,7 +70,8 @@ final class ExtraPropertiesLazyArray
             (string) ($def['primary'] ?? ''),
             (int) $object->id,
             (int) $context->language->id,
-            (int) $context->shop->id
+            (int) $context->shop->id,
+            (bool) $object->isLangMultishop(),
         );
     }
 
@@ -69,15 +80,9 @@ final class ExtraPropertiesLazyArray
      *
      * @param class-string<ObjectModel> $objectModelClass
      * @param int $entityId
-     * @param ExtraPropertyValueProviderInterface|null $provider
-     * @param Context $context
      */
-    public static function fromObjectModelClass(
-        string $objectModelClass,
-        int $entityId,
-        ?ExtraPropertyValueProviderInterface $provider,
-        Context $context
-    ): self {
+    public static function fromObjectModelClass(string $objectModelClass, int $entityId): self
+    {
         if (!class_exists($objectModelClass) || !is_subclass_of($objectModelClass, ObjectModel::class)) {
             return new self(null, '', '', 0, 0, 0);
         }
@@ -87,18 +92,30 @@ final class ExtraPropertiesLazyArray
             return new self(null, '', '', 0, 0, 0);
         }
 
+        $provider = null;
+        try {
+            $containerFinder = new ContainerFinder(Context::getContext());
+            /** @var ExtraPropertyValueProviderInterface $provider */
+            $provider = $containerFinder->getContainer()->get(ExtraPropertyValueProviderInterface::class);
+        } catch (\Throwable) {
+        }
+
+        $context = Context::getContext();
+        $isLangMultishop = !empty($def['multilang']) && !empty($def['multilang_shop']);
+
         return new self(
             $provider,
             (string) $def['table'],
             (string) $def['primary'],
             $entityId,
             (int) $context->language->id,
-            (int) $context->shop->id
+            (int) $context->shop->id,
+            $isLangMultishop,
         );
     }
 
     /**
-     * Returns extra fields grouped by module for front-office display (display_front = 1).
+     * Returns extra fields grouped by module for front-office display.
      *
      * @return array<string, array<string, mixed>>
      */
@@ -108,12 +125,13 @@ final class ExtraPropertiesLazyArray
             return [];
         }
 
-        return $this->provider->getFrontExtraProperties(
+        return $this->provider->getExtraProperties(
             $this->entityTable,
             $this->primaryKeyName,
             $this->entityId,
             $this->langId,
-            $this->shopId
+            $this->shopId,
+            $this->isLangMultishop
         );
     }
 }

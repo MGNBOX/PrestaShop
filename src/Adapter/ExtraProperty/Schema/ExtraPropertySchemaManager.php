@@ -11,6 +11,7 @@ namespace PrestaShop\PrestaShop\Adapter\ExtraProperty\Schema;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Schema\Table;
 use PrestaShop\PrestaShop\Core\ExtraProperty\ExtraPropertyNaming;
+use PrestaShop\PrestaShop\Core\ExtraProperty\ExtraPropertySqlIndex;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Schema\ExtraPropertySchemaManagerInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -26,16 +27,6 @@ use RuntimeException;
  */
 class ExtraPropertySchemaManager implements ExtraPropertySchemaManagerInterface
 {
-    public const SQL_INDEX_NONE = 'none';
-    public const SQL_INDEX_KEY = 'key';
-    public const SQL_INDEX_UNIQUE = 'unique';
-
-    protected const ALLOWED_SQL_INDEXES = [
-        self::SQL_INDEX_NONE,
-        self::SQL_INDEX_KEY,
-        self::SQL_INDEX_UNIQUE,
-    ];
-
     /** @var array<string, bool> */
     protected array $tableExistenceCache = [];
 
@@ -55,7 +46,7 @@ class ExtraPropertySchemaManager implements ExtraPropertySchemaManagerInterface
     /**
      * {@inheritdoc}
      */
-    public function ensureExtraTableAndColumn(string $entityName, string $fieldScope, string $columnName, string $sqlColumnDefinition, string $sqlIndex): void
+    public function ensureExtraTableAndColumn(string $entityName, string $fieldScope, string $columnName, string $sqlColumnDefinition, ExtraPropertySqlIndex $sqlIndex): void
     {
         $baseTableName = $this->prefix . $this->buildBaseEntityTableName($entityName, $fieldScope);
         $extraTableName = $this->prefix . $this->buildExtraEntityTableName($entityName, $fieldScope);
@@ -116,6 +107,11 @@ class ExtraPropertySchemaManager implements ExtraPropertySchemaManagerInterface
 
     /**
      * Returns the base (non-extra) entity table name for a given scope.
+     *
+     * @param string $entityName
+     * @param string $fieldScope
+     *
+     * @return string
      */
     protected function buildBaseEntityTableName(string $entityName, string $fieldScope): string
     {
@@ -131,34 +127,43 @@ class ExtraPropertySchemaManager implements ExtraPropertySchemaManagerInterface
 
     /**
      * Returns the extra storage table name (without prefix) for a given entity and scope.
+     *
+     * @param string $entityName
+     * @param string $fieldScope
+     *
+     * @return string
      */
     protected function buildExtraEntityTableName(string $entityName, string $fieldScope): string
     {
         return ExtraPropertyNaming::extraTableName($entityName, $fieldScope);
     }
 
-    protected function syncExtraColumnIndex(string $extraTableName, string $columnName, string $sqlIndex): void
+    /**
+     * Synchronises the SQL index on an extra column: drops stale indexes and creates the desired one.
+     *
+     * @param string $extraTableName Full table name (with prefix)
+     * @param string $columnName
+     * @param ExtraPropertySqlIndex $sqlIndex Desired index strategy
+     */
+    protected function syncExtraColumnIndex(string $extraTableName, string $columnName, ExtraPropertySqlIndex $sqlIndex): void
     {
-        $normalizedSqlIndex = $this->normalizeSqlIndex($sqlIndex);
-        if (null === $normalizedSqlIndex) {
-            throw new RuntimeException('Invalid extra field SQL index strategy.');
-        }
+        $keyIndexName = $this->buildExtraColumnIndexName($extraTableName, $columnName, ExtraPropertySqlIndex::Key);
+        $uniqueIndexName = $this->buildExtraColumnIndexName($extraTableName, $columnName, ExtraPropertySqlIndex::Unique);
 
-        $keyIndexName = $this->buildExtraColumnIndexName($extraTableName, $columnName, self::SQL_INDEX_KEY);
-        $uniqueIndexName = $this->buildExtraColumnIndexName($extraTableName, $columnName, self::SQL_INDEX_UNIQUE);
-
-        if (self::SQL_INDEX_KEY !== $normalizedSqlIndex) {
+        // Drop any index that no longer matches the desired strategy.
+        if (ExtraPropertySqlIndex::Key !== $sqlIndex) {
             $this->dropIndexIfExists($extraTableName, $keyIndexName);
         }
-        if (self::SQL_INDEX_UNIQUE !== $normalizedSqlIndex) {
+        if (ExtraPropertySqlIndex::Unique !== $sqlIndex) {
             $this->dropIndexIfExists($extraTableName, $uniqueIndexName);
         }
 
-        if (self::SQL_INDEX_NONE === $normalizedSqlIndex) {
+        if (ExtraPropertySqlIndex::None === $sqlIndex) {
             return;
         }
 
-        $indexName = (self::SQL_INDEX_UNIQUE === $normalizedSqlIndex) ? $uniqueIndexName : $keyIndexName;
+        // Create the desired index if it does not already exist.
+        $indexName = (ExtraPropertySqlIndex::Unique === $sqlIndex) ? $uniqueIndexName : $keyIndexName;
         if ($this->indexExists($extraTableName, $indexName)) {
             return;
         }
@@ -166,7 +171,7 @@ class ExtraPropertySchemaManager implements ExtraPropertySchemaManagerInterface
         $sql = sprintf(
             'ALTER TABLE %s ADD %s %s (%s)',
             $this->connection->quoteIdentifier($extraTableName),
-            $normalizedSqlIndex === self::SQL_INDEX_UNIQUE ? 'UNIQUE INDEX' : 'INDEX',
+            ExtraPropertySqlIndex::Unique === $sqlIndex ? 'UNIQUE INDEX' : 'INDEX',
             $this->connection->quoteIdentifier($indexName),
             $this->connection->quoteIdentifier($columnName)
         );
@@ -174,6 +179,11 @@ class ExtraPropertySchemaManager implements ExtraPropertySchemaManagerInterface
         $this->invalidateTableCache($extraTableName);
     }
 
+    /**
+     * Drops the extra table if all its columns are part of the primary key (i.e. no extra columns remain).
+     *
+     * @param string $extraTableName Full table name (with prefix)
+     */
     protected function dropExtraTableIfEmpty(string $extraTableName): void
     {
         $tableDetails = $this->getTableDetails($extraTableName);
@@ -199,6 +209,14 @@ class ExtraPropertySchemaManager implements ExtraPropertySchemaManagerInterface
         $this->logger->info('Extra table dropped (empty): {table}', ['table' => $extraTableName]);
     }
 
+    /**
+     * Creates the extra table by mirroring the primary key columns of the base entity table.
+     *
+     * @param string $baseTableName Full base table name (with prefix)
+     * @param string $extraTableName Full extra table name (with prefix)
+     *
+     * @throws RuntimeException if the base table schema cannot be loaded or has no PK
+     */
     protected function createExtraTableFromBaseTable(string $baseTableName, string $extraTableName): void
     {
         $baseTableDetails = $this->getTableDetails($baseTableName);
@@ -244,6 +262,8 @@ class ExtraPropertySchemaManager implements ExtraPropertySchemaManagerInterface
     }
 
     /**
+     * Builds the options array needed by Doctrine's getColumnDeclarationSQL() for a given column.
+     *
      * @param \Doctrine\DBAL\Schema\Column $column
      *
      * @return array<string, mixed>
@@ -276,6 +296,11 @@ class ExtraPropertySchemaManager implements ExtraPropertySchemaManagerInterface
         return $columnOptions;
     }
 
+    /**
+     * @param string $tableName Full table name (with prefix)
+     *
+     * @return bool
+     */
     protected function tableExists(string $tableName): bool
     {
         if (array_key_exists($tableName, $this->tableExistenceCache)) {
@@ -287,6 +312,12 @@ class ExtraPropertySchemaManager implements ExtraPropertySchemaManagerInterface
         return $exists;
     }
 
+    /**
+     * @param string $tableName Full table name (with prefix)
+     * @param string $columnName
+     *
+     * @return bool
+     */
     protected function columnExists(string $tableName, string $columnName): bool
     {
         $tableDetails = $this->getTableDetails($tableName);
@@ -297,6 +328,12 @@ class ExtraPropertySchemaManager implements ExtraPropertySchemaManagerInterface
         return $tableDetails->hasColumn($columnName);
     }
 
+    /**
+     * @param string $tableName Full table name (with prefix)
+     * @param string $indexName
+     *
+     * @return bool
+     */
     protected function indexExists(string $tableName, string $indexName): bool
     {
         $tableDetails = $this->getTableDetails($tableName);
@@ -307,6 +344,10 @@ class ExtraPropertySchemaManager implements ExtraPropertySchemaManagerInterface
         return $tableDetails->hasIndex($indexName);
     }
 
+    /**
+     * @param string $tableName Full table name (with prefix)
+     * @param string $indexName
+     */
     protected function dropIndexIfExists(string $tableName, string $indexName): void
     {
         if (!$this->indexExists($tableName, $indexName)) {
@@ -322,6 +363,11 @@ class ExtraPropertySchemaManager implements ExtraPropertySchemaManagerInterface
         $this->invalidateTableCache($tableName);
     }
 
+    /**
+     * @param string $tableName Full table name (with prefix)
+     *
+     * @return Table|null
+     */
     protected function getTableDetails(string $tableName): ?Table
     {
         if (array_key_exists($tableName, $this->tableDetailsCache)) {
@@ -337,31 +383,37 @@ class ExtraPropertySchemaManager implements ExtraPropertySchemaManagerInterface
         return $tableDetails;
     }
 
+    /**
+     * Invalidates the in-memory schema cache for a specific table.
+     *
+     * @param string $tableName Full table name (with prefix)
+     */
     protected function invalidateTableCache(string $tableName): void
     {
         unset($this->tableExistenceCache[$tableName], $this->tableDetailsCache[$tableName]);
     }
 
-    protected function buildExtraColumnIndexName(string $tableName, string $columnName, string $sqlIndex): string
+    /**
+     * Builds a deterministic index name for an extra column based on table name, column name and index type.
+     *
+     * @param string $tableName Full table name (with prefix)
+     * @param string $columnName
+     * @param ExtraPropertySqlIndex $sqlIndex
+     *
+     * @return string
+     */
+    protected function buildExtraColumnIndexName(string $tableName, string $columnName, ExtraPropertySqlIndex $sqlIndex): string
     {
-        $prefix = (self::SQL_INDEX_UNIQUE === $sqlIndex) ? 'uniq_extra_' : 'idx_extra_';
+        $prefix = (ExtraPropertySqlIndex::Unique === $sqlIndex) ? 'uniq_extra_' : 'idx_extra_';
 
         return $prefix . substr(sha1($tableName . '|' . $columnName), 0, 16);
     }
 
-    protected function normalizeSqlIndex(string $sqlIndex): ?string
-    {
-        $normalizedSqlIndex = strtolower(trim($sqlIndex));
-        if ('index' === $normalizedSqlIndex) {
-            $normalizedSqlIndex = self::SQL_INDEX_KEY;
-        }
-        if (!in_array($normalizedSqlIndex, self::ALLOWED_SQL_INDEXES, true)) {
-            return null;
-        }
-
-        return $normalizedSqlIndex;
-    }
-
+    /**
+     * @param string $identifier
+     *
+     * @return bool
+     */
     protected function isValidSqlIdentifier(string $identifier): bool
     {
         return (bool) preg_match('/^[A-Za-z0-9_]{1,64}$/', $identifier);

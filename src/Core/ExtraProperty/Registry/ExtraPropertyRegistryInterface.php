@@ -8,16 +8,21 @@ declare(strict_types=1);
 
 namespace PrestaShop\PrestaShop\Core\ExtraProperty\Registry;
 
+use PrestaShop\PrestaShop\Core\ExtraProperty\ExtraPropertyOptions;
 use PrestaShop\PrestaShop\Core\ExtraProperty\ExtraPropertyScope;
-use PrestaShop\PrestaShop\Core\ExtraProperty\Repository\ExtraPropertyDefinitionRepositoryInterface;
 
 /**
  * Write interface for extra property definitions: register and unregister operations.
  *
+ * Deliberately does NOT extend ExtraPropertyDefinitionRepositoryInterface.
+ * Read and write concerns are kept separate: inject ExtraPropertyDefinitionRepositoryInterface
+ * for reads, and this interface for writes.
+ *
  * Implementations are responsible for persisting the definition row AND ensuring the
- * corresponding SQL column exists in the entity's *_extra table.
+ * corresponding SQL column exists in the entity's *_extra table, and for invalidating
+ * any read cache after a successful write.
  */
-interface ExtraPropertyRegistryInterface extends ExtraPropertyDefinitionRepositoryInterface
+interface ExtraPropertyRegistryInterface
 {
     /**
      * Register or update an extra property definition.
@@ -25,28 +30,30 @@ interface ExtraPropertyRegistryInterface extends ExtraPropertyDefinitionReposito
      * When the physical SQL column does not yet exist, it is created.
      * On conflict (same entity+module+field+scope), the definition row is updated.
      *
-     * @param string $entityName
-     * @param string $fieldName
-     * @param string|null $defaultModuleName module owning this field (defaults to null = core field)
-     * @param array<string, mixed> $options see ExtraPropertyOptions or EntityExtraFieldRegistryInterface docblock
+     * The module name is resolved from $options->moduleName. If it is null, the registry
+     * treats the field as a core field (no owning module).
+     *
+     * @param string $entityName Entity table name (e.g. "product", "customer")
+     * @param string $propertyName Property name within the module (e.g. "custom_size")
+     * @param ExtraPropertyOptions $options Typed configuration for the property
      *
      * @return bool
      */
-    public function register(string $entityName, string $fieldName, ?string $defaultModuleName, array $options = []): bool;
+    public function register(string $entityName, string $propertyName, ExtraPropertyOptions $options): bool;
 
     /**
-     * Unregister an extra property definition by entity, field name and scope.
+     * Unregister an extra property definition by entity, property name and scope.
      * When $dropColumn is true, the physical SQL column is also dropped.
      *
      * @param string $entityName
-     * @param string $fieldName
-     * @param string|null $moduleName
-     * @param ExtraPropertyScope|string $fieldScope
+     * @param string $propertyName
+     * @param string|null $moduleName Module that owns the property (null = core property)
+     * @param ExtraPropertyScope $fieldScope
      * @param bool $dropColumn
      *
      * @return bool
      */
-    public function unregister(string $entityName, string $fieldName, ?string $moduleName, ExtraPropertyScope|string $fieldScope = 'common', bool $dropColumn = false): bool;
+    public function unregister(string $entityName, string $propertyName, ?string $moduleName, ExtraPropertyScope $fieldScope = ExtraPropertyScope::Common, bool $dropColumn = false): bool;
 
     /**
      * Unregister an extra property definition by its primary key.
@@ -58,13 +65,4 @@ interface ExtraPropertyRegistryInterface extends ExtraPropertyDefinitionReposito
      * @return bool
      */
     public function unregisterById(int $idExtraPropertyDefinition, bool $dropColumn = false): bool;
-
-    /**
-     * Loads one definition row directly by primary key.
-     *
-     * @param int $idExtraPropertyDefinition
-     *
-     * @return array<string, mixed>|null
-     */
-    public function getDefinitionById(int $idExtraPropertyDefinition): ?array;
 }

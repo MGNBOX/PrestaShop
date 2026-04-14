@@ -9,14 +9,10 @@ declare(strict_types=1);
 namespace PrestaShop\PrestaShop\Adapter\Presenter\Category;
 
 use Category;
-use Context;
 use Hook;
 use Language;
 use Link;
-use PrestaShop\PrestaShop\Adapter\ContainerFinder;
 use PrestaShop\PrestaShop\Adapter\Image\ImageRetriever;
-use PrestaShop\PrestaShop\Core\ExtraProperty\Storage\ExtraPropertyValueProviderInterface;
-use Throwable;
 
 class CategoryPresenter
 {
@@ -30,16 +26,10 @@ class CategoryPresenter
      */
     protected $link;
 
-    /**
-     * @var ExtraPropertyValueProviderInterface|null
-     */
-    protected $extraPropertyValueProvider;
-
     public function __construct(Link $link)
     {
         $this->link = $link;
         $this->imageRetriever = new ImageRetriever($link);
-        $this->extraPropertyValueProvider = $this->resolveExtraPropertyValueProvider();
     }
 
     /**
@@ -67,8 +57,7 @@ class CategoryPresenter
             $category,
             $language,
             $this->imageRetriever,
-            $this->link,
-            $this->extraPropertyValueProvider
+            $this->link
         );
 
         Hook::exec('actionPresentCategory',
@@ -76,22 +65,5 @@ class CategoryPresenter
         );
 
         return $categoryLazyArray;
-    }
-
-    /**
-     * Resolves the front-office extra property provider from the service container when available.
-     */
-    protected function resolveExtraPropertyValueProvider(): ?ExtraPropertyValueProviderInterface
-    {
-        try {
-            $containerFinder = new ContainerFinder(Context::getContext());
-
-            /** @var ExtraPropertyValueProviderInterface $extraPropertyValueProvider */
-            $extraPropertyValueProvider = $containerFinder->getContainer()->get(ExtraPropertyValueProviderInterface::class);
-
-            return $extraPropertyValueProvider;
-        } catch (Throwable $e) {
-            return null;
-        }
     }
 }

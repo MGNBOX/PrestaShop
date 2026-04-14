@@ -8,6 +8,7 @@ declare(strict_types=1);
 
 namespace PrestaShop\PrestaShop\Core\ExtraProperty\Repository;
 
+use PrestaShop\PrestaShop\Core\Domain\ExtraProperty\QueryResult\ExtraPropertyDefinitionInfo;
 use PrestaShop\PrestaShop\Core\ExtraProperty\ExtraPropertyDefinitionCollection;
 
 /**
@@ -15,12 +16,13 @@ use PrestaShop\PrestaShop\Core\ExtraProperty\ExtraPropertyDefinitionCollection;
  *
  * Provides definition look-ups used by the registry, the BO form/grid modifiers,
  * and the ObjectModel. Implementations may be decorated with a cache layer.
+ *
+ * All read methods return typed ExtraPropertyDefinitionInfo value objects.
  */
 interface ExtraPropertyDefinitionRepositoryInterface
 {
     /**
      * Returns all extra property definitions for an entity as a typed collection.
-     * Equivalent to wrapping getByEntityNameAllScopes() in an ExtraPropertyDefinitionCollection.
      *
      * @param string $entityName
      *
@@ -30,11 +32,10 @@ interface ExtraPropertyDefinitionRepositoryInterface
 
     /**
      * Returns all extra property definitions for an entity, across all scopes.
-     * Labels are stored as translation wording/domain pairs in the definition row.
      *
      * @param string $entityName
      *
-     * @return array<int, array<string, mixed>>
+     * @return list<ExtraPropertyDefinitionInfo>
      */
     public function getByEntityNameAllScopes(string $entityName): array;
 
@@ -44,21 +45,21 @@ interface ExtraPropertyDefinitionRepositoryInterface
      * @param string $entityName
      * @param string $fieldScope 'common' | 'lang' | 'shop'
      *
-     * @return array<int, array<string, mixed>>
+     * @return list<ExtraPropertyDefinitionInfo>
      */
     public function getByEntityName(string $entityName, string $fieldScope = 'common'): array;
 
     /**
-     * Returns a single definition matching entity + field name + scope.
+     * Returns a single definition matching entity + property name + scope.
      * Returns null when not found or when parameters fail validation.
      *
      * @param string $entityName
-     * @param string $fieldName
+     * @param string $propertyName
      * @param string $fieldScope 'common' | 'lang' | 'shop'
      *
-     * @return array<string, mixed>|null
+     * @return ExtraPropertyDefinitionInfo|null
      */
-    public function getByEntityAndFieldName(string $entityName, string $fieldName, string $fieldScope = 'common'): ?array;
+    public function getByEntityAndPropertyName(string $entityName, string $propertyName, string $fieldScope = 'common'): ?ExtraPropertyDefinitionInfo;
 
     /**
      * Returns true when at least one extra property is defined for the given entity (any scope).
@@ -68,4 +69,14 @@ interface ExtraPropertyDefinitionRepositoryInterface
      * @return bool
      */
     public function hasExtraProperties(string $entityName): bool;
+
+    /**
+     * Loads one definition by primary key.
+     * Returns null when not found.
+     *
+     * @param int $id
+     *
+     * @return ExtraPropertyDefinitionInfo|null
+     */
+    public function getDefinitionById(int $id): ?ExtraPropertyDefinitionInfo;
 }

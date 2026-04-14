@@ -8,15 +8,16 @@ declare(strict_types=1);
 
 namespace PrestaShop\PrestaShop\Adapter\ExtraProperty\Storage;
 
+use PrestaShop\PrestaShop\Core\Domain\ExtraProperty\QueryResult\ExtraPropertyDefinitionInfo;
 use PrestaShop\PrestaShop\Core\ExtraProperty\ExtraPropertyScope;
-use PrestaShop\PrestaShop\Core\ExtraProperty\Registry\EntityExtraFieldRegistryInterface;
+use PrestaShop\PrestaShop\Core\ExtraProperty\Repository\ExtraPropertyDefinitionRepositoryInterface;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Storage\ExtraPropertyReaderInterface;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Storage\ExtraPropertyValueProviderInterface;
 
 class ExtraPropertyValueProvider implements ExtraPropertyValueProviderInterface
 {
     public function __construct(
-        protected readonly EntityExtraFieldRegistryInterface $registry,
+        protected readonly ExtraPropertyDefinitionRepositoryInterface $repository,
         protected readonly ExtraPropertyReaderInterface $reader,
     ) {
     }
@@ -24,19 +25,19 @@ class ExtraPropertyValueProvider implements ExtraPropertyValueProviderInterface
     /**
      * {@inheritdoc}
      */
-    public function findCustomFieldDefinition(string $entityName, string $fieldName, ?string $fieldScope = null): ?array
+    public function findCustomFieldDefinition(string $entityName, string $fieldName, ?string $fieldScope = null): ?ExtraPropertyDefinitionInfo
     {
         if (null !== $fieldScope && !in_array($fieldScope, ExtraPropertyScope::values(), true)) {
             return null;
         }
 
         $matchingDefinitions = [];
-        foreach ($this->registry->getByEntityNameAllScopes($entityName) as $definition) {
-            if (($definition['field_name'] ?? null) !== $fieldName) {
+        foreach ($this->repository->getByEntityNameAllScopes($entityName) as $definition) {
+            if ($definition->getPropertyName() !== $fieldName) {
                 continue;
             }
 
-            $definitionScope = (string) ($definition['field_scope'] ?? '');
+            $definitionScope = $definition->getFieldScope();
             if (!in_array($definitionScope, ExtraPropertyScope::values(), true)) {
                 continue;
             }
@@ -66,8 +67,7 @@ class ExtraPropertyValueProvider implements ExtraPropertyValueProviderInterface
         int $entityId,
         ?int $langId = null,
         ?int $shopId = null,
-        bool $isLangMultishop = false,
-        bool $displayFrontOnly = false
+        bool $isLangMultishop = false
     ): array {
         return $this->reader->getExtraProperties(
             $entityName,
@@ -75,29 +75,8 @@ class ExtraPropertyValueProvider implements ExtraPropertyValueProviderInterface
             $entityId,
             $langId,
             $shopId,
-            $isLangMultishop,
-            $displayFrontOnly
+            $isLangMultishop
         );
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function getFrontExtraProperties(
-        string $entityName,
-        string $primaryKeyName,
-        int $entityId,
-        ?int $langId = null,
-        ?int $shopId = null
-    ): array {
-        return $this->reader->getExtraProperties(
-            $entityName,
-            $primaryKeyName,
-            $entityId,
-            $langId,
-            $shopId,
-            true,
-            true
-        );
-    }
 }

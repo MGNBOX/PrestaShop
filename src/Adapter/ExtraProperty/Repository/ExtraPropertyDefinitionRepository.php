@@ -9,18 +9,23 @@ declare(strict_types=1);
 namespace PrestaShop\PrestaShop\Adapter\ExtraProperty\Repository;
 
 use Doctrine\DBAL\Connection;
+use PrestaShop\PrestaShop\Core\Domain\ExtraProperty\QueryResult\ExtraPropertyDefinitionInfo;
 use PrestaShop\PrestaShop\Core\ExtraProperty\ExtraPropertyDefinitionCollection;
+use PrestaShop\PrestaShop\Core\ExtraProperty\ExtraPropertyOptions;
 use PrestaShop\PrestaShop\Core\ExtraProperty\ExtraPropertyScope;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Repository\ExtraPropertyDefinitionRepositoryInterface;
+use PrestaShop\PrestaShop\Core\ExtraProperty\Repository\ExtraPropertyDefinitionWriterInterface;
 use Validate;
 
 /**
- * Reads extra property definitions from the extra_property_definition registry table.
+ * Reads and writes extra property definitions in the extra_property_definition registry table.
  *
- * This implementation does not add any caching; wrap with CachedExtraPropertyRegistry for
- * production use. All entity/scope validation is centralized in normalizeEntityNameAndFieldScope().
+ * This implementation does not add any caching; wrap with CachedExtraPropertyDefinitionRepository
+ * for production use. All entity/scope validation is centralized in normalizeEntityNameAndFieldScope().
+ *
+ * All public read methods return typed ExtraPropertyDefinitionInfo value objects.
  */
-class ExtraPropertyDefinitionRepository implements ExtraPropertyDefinitionRepositoryInterface
+class ExtraPropertyDefinitionRepository implements ExtraPropertyDefinitionRepositoryInterface, ExtraPropertyDefinitionWriterInterface
 {
     public const FIELD_SCOPE_COMMON = 'common';
     public const FIELD_SCOPE_LANG = 'lang';
@@ -56,18 +61,20 @@ class ExtraPropertyDefinitionRepository implements ExtraPropertyDefinitionReposi
             ->select([
                 'eef.id_extra_property_definition',
                 'eef.entity_name',
-                'eef.field_scope',
+                'eef.scope',
                 'eef.module_name',
-                'eef.field_name',
-                'eef.storage_column_name',
-                'eef.field_type',
-                'eef.symfony_field_type',
-                'eef.property_path',
+                'eef.property_name',
+                'eef.type',
+                'eef.size',
+                'eef.form_required',
+                'eef.default_value',
+                'eef.form_field_type',
+                'eef.form_options',
+                'eef.form_position',
                 'eef.sql_index',
                 'eef.validator',
-                'eef.display_front',
                 'eef.display_api',
-                'eef.display_bo',
+                'eef.display_form',
                 'eef.display_grid',
                 'eef.grid_position',
                 'eef.title_wording',
@@ -80,7 +87,12 @@ class ExtraPropertyDefinitionRepository implements ExtraPropertyDefinitionReposi
             ->setParameter('entityName', $normalizedEntityName)
             ->orderBy('eef.id_extra_property_definition', 'ASC');
 
-        return $qb->executeQuery()->fetchAllAssociative() ?: [];
+        $rows = $qb->executeQuery()->fetchAllAssociative() ?: [];
+
+        return array_values(array_map(
+            static fn (array $row): ExtraPropertyDefinitionInfo => ExtraPropertyDefinitionInfo::fromRow($row),
+            $rows
+        ));
     }
 
     /**
@@ -93,20 +105,18 @@ class ExtraPropertyDefinitionRepository implements ExtraPropertyDefinitionReposi
             return [];
         }
 
-        $result = array_filter(
+        return array_values(array_filter(
             $this->getByEntityNameAllScopes($normalizedEntityName),
-            static fn (array $definition): bool => ($definition['field_scope'] ?? null) === $normalizedFieldScope
-        );
-
-        return array_values($result);
+            static fn (ExtraPropertyDefinitionInfo $d): bool => $d->getFieldScope() === $normalizedFieldScope
+        ));
     }
 
     /**
      * {@inheritdoc}
      */
-    public function getByEntityAndFieldName(string $entityName, string $fieldName, string $fieldScope = self::FIELD_SCOPE_COMMON): ?array
+    public function getByEntityAndPropertyName(string $entityName, string $propertyName, string $fieldScope = self::FIELD_SCOPE_COMMON): ?ExtraPropertyDefinitionInfo
     {
-        if (!Validate::isTableOrIdentifier($fieldName)) {
+        if (!Validate::isTableOrIdentifier($propertyName)) {
             return null;
         }
         [$normalizedEntityName, $normalizedFieldScope] = $this->normalizeEntityNameAndFieldScope($entityName, $fieldScope);
@@ -116,8 +126,8 @@ class ExtraPropertyDefinitionRepository implements ExtraPropertyDefinitionReposi
 
         foreach ($this->getByEntityNameAllScopes($normalizedEntityName) as $definition) {
             if (
-                ($definition['field_name'] ?? null) === $fieldName
-                && ($definition['field_scope'] ?? null) === $normalizedFieldScope
+                $definition->getPropertyName() === $propertyName
+                && $definition->getFieldScope() === $normalizedFieldScope
             ) {
                 return $definition;
             }
@@ -135,7 +145,17 @@ class ExtraPropertyDefinitionRepository implements ExtraPropertyDefinitionReposi
     }
 
     /**
-     * Finds one registry definition matching (entity_name, module_name, field_name, field_scope).
+     * {@inheritdoc}
+     */
+    public function getDefinitionById(int $id): ?ExtraPropertyDefinitionInfo
+    {
+        $row = $this->findById($id);
+
+        return null !== $row ? ExtraPropertyDefinitionInfo::fromRow($row) : null;
+    }
+
+    /**
+     * Finds one registry definition matching (entity_name, module_name, property_name, scope).
      * Uses the all-scopes retrieval internally.
      *
      * @param string $entityName normalized entity name
@@ -143,20 +163,20 @@ class ExtraPropertyDefinitionRepository implements ExtraPropertyDefinitionReposi
      * @param string $fieldName
      * @param string $fieldScope
      *
-     * @return array<string, mixed>|null
+     * @return ExtraPropertyDefinitionInfo|null
      */
-    public function findDefinitionByModuleAndField(string $entityName, ?string $moduleName, string $fieldName, string $fieldScope): ?array
+    public function findDefinitionByModuleAndField(string $entityName, ?string $moduleName, string $fieldName, string $fieldScope): ?ExtraPropertyDefinitionInfo
     {
-        // Normalize to '' for core fields (module_name IS '' in DB since it is NOT NULL DEFAULT '').
-        $normalizedModule = (null === $moduleName || '' === $moduleName) ? '' : $moduleName;
+        // Normalize to null for core fields (module_name IS NULL in DB).
+        $normalizedModule = (null === $moduleName || '' === $moduleName) ? null : $moduleName;
 
         foreach ($this->getByEntityNameAllScopes($entityName) as $definition) {
-            $defModule = (string) ($definition['module_name'] ?? '');
+            $defModule = $definition->getModuleName();
 
             if (
                 $defModule === $normalizedModule
-                && ($definition['field_name'] ?? null) === $fieldName
-                && ($definition['field_scope'] ?? null) === $fieldScope
+                && $definition->getPropertyName() === $fieldName
+                && $definition->getFieldScope() === $fieldScope
             ) {
                 return $definition;
             }
@@ -166,7 +186,8 @@ class ExtraPropertyDefinitionRepository implements ExtraPropertyDefinitionReposi
     }
 
     /**
-     * Loads one definition row directly by primary key (bypasses internal all-scopes cache).
+     * Loads one raw definition row directly by primary key (bypasses internal all-scopes cache).
+     * Returns the raw array row, or null when not found.
      *
      * @param int $id
      *
@@ -187,22 +208,57 @@ class ExtraPropertyDefinitionRepository implements ExtraPropertyDefinitionReposi
     }
 
     /**
-     * Saves (insert or update) one definition row.
+     * Saves (insert or update) one definition row from typed parameters.
      *
-     * @param array<string, mixed> $data
-     * @param int|null $existingId when provided, performs an UPDATE; otherwise INSERT
+     * @param ExtraPropertyOptions $options Typed options as declared by the module
+     * @param string $entityName Normalized entity name (e.g. 'product')
+     * @param string $propertyName Property name as declared (e.g. 'is_dangerous')
+     * @param string|null $normalizedModuleName Module name (null for core fields)
+     * @param string $normalizedScope Normalized scope value ('common', 'lang', 'shop')
+     * @param int|null $existingId When provided, performs an UPDATE; otherwise INSERT
      *
-     * @return int|false returns the id on success, false on failure
+     * @return int|false Returns the id on success, false on failure
      */
-    public function save(array $data, ?int $existingId = null): int|false
-    {
+    public function save(
+        ExtraPropertyOptions $options,
+        string $entityName,
+        string $propertyName,
+        ?string $normalizedModuleName,
+        string $normalizedScope,
+        ?int $existingId = null
+    ): int|false {
         $table = $this->prefix . 'extra_property_definition';
+
+        $data = [
+            'module_name' => $normalizedModuleName,
+            'scope' => $normalizedScope,
+            'type' => $options->type->value,
+            'size' => $options->size,
+            'form_required' => (int) $options->formRequired,
+            'default_value' => null !== $options->defaultValue ? (string) $options->defaultValue : null,
+            'form_field_type' => $options->formFieldType,
+            'form_options' => null !== $options->formOptions ? json_encode($options->formOptions) : null,
+            'form_position' => $options->formPosition,
+            'sql_index' => $options->sqlIndex->value,
+            'validator' => $options->validator,
+            'display_api' => (int) $options->displayApi,
+            'display_form' => (int) $options->displayForm,
+            'display_grid' => (int) $options->displayGrid,
+            'grid_position' => null !== $options->gridPosition ? (string) $options->gridPosition : null,
+            'title_wording' => $options->titleWording,
+            'title_domain' => $options->titleDomain,
+            'description_wording' => $options->descriptionWording,
+            'description_domain' => $options->descriptionDomain,
+        ];
 
         if (null !== $existingId) {
             $saved = (bool) $this->connection->update($table, $data, ['id_extra_property_definition' => $existingId]);
 
             return $saved ? $existingId : false;
         }
+
+        $data['entity_name'] = $entityName;
+        $data['property_name'] = $propertyName;
 
         $saved = (bool) $this->connection->insert($table, $data);
         if (!$saved) {
@@ -214,7 +270,6 @@ class ExtraPropertyDefinitionRepository implements ExtraPropertyDefinitionReposi
 
     /**
      * Deletes one definition row by primary key.
-     * Also removes the associated lang rows.
      *
      * @param int $id
      *

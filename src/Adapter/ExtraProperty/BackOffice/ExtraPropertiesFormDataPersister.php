@@ -11,6 +11,7 @@ namespace PrestaShop\PrestaShop\Adapter\ExtraProperty\BackOffice;
 use DateTimeInterface;
 use PrestaShop\PrestaShop\Core\CommandBus\CommandBusInterface;
 use PrestaShop\PrestaShop\Core\Domain\ExtraProperty\Command\UpdateExtraPropertyValuesCommand;
+use PrestaShop\PrestaShop\Core\Domain\ExtraProperty\QueryResult\ExtraPropertyDefinitionInfo;
 use PrestaShop\PrestaShop\Core\ExtraProperty\ExtraPropertyNaming;
 use PrestaShopBundle\Form\Admin\Type\NavigationTabType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
@@ -43,34 +44,31 @@ class ExtraPropertiesFormDataPersister
         }
 
         $definitions = $this->definitionProvider->getDefinitionsForEntity($entityName);
-        if (empty($definitions)) {
+        if ($definitions->isEmpty()) {
             return;
         }
 
-        $storageEntityName = $this->resolveStorageEntityName($entityName, $definitions);
+        $storageEntityName = $this->resolveStorageEntityName($entityName, $definitions->first());
 
         $entityValues = [];
         $langValuesByIdLang = [];
         $shopValues = [];
 
         foreach ($definitions as $definition) {
-            $fieldName = (string) ($definition['field_name'] ?? '');
+            $fieldName = $definition->getPropertyName();
             if ('' === $fieldName) {
                 continue;
             }
 
-            $moduleName = ExtraPropertyNaming::displayModuleKey($definition['module_name'] ?? null);
-            $scope = (string) ($definition['field_scope'] ?? 'common');
-            $columnName = (string) ($definition['storage_column_name'] ?? '');
-            if ('' === $columnName) {
-                continue;
-            }
+            $moduleName = ExtraPropertyNaming::displayModuleKey($definition->getModuleName());
+            $scope = $definition->getFieldScope();
+            $columnName = ExtraPropertyNaming::storageColumnName($definition->getModuleName() ?? '', $fieldName);
 
-            $targetPath = trim((string) ($definition['property_path'] ?? ''));
+            $targetPath = trim($definition->getFormPosition() ?? '');
             if ('' === $targetPath) {
                 // Keep fallback placement consistent with ExtraPropertiesFormBuilderModifier.
-                $targetPath = ($form->has(static::DEFAULT_FALLBACK_TAB) || $this->isNavigationTabForm($form))
-                    ? static::DEFAULT_FALLBACK_TAB . '.' . ExtraPropertiesFormBuilderModifier::FALLBACK_FORM_SECTION
+                $targetPath = ($form->has(self::DEFAULT_FALLBACK_TAB) || $this->isNavigationTabForm($form))
+                    ? self::DEFAULT_FALLBACK_TAB . '.' . ExtraPropertiesFormBuilderModifier::FALLBACK_FORM_SECTION
                     : '';
             }
             $formFieldName = ExtraPropertyNaming::formFieldName($moduleName, $fieldName, $scope);
@@ -118,14 +116,10 @@ class ExtraPropertiesFormDataPersister
         ));
     }
 
-    /**
-     * @param array<int, array<string, mixed>> $definitions
-     */
-    protected function resolveStorageEntityName(string $fallbackEntityName, array $definitions): string
+    protected function resolveStorageEntityName(string $fallbackEntityName, ?ExtraPropertyDefinitionInfo $firstDefinition): string
     {
-        $definitionEntityName = $definitions[0]['entity_name'] ?? null;
-        if (is_string($definitionEntityName) && '' !== trim($definitionEntityName)) {
-            return trim($definitionEntityName);
+        if (null !== $firstDefinition && '' !== trim($firstDefinition->getEntityName())) {
+            return trim($firstDefinition->getEntityName());
         }
 
         return $fallbackEntityName;
@@ -134,8 +128,6 @@ class ExtraPropertiesFormDataPersister
     /**
      * Resolves the sub-form that holds the unmapped extra field, consistent with ExtraPropertiesFormBuilderModifier.
      * If the computed path has no field (e.g. extra_fields tab added after the modifier by a hook), falls back to root.
-     *
-     * @param FormInterface $rootForm Root form passed to persist()
      */
     protected function resolveTargetFormForExtraField(FormInterface $rootForm, string $targetPath, string $formFieldName): ?FormInterface
     {
@@ -189,14 +181,13 @@ class ExtraPropertiesFormDataPersister
     /**
      * Normalizes submitted Symfony values into scalar DB-compatible values.
      *
-     * @param array<string, mixed> $definition
      * @param mixed $value
      *
      * @return mixed
      */
-    protected function normalizeSubmittedValueForStorage(array $definition, $value)
+    protected function normalizeSubmittedValueForStorage(ExtraPropertyDefinitionInfo $definition, $value)
     {
-        $declaredType = !empty($definition['symfony_field_type']) ? (string) $definition['symfony_field_type'] : null;
+        $declaredType = $definition->getFormFieldType();
         if (CheckboxType::class === $declaredType) {
             return (int) (bool) $value;
         }

@@ -11,23 +11,24 @@ namespace PrestaShop\PrestaShop\Core\ExtraProperty;
 use ArrayIterator;
 use Countable;
 use IteratorAggregate;
+use PrestaShop\PrestaShop\Core\Domain\ExtraProperty\QueryResult\ExtraPropertyDefinitionInfo;
 use Traversable;
 
 /**
- * Immutable, iterable collection of extra property definition rows.
+ * Immutable, iterable collection of extra property definitions.
  *
- * Each item is an associative array as returned by ExtraPropertyDefinitionRepositoryInterface.
+ * Each item is a typed ExtraPropertyDefinitionInfo value object.
  * Provides fluent helpers for filtering and inspection without modifying the original data.
  *
- * @implements IteratorAggregate<int, array<string, mixed>>
+ * @implements IteratorAggregate<int, ExtraPropertyDefinitionInfo>
  */
 final class ExtraPropertyDefinitionCollection implements Countable, IteratorAggregate
 {
-    /** @var list<array<string, mixed>> */
+    /** @var list<ExtraPropertyDefinitionInfo> */
     private readonly array $definitions;
 
     /**
-     * @param array<int, array<string, mixed>> $definitions raw rows from the repository
+     * @param list<ExtraPropertyDefinitionInfo> $definitions
      */
     public function __construct(array $definitions)
     {
@@ -52,7 +53,7 @@ final class ExtraPropertyDefinitionCollection implements Countable, IteratorAggr
     }
 
     /**
-     * @return Traversable<int, array<string, mixed>>
+     * @return Traversable<int, ExtraPropertyDefinitionInfo>
      */
     public function getIterator(): Traversable
     {
@@ -71,9 +72,9 @@ final class ExtraPropertyDefinitionCollection implements Countable, IteratorAggr
     /**
      * Returns the first definition, or null when the collection is empty.
      *
-     * @return array<string, mixed>|null
+     * @return ExtraPropertyDefinitionInfo|null
      */
-    public function first(): ?array
+    public function first(): ?ExtraPropertyDefinitionInfo
     {
         return $this->definitions[0] ?? null;
     }
@@ -81,7 +82,7 @@ final class ExtraPropertyDefinitionCollection implements Countable, IteratorAggr
     /**
      * Returns the raw definitions array.
      *
-     * @return list<array<string, mixed>>
+     * @return list<ExtraPropertyDefinitionInfo>
      */
     public function toArray(): array
     {
@@ -90,7 +91,7 @@ final class ExtraPropertyDefinitionCollection implements Countable, IteratorAggr
 
     /**
      * Returns unique module names present in this collection.
-     * Core fields (module_name = NULL or '') are represented by the '_core' key.
+     * Core fields (module_name = NULL) are represented by the '_core' key.
      *
      * @return list<string>
      */
@@ -98,7 +99,7 @@ final class ExtraPropertyDefinitionCollection implements Countable, IteratorAggr
     {
         $seen = [];
         foreach ($this->definitions as $definition) {
-            $name = !empty($definition['module_name']) ? (string) $definition['module_name'] : '_core';
+            $name = null !== $definition->getModuleName() ? $definition->getModuleName() : '_core';
             $seen[$name] = true;
         }
 
@@ -117,11 +118,18 @@ final class ExtraPropertyDefinitionCollection implements Countable, IteratorAggr
      */
     public function filterByModule(?string $moduleName): self
     {
-        // '_core', null and '' all refer to core fields (module_name = '' in DB).
-        $normalizedModule = (null === $moduleName || '_core' === $moduleName || '' === $moduleName) ? '' : $moduleName;
+        // '_core', null and '' all refer to core fields (module_name IS NULL in DB).
+        $isCore = null === $moduleName || '_core' === $moduleName || '' === $moduleName;
         $filtered = array_filter(
             $this->definitions,
-            static fn (array $d): bool => (string) ($d['module_name'] ?? '') === $normalizedModule
+            static function (ExtraPropertyDefinitionInfo $d) use ($isCore, $moduleName): bool {
+                $defModule = $d->getModuleName();
+                if ($isCore) {
+                    return null === $defModule;
+                }
+
+                return $defModule === $moduleName;
+            }
         );
 
         return new self(array_values($filtered));
@@ -137,31 +145,20 @@ final class ExtraPropertyDefinitionCollection implements Countable, IteratorAggr
         $scopeValue = $scope instanceof ExtraPropertyScope ? $scope->value : $scope;
         $filtered = array_filter(
             $this->definitions,
-            static fn (array $d): bool => ($d['field_scope'] ?? null) === $scopeValue
+            static fn (ExtraPropertyDefinitionInfo $d): bool => $d->getFieldScope() === $scopeValue
         );
 
         return new self(array_values($filtered));
     }
 
     /**
-     * Returns a new collection containing only definitions with display_front = 1.
+     * Returns a new collection containing only definitions with display_form = 1.
      */
-    public function withDisplayFront(): self
+    public function withDisplayForm(): self
     {
         return new self(array_values(array_filter(
             $this->definitions,
-            static fn (array $d): bool => !empty($d['display_front'])
-        )));
-    }
-
-    /**
-     * Returns a new collection containing only definitions with display_bo = 1.
-     */
-    public function withDisplayBo(): self
-    {
-        return new self(array_values(array_filter(
-            $this->definitions,
-            static fn (array $d): bool => !empty($d['display_bo'])
+            static fn (ExtraPropertyDefinitionInfo $d): bool => $d->isDisplayForm()
         )));
     }
 
@@ -172,7 +169,7 @@ final class ExtraPropertyDefinitionCollection implements Countable, IteratorAggr
     {
         return new self(array_values(array_filter(
             $this->definitions,
-            static fn (array $d): bool => !empty($d['display_grid'])
+            static fn (ExtraPropertyDefinitionInfo $d): bool => $d->isDisplayGrid()
         )));
     }
 
@@ -183,7 +180,7 @@ final class ExtraPropertyDefinitionCollection implements Countable, IteratorAggr
     {
         return new self(array_values(array_filter(
             $this->definitions,
-            static fn (array $d): bool => !empty($d['display_api'])
+            static fn (ExtraPropertyDefinitionInfo $d): bool => $d->isDisplayApi()
         )));
     }
 }

@@ -13,7 +13,6 @@ use Context;
 use Country;
 use Hook;
 use Link;
-use PrestaShop\PrestaShop\Adapter\ContainerFinder;
 use PrestaShop\PrestaShop\Adapter\Image\ImageRetriever;
 use PrestaShop\PrestaShop\Adapter\Presenter\AbstractLazyArray;
 use PrestaShop\PrestaShop\Adapter\Presenter\LazyArrayAttribute;
@@ -21,9 +20,7 @@ use PrestaShop\PrestaShop\Adapter\Presenter\Product\ProductLazyArray;
 use PrestaShop\PrestaShop\Adapter\Presenter\Product\ProductListingLazyArray;
 use PrestaShop\PrestaShop\Adapter\Product\PriceFormatter;
 use PrestaShop\PrestaShop\Adapter\Product\ProductColorsRetriever;
-use PrestaShop\PrestaShop\Core\ExtraProperty\Storage\ExtraPropertyValueProviderInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
-use Throwable;
 use Tools;
 
 #[LazyArrayAttribute(isRewritable: true)]
@@ -71,8 +68,6 @@ class CartLazyArray extends AbstractLazyArray
 
     private CartProductPresenter $cartProductPresenter;
 
-    private ?ExtraPropertyValueProviderInterface $extraPropertyValueProvider;
-
     public function __construct(Cart $cart, CartPresenter $cartPresenter, bool $shouldSeparateGifts = false)
     {
         $this->shouldSeparateGifts = $shouldSeparateGifts;
@@ -83,16 +78,12 @@ class CartLazyArray extends AbstractLazyArray
         $this->link = $context->link;
         $this->imageRetriever = new ImageRetriever($this->link);
         $this->priceFormatter = new PriceFormatter();
-        $this->extraPropertyValueProvider = $this->resolveExtraPropertyValueProvider($context);
         $this->cartProductPresenter = new CartProductPresenter(
             $this->imageRetriever,
             $this->link,
             $this->priceFormatter,
             new ProductColorsRetriever(),
-            $this->translator,
-            null,
-            null,
-            $this->extraPropertyValueProvider
+            $this->translator
         );
         parent::__construct();
     }
@@ -592,20 +583,4 @@ class CartLazyArray extends AbstractLazyArray
         );
     }
 
-    /**
-     * Resolves the front-office extra property provider from the service container when available.
-     */
-    private function resolveExtraPropertyValueProvider(Context $context): ?ExtraPropertyValueProviderInterface
-    {
-        try {
-            $containerFinder = new ContainerFinder($context);
-
-            /** @var ExtraPropertyValueProviderInterface $extraPropertyValueProvider */
-            $extraPropertyValueProvider = $containerFinder->getContainer()->get(ExtraPropertyValueProviderInterface::class);
-
-            return $extraPropertyValueProvider;
-        } catch (Throwable $e) {
-            return null;
-        }
-    }
 }

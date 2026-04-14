@@ -6,13 +6,11 @@
 
 namespace PrestaShop\PrestaShop\Adapter\Presenter\Order;
 
-use Context;
 use Link;
 use OrderReturn;
 use PrestaShop\PrestaShop\Adapter\Presenter\AbstractLazyArray;
 use PrestaShop\PrestaShop\Adapter\Presenter\ExtraPropertiesLazyArray;
 use PrestaShop\PrestaShop\Adapter\Presenter\LazyArrayAttribute;
-use PrestaShop\PrestaShop\Core\ExtraProperty\Storage\ExtraPropertyValueProviderInterface;
 use PrestaShopException;
 use ReflectionException;
 use Tools;
@@ -41,16 +39,14 @@ class OrderReturnLazyArray extends AbstractLazyArray
      *
      * @throws ReflectionException
      */
-    public function __construct($prefix, Link $link, array $orderReturn, ?ExtraPropertyValueProviderInterface $extraPropertyValueProvider = null)
+    public function __construct($prefix, Link $link, array $orderReturn)
     {
         $this->prefix = $prefix;
         $this->link = $link;
         $this->orderReturn = $orderReturn;
         $this->extraPropertiesLazyArray = ExtraPropertiesLazyArray::fromObjectModelClass(
             OrderReturn::class,
-            (int) ($this->orderReturn['id_order_return'] ?? 0),
-            $extraPropertyValueProvider,
-            Context::getContext()
+            (int) ($this->orderReturn['id_order_return'] ?? 0)
         );
         parent::__construct();
         $this->appendArray($orderReturn);

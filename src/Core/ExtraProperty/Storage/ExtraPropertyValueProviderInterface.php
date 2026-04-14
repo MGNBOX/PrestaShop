@@ -6,6 +6,8 @@
 
 namespace PrestaShop\PrestaShop\Core\ExtraProperty\Storage;
 
+use PrestaShop\PrestaShop\Core\Domain\ExtraProperty\QueryResult\ExtraPropertyDefinitionInfo;
+
 interface ExtraPropertyValueProviderInterface
 {
     /**
@@ -19,9 +21,9 @@ interface ExtraPropertyValueProviderInterface
      * @param string $fieldName
      * @param string|null $fieldScope Allowed values: common, lang, shop or null
      *
-     * @return array<string, mixed>|null
+     * @return ExtraPropertyDefinitionInfo|null
      */
-    public function findCustomFieldDefinition(string $entityName, string $fieldName, ?string $fieldScope = null): ?array;
+    public function findCustomFieldDefinition(string $entityName, string $fieldName, ?string $fieldScope = null): ?ExtraPropertyDefinitionInfo;
 
     /**
      * Returns extra properties grouped by module technical name.
@@ -29,7 +31,7 @@ interface ExtraPropertyValueProviderInterface
      * Returned format:
      * [
      *     'module_technical_name' => [
-     *         'field_name' => 'value',
+     *         'property_name' => 'value',
      *     ],
      * ]
      *
@@ -39,7 +41,6 @@ interface ExtraPropertyValueProviderInterface
      * @param int|null $langId
      * @param int|null $shopId
      * @param bool $isLangMultishop
-     * @param bool $displayFrontOnly
      *
      * @return array<string, array<string, mixed>>
      */
@@ -49,30 +50,7 @@ interface ExtraPropertyValueProviderInterface
         int $entityId,
         ?int $langId = null,
         ?int $shopId = null,
-        bool $isLangMultishop = false,
-        bool $displayFrontOnly = false
+        bool $isLangMultishop = false
     ): array;
 
-    /**
-     * Returns extra properties for front-office contexts only.
-     *
-     * This method centralizes FO conventions:
-     * - only definitions with display_front = 1 are exposed;
-     * - lang scope resolution is shop-aware in FO.
-     *
-     * @param string $entityName
-     * @param string $primaryKeyName
-     * @param int $entityId
-     * @param int|null $langId
-     * @param int|null $shopId
-     *
-     * @return array<string, array<string, mixed>>
-     */
-    public function getFrontExtraProperties(
-        string $entityName,
-        string $primaryKeyName,
-        int $entityId,
-        ?int $langId = null,
-        ?int $shopId = null
-    ): array;
 }

@@ -8,6 +8,7 @@ declare(strict_types=1);
 
 namespace PrestaShop\PrestaShop\Adapter\ExtraProperty\Schema;
 
+use PrestaShop\PrestaShop\Core\ExtraProperty\ExtraPropertySqlIndex;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Schema\ExtraPropertySchemaManagerInterface;
 use Symfony\Contracts\Cache\CacheInterface;
 
@@ -32,7 +33,7 @@ class CacheInvalidatingSchemaManager implements ExtraPropertySchemaManagerInterf
     /**
      * {@inheritdoc}
      */
-    public function ensureExtraTableAndColumn(string $entityName, string $fieldScope, string $columnName, string $sqlColumnDefinition, string $sqlIndex): void
+    public function ensureExtraTableAndColumn(string $entityName, string $fieldScope, string $columnName, string $sqlColumnDefinition, ExtraPropertySqlIndex $sqlIndex): void
     {
         $this->inner->ensureExtraTableAndColumn($entityName, $fieldScope, $columnName, $sqlColumnDefinition, $sqlIndex);
         $this->invalidateEntityCache($entityName);
