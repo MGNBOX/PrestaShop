@@ -25,12 +25,16 @@ Each AI tool has its own configuration format (`CLAUDE.md`, `.cursorrules`, `.gi
 │
 ├── Domain/                 # Business domain contexts (maps to src/Core/Domain/)
 │   ├── {DomainName}/
-│   │   └── CONTEXT.md      # Domain-specific conventions, patterns, do/don't rules
+│   │   ├── CONTEXT.md      # Domain-specific conventions, patterns, do/don't rules
+│   │   └── skills/         # (optional) Domain-scoped skills
+│   │       └── {skill-name}/SKILL.md
 │   └── ...
 │
 ├── Component/              # Cross-cutting component contexts (maps to shared infrastructure)
 │   ├── {ComponentName}/
-│   │   └── CONTEXT.md      # Component-specific conventions, usage patterns, do/don't rules
+│   │   ├── CONTEXT.md      # Component-specific conventions, usage patterns, do/don't rules
+│   │   └── skills/         # (optional) Component-scoped skills
+│   │       └── {skill-name}/SKILL.md
 │   └── ...
 │
 └── generated/              # Pre-built index snapshots (cqrs.md, routes.md, entities.md, hooks.md)
@@ -107,7 +111,9 @@ Contributors using web-based AI assistants should copy-paste the relevant `CONTE
 2. **Identify the relevant domain or component** from the index based on the files being worked on.
 3. **Read the specific `CONTEXT.md`** for that domain or component dynamically and only when needed to avoid overloading the AI context.
 4. **Check for a matching skill** before performing any recurring task:
-   - All skills live in `.ai/skills/{skill-name}/SKILL.md` — check the `## Skills` table in `.ai/CONTEXT.md` or the relevant component/domain `CONTEXT.md`.
+   - Cross-cutting skills live in `.ai/skills/{skill-name}/SKILL.md`.
+   - Scoped skills live inside their component or domain: `.ai/Component/{Name}/skills/` or `.ai/Domain/{Name}/skills/`.
+   - Check the `## Skills` table in `.ai/CONTEXT.md` or the relevant component/domain `CONTEXT.md` for a full list.
    - Read the `SKILL.md` and follow its instructions step by step.
 
 ## How to contribute
@@ -125,9 +131,14 @@ Contributors using web-based AI assistants should copy-paste the relevant `CONTE
 
 ### Adding a skill
 
-1. Create `.ai/skills/{skill-name}/SKILL.md` — all skills live here regardless of scope.
-2. Add one line to the `Current project skills` list in `CLAUDE.md`.
-3. Add a `## Skills` entry to the corresponding `CONTEXT.md`: root `.ai/CONTEXT.md` for cross-cutting skills, or the relevant component/domain `CONTEXT.md` for scoped ones.
+A skill exists to help: use the `create-skill` skill.
+
+1. **Choose the canonical location** based on scope:
+   - Cross-cutting → `.ai/skills/{skill-name}/SKILL.md`
+   - Component-scoped → `.ai/Component/{Name}/skills/{skill-name}/SKILL.md`
+   - Domain-scoped → `.ai/Domain/{Name}/skills/{skill-name}/SKILL.md`
+2. Create a symlink in `.claude/skills/` pointing to the skill directory (for Claude Code auto-discovery).
+3. Add a `## Skills` entry to the corresponding `CONTEXT.md`: root `.ai/CONTEXT.md` for cross-cutting skills, or the relevant component/domain `CONTEXT.md` for scoped ones. This table is the agnostic discovery mechanism for all non-Claude tools.
 
 ### Updating existing context
 

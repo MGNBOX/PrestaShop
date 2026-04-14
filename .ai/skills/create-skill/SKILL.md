@@ -20,9 +20,8 @@ Choose the location based on scope — in order of priority:
 | 4 | Cross-cutting (spans multiple domains/components) | `.ai/skills/{skill-name}/SKILL.md` |
 
 After writing the file:
-1. Add one line to the `Current project skills` list in `CLAUDE.md`
-2. Add a `## Skills` section (or entry) to the corresponding `CONTEXT.md` — root `.ai/CONTEXT.md` for cross-cutting skills, or `.ai/Component/{Name}/CONTEXT.md` / `.ai/Domain/{Name}/CONTEXT.md` for scoped skills
-3. Create a symlink in `.claude/skills/` pointing to the skill **directory** (not the file). The path **must be relative**:
+1. Add a `## Skills` section (or entry) to the corresponding `CONTEXT.md` — root `.ai/CONTEXT.md` for cross-cutting skills, or `.ai/Component/{Name}/CONTEXT.md` / `.ai/Domain/{Name}/CONTEXT.md` for scoped skills. This is the agnostic discovery mechanism for all non-Claude tools.
+2. Create a symlink in `.claude/skills/` pointing to the skill **directory** (not the file). The path **must be relative**. This enables Claude Code auto-discovery.
    ```
    cd .claude/skills && ln -s ../../<skill-dir-path-from-repo-root> <skill-name>
    ```
@@ -111,6 +110,5 @@ placement rules above before applying them.
 
 - [ ] Directory and `SKILL.md` created at the correct scoped path (component, domain, or cross-cutting)
 - [ ] `description` front-loads the use case and lists trigger phrases
-- [ ] `CLAUDE.md` `Current project skills` list updated with one line
-- [ ] Corresponding `CONTEXT.md` updated with a `## Skills` entry
-- [ ] Symlink created in `.claude/skills/` pointing to the skill directory
+- [ ] Corresponding `CONTEXT.md` updated with a `## Skills` entry (agnostic discovery)
+- [ ] Symlink created in `.claude/skills/` pointing to the skill directory (Claude Code discovery)
