@@ -51,7 +51,7 @@ export default class FulfillShipmentManager {
   };
 
   async refreshFulfillShipmentForm(): Promise<void> {
-    const modal = document.querySelector(OrderViewPageMap.fulfillShipmentModal) as HTMLElement;
+    const modal = document.querySelector<HTMLElement>(OrderViewPageMap.fulfillShipmentModal);
 
     if (!modal) {
       throw new Error('Fulfill shipment modal not found.');
@@ -70,7 +70,7 @@ export default class FulfillShipmentManager {
       if (!response.ok) {
         throw new Error(await response.text());
       }
-      const formContainer = document.querySelector(OrderViewPageMap.fulfillShipmentModalContainer) as HTMLElement;
+      const formContainer = document.querySelector<HTMLElement>(OrderViewPageMap.fulfillShipmentModalContainer);
       formContainer!.innerHTML = await response.text();
 
       modal.dataset.state = 'loaded';
