@@ -24,7 +24,7 @@ final class EditShipmentRowAction extends AbstractRowAction
     /**
      * {@inheritdoc}
      */
-    public function isApplicable(array $record)
+    public function isApplicable(array $record): bool
     {
         if ($this->shipmentIsPacked($record)) {
             return false;

@@ -24,7 +24,7 @@ final class FulfillShipmentRowAction extends AbstractRowAction
     /**
      * {@inheritdoc}
      */
-    public function isApplicable(array $record)
+    public function isApplicable(array $record): bool
     {
         if (isset($record['tracking_number'])) {
             return false;

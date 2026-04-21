@@ -24,7 +24,7 @@ final class SplitShipmentRowAction extends AbstractRowAction
     /**
      * {@inheritdoc}
      */
-    public function isApplicable(array $record)
+    public function isApplicable(array $record): bool
     {
         $options = $this->getOptions();
         $itemsField = $options['items'];
