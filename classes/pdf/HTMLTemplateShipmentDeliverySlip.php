@@ -30,16 +30,16 @@ class HTMLTemplateShipmentDeliverySlipCore extends HTMLTemplate
      */
     public function __construct(array $shipmentData, Smarty $smarty)
     {
-        if (is_array($shipmentData) && isset($shipmentData['shipment'])) {
-            $this->shipment = $shipmentData['shipment'];
-            $this->order = $shipmentData['order'];
-            $orderInvoiceCollection = $shipmentData['order_invoice_collection'];
-
-            // Get the first invoice for address information (fallback to order addresses if no invoice)
-            $this->order_invoice = $orderInvoiceCollection->count() > 0 ? $orderInvoiceCollection->getFirst() : null;
-        } else {
+        if (!isset($shipmentData['shipment']) || !is_array($shipmentData)) {
             throw new PrestaShopException('Invalid shipment data provided to HTMLTemplateShipmentDeliverySlip');
         }
+
+        $this->shipment = $shipmentData['shipment'];
+        $this->order = $shipmentData['order'];
+        $orderInvoiceCollection = $shipmentData['order_invoice_collection'];
+
+        // Get the first invoice for address information (fallback to order addresses if no invoice)
+        $this->order_invoice = $orderInvoiceCollection->count() > 0 ? $orderInvoiceCollection->getFirst() : null;
 
         $this->smarty = $smarty;
 
