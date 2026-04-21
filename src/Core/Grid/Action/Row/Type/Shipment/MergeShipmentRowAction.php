@@ -44,7 +44,7 @@ final class MergeShipmentRowAction extends AbstractRowAction
 
     private function shipmentIsPacked(array $record): bool
     {
-        return isset($record['tracking_number']) || isset($record['packed_at']);
+        return empty($record['tracking_number']) || empty($record['packed_at']);
     }
 
     /**

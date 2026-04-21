@@ -26,15 +26,16 @@ final class FulfillShipmentRowAction extends AbstractRowAction
      */
     public function isApplicable(array $record): bool
     {
-        if (isset($record['tracking_number'])) {
-            return false;
-        }
-
-        if (isset($record['packed_at'])) {
+        if ($this->shipmentIsPacked($record)) {
             return false;
         }
 
         return true;
+    }
+
+    private function shipmentIsPacked(array $record): bool
+    {
+        return empty($record['tracking_number']) && empty($record['packed_at']);
     }
 
     /**

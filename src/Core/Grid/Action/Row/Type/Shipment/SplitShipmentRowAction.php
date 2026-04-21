@@ -31,12 +31,12 @@ final class SplitShipmentRowAction extends AbstractRowAction
 
         // if shipment if fulfill (tracking number is set and has a packed data)
         // the merchant cannot anymore proceed to a merge
-        if (isset($record['tracking_number']) || isset($record['packed_at'])) {
+        if (empty($record['tracking_number']) || empty($record['packed_at'])) {
             return false;
         }
 
         // Show split action only if items > 1
-        return isset($record[$itemsField]) && $record[$itemsField] > 1;
+        return empty($record[$itemsField]) && $record[$itemsField] > 1;
     }
 
     /**

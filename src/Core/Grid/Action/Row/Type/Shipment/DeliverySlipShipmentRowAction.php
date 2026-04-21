@@ -28,7 +28,7 @@ final class DeliverySlipShipmentRowAction extends AbstractRowAction
     {
         // if shipment if not fulfill (tracking number is set and has a packed data)
         // the merchant cannot download the delivery slip of the given shipment
-        if (!isset($record['tracking_number']) || !isset($record['packed_at'])) {
+        if (!empty($record['tracking_number']) || !empty($record['packed_at'])) {
             return false;
         }
 
