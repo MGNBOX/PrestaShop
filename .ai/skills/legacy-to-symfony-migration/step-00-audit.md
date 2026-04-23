@@ -1,7 +1,6 @@
 ---
 step: 0
 title: "Audit"
-skill: legacy-to-symfony-migration
 previous: null
 next: step-01-domain-layer.md
 deliverable: "A written field map, action inventory, and milestone decision before writing any new code"
@@ -13,13 +12,12 @@ Before touching a single new file, you must have a complete picture of what the 
 
 ## Micro-Skills
 
-> Full definitions: `.claude/migration-micro-skill-architecture.md`
 
-| ID | Brick | Artifact | ⚠ |
-|---|---|---|---|
-| **A1** | `audit-legacy-controller` | `controllers/admin/Admin{Domain}*.php` (read-only) | — |
-| **A2** | `audit-object-model` | `classes/{Domain}.php`, `classes/lang/{Domain}Lang.php` (read-only) | — |
-| **A3** | `generate-migration-manifest` | `migration-manifest.md` | — |
+| Skill | Artifact | ⚠ |
+|---|---|---|
+| `audit-legacy-controller` | `controllers/admin/Admin{Domain}*.php` (read-only) | — |
+| `audit-object-model` | `classes/{Domain}.php`, `classes/lang/{Domain}Lang.php` (read-only) | — |
+| `generate-migration-manifest` | `migration-manifest.md` | — |
 
 ## 0.1 — Read the legacy controller
 
@@ -68,7 +66,7 @@ Group every field from `$definition['fields']` into one of these categories:
 Produce a table like this for the entity:
 
 | Action | Legacy method | HTTP | Command to create |
-|---|---|---|---|
+|---|---|---|
 | Create | `processAdd()` | POST | `AddXxxCommand` |
 | Edit | `processUpdate()` | POST | `EditXxxCommand` |
 | Delete | `processDelete()` | POST | `DeleteXxxCommand` |

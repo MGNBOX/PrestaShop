@@ -1,7 +1,6 @@
 ---
 step: 10
 title: "Feature Flag Registration"
-skill: legacy-to-symfony-migration
 previous: step-09-twig-templates.md
 next: step-11-playwright-tests.md
 deliverable: "feature_flag.xml entry with stability='beta' and state='0'; all routes confirmed to respect the flag"
@@ -13,13 +12,12 @@ The feature flag is **not optional**. It is the mechanism that routes HTTP reque
 
 ## Micro-Skills
 
-> Full definitions: `.claude/migration-micro-skill-architecture.md`
 
-| ID | Brick | Artifact | ⚠ |
-|---|---|---|---|
-| **H3** | `register-feature-flag` | `install-dev/data/xml/feature_flag.xml` (new entry) | — |
+| Skill | Artifact | ⚠ |
+|---|---|---|
+| `register-feature-flag` | `install-dev/data/xml/feature_flag.xml` (new entry) | — |
 
-> **H3 must be committed together with H1 (`create-admin-controller`) and H2 (`create-admin-routing`)** — routes referencing an unregistered feature flag cause a 500.
+> **The feature flag must be committed together with `create-admin-controller` and `create-admin-routing`** — routes referencing an unregistered feature flag cause a 500.
 
 ## 10.1 — What the feature flag does
 

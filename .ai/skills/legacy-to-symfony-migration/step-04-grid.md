@@ -1,7 +1,6 @@
 ---
 step: 4
 title: "Grid"
-skill: legacy-to-symfony-migration
 previous: step-03-behat-tests.md
 next: step-05-symfony-controller.md
 deliverable: "src/Core/Grid/ components for the listing page: DefinitionFactory, QueryBuilder, DataFactory, SearchFilters"
@@ -13,15 +12,14 @@ The PrestaShop grid system (`src/Core/Grid/`) powers the admin listing pages. It
 
 ## Micro-Skills
 
-> Full definitions: `.claude/migration-micro-skill-architecture.md`
 
-| ID | Brick | Artifact | ⚠ |
-|---|---|---|---|
-| **G1** | `create-grid-definition-factory` | `Grid/Definition/Factory/{Domain}GridDefinitionFactory.php` | — |
-| **G2** | `create-grid-query-builder` | `Grid/Query/{Domain}QueryBuilder.php` | — |
-| **G3** | `create-grid-data-factory` | `Grid/Data/Factory/{Domain}GridDataFactory.php` | if computed cols |
-| **G4** | `create-grid-search-filters` | `Core/Search/Filters/{Domain}Filters.php` | — |
-| **G5** | `register-grid-services` | `services/core/grid/{domain}.yml` | — |
+| Skill | Artifact | ⚠ |
+|---|---|---|
+| `create-grid-definition-factory` | `Grid/Definition/Factory/{Domain}GridDefinitionFactory.php` | — |
+| `create-grid-query-builder` | `Grid/Query/{Domain}QueryBuilder.php` | — |
+| `create-grid-data-factory` | `Grid/Data/Factory/{Domain}GridDataFactory.php` | if computed cols |
+| `create-grid-search-filters` | `Core/Search/Filters/{Domain}Filters.php` | — |
+| `register-grid-services` | `services/core/grid/{domain}.yml` | — |
 
 ## 4.1 — GridDefinitionFactory
 

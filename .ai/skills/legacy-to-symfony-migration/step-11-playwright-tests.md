@@ -1,7 +1,6 @@
 ---
 step: 11
 title: "Playwright UI Tests"
-skill: legacy-to-symfony-migration
 previous: step-10-feature-flag.md
 next: step-12-general-availability.md
 deliverable: "tests/UI/campaigns/functional/BO/{section}/{subsection}/ test campaigns covering CRUD and every form tab"
@@ -13,19 +12,18 @@ Playwright tests are the gate between beta and GA. They must be written **before
 
 ## Micro-Skills
 
-> Full definitions: `.claude/migration-micro-skill-architecture.md`
 
-| ID | Brick | Artifact | ⚠ |
-|---|---|---|---|
-| **E1** | `create-test-data-fixtures` | `tests/UI/data/{domain}.ts` | — |
-| **E2** | `create-test-resetter` | `tests/Resources/Resetter/{Domain}Resetter.php` | — |
-| **E3** | `create-playwright-crud-campaign` | `tests/UI/.../01_CRUD{Domain}.ts` | — |
-| **E4** | `create-playwright-filter-campaign` | `tests/UI/.../02_filterSort{Domain}s.ts` | — |
-| **E5** | `create-playwright-bulk-campaign` | `tests/UI/.../03_quickEditAndBulkActions.ts` | — |
-| **E6** | `create-playwright-position-campaign` | `tests/UI/.../04_changePosition.ts` | if position |
-| **E7** | `create-playwright-tab-campaign` | `tests/UI/.../0{N}_{TabName}.ts` ×N | per tab |
+| Skill | Artifact | ⚠ |
+|---|---|---|
+| `create-test-data-fixtures` | `tests/UI/data/{domain}.ts` | — |
+| `create-test-resetter` | `tests/Resources/Resetter/{Domain}Resetter.php` | — |
+| `create-playwright-crud-campaign` | `tests/UI/.../01_CRUD{Domain}.ts` | — |
+| `create-playwright-filter-campaign` | `tests/UI/.../02_filterSort{Domain}s.ts` | — |
+| `create-playwright-bulk-campaign` | `tests/UI/.../03_quickEditAndBulkActions.ts` | — |
+| `create-playwright-position-campaign` | `tests/UI/.../04_changePosition.ts` | if position |
+| `create-playwright-tab-campaign` | `tests/UI/.../0{N}_{TabName}.ts` ×N | per tab |
 
-> **E1 and E2** can be written as soon as `A3` (the migration manifest) exists — they do not require a working page.
+> **E1 and E2** (test fixtures and resetter) can be written as soon as the migration manifest exists — they do not require a working page.
 
 ## 11.1 — Directory structure
 

@@ -1,7 +1,6 @@
 ---
 step: 13
 title: "Legacy Deprecation"
-skill: legacy-to-symfony-migration
 previous: step-12-general-availability.md
 next: null
 deliverable: "Deprecation notice in AdminXxxController.php; legacy controller scheduled for removal in a future major release"
@@ -15,13 +14,12 @@ The Carrier migration added this step 5 months after GA (PR #39050, July 2025, G
 
 ## Micro-Skills
 
-> Full definitions: `.claude/migration-micro-skill-architecture.md`
 
-| ID | Brick | Artifact | ⚠ |
-|---|---|---|---|
-| **R4** | `add-legacy-deprecation-notice` | `controllers/admin/Admin{Domain}sController.php` (edit) | — |
-| **R5** | `write-changelog-deprecation` | `CHANGELOG.md` (edit) | — |
-| **R6** | `create-removal-issue` | GitHub Issue | — |
+| Skill | Artifact | ⚠ |
+|---|---|---|
+| `add-legacy-deprecation-notice` | `controllers/admin/Admin{Domain}sController.php` (edit) | — |
+| `write-changelog-deprecation` | `CHANGELOG.md` (edit) | — |
+| `create-removal-issue` | GitHub Issue | — |
 
 ## 13.1 — When to deprecate
 

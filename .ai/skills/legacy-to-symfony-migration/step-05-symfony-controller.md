@@ -1,7 +1,6 @@
 ---
 step: 5
 title: "Symfony Controller"
-skill: legacy-to-symfony-migration
 previous: step-04-grid.md
 next: step-06-routing.md
 deliverable: "src/PrestaShopBundle/Controller/Admin/.../XxxController.php with all actions wired to the command/query bus"
@@ -13,13 +12,12 @@ The controller is the HTTP entry point. It delegates entirely to the command bus
 
 ## Micro-Skills
 
-> Full definitions: `.claude/migration-micro-skill-architecture.md`
 
-| ID | Brick | Artifact | ⚠ |
-|---|---|---|---|
-| **H1** | `create-admin-controller` | `Controller/Admin/{Section}/{Domain}Controller.php` | — |
+| Skill | Artifact | ⚠ |
+|---|---|---|
+| `create-admin-controller` | `Controller/Admin/{Section}/{Domain}Controller.php` | — |
 
-> **H1 must be committed together with H2 (`create-admin-routing`) and H3 (`register-feature-flag`)** — routes referencing an unregistered feature flag cause a 500.
+> **The controller must be committed together with `create-admin-routing` and `register-feature-flag`** — routes referencing an unregistered feature flag cause a 500.
 
 ## 5.1 — Class skeleton
 

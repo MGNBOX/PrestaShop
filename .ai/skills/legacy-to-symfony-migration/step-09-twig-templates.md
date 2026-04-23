@@ -1,7 +1,6 @@
 ---
 step: 9
 title: "Twig Templates"
-skill: legacy-to-symfony-migration
 previous: step-08-frontend.md
 next: step-10-feature-flag.md
 deliverable: "src/PrestaShopBundle/Resources/views/Admin/{Section}/{Subsection}/{Domain}s/ with index.html.twig and form.html.twig"
@@ -13,14 +12,13 @@ Two templates are required for every migrated page: the listing (`index.html.twi
 
 ## Micro-Skills
 
-> Full definitions: `.claude/migration-micro-skill-architecture.md`
 
-| ID | Brick | Artifact | ⚠ |
-|---|---|---|---|
-| **T1** | `create-index-template` | `views/Admin/{Section}/{Domain}s/index.html.twig` | — |
-| **T2** | `create-form-template` | `views/Admin/{Section}/{Domain}s/form.html.twig` | — |
-| **T3** | `create-form-theme-widget` | `views/.../FormTheme/{widget}.html.twig` ×N | if Vue |
-| **T4** | `create-showcase-card` | `views/.../Blocks/showcase_card.html.twig` | if new feature |
+| Skill | Artifact | ⚠ |
+|---|---|---|
+| `create-index-template` | `views/Admin/{Section}/{Domain}s/index.html.twig` | — |
+| `create-form-template` | `views/Admin/{Section}/{Domain}s/form.html.twig` | — |
+| `create-form-theme-widget` | `views/.../FormTheme/{widget}.html.twig` ×N | if Vue |
+| `create-showcase-card` | `views/.../Blocks/showcase_card.html.twig` | if new feature |
 
 ## 9.1 — Directory structure
 

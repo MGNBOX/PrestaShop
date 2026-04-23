@@ -1,7 +1,6 @@
 ---
 step: 6
 title: "Routing"
-skill: legacy-to-symfony-migration
 previous: step-05-symfony-controller.md
 next: step-07-form.md
 deliverable: "YAML routing file with all routes carrying _legacy_feature_flag, registered in parent routing.yml"
@@ -13,13 +12,12 @@ Routing in PrestaShop admin follows a specific convention that differs from stan
 
 ## Micro-Skills
 
-> Full definitions: `.claude/migration-micro-skill-architecture.md`
 
-| ID | Brick | Artifact | ⚠ |
-|---|---|---|---|
-| **H2** | `create-admin-routing` | `Resources/config/routing/admin/{section}/{domain}s.yml` | — |
+| Skill | Artifact | ⚠ |
+|---|---|---|
+| `create-admin-routing` | `Resources/config/routing/admin/{section}/{domain}s.yml` | — |
 
-> **H2 must be committed together with H1 (`create-admin-controller`) and H3 (`register-feature-flag`)** — routes referencing an unregistered feature flag cause a 500.
+> **Routing must be committed together with `create-admin-controller` and `register-feature-flag`** — routes referencing an unregistered feature flag cause a 500.
 
 ## 6.1 — File location and naming
 

@@ -1,7 +1,6 @@
 ---
 step: 3
 title: "Behat Integration Tests"
-skill: legacy-to-symfony-migration
 previous: step-02-adapter-layer.md
 next: step-04-grid.md
 deliverable: "tests/Integration/Behaviour/ fully green for all domain commands and queries"
@@ -13,16 +12,15 @@ Integration tests are written **immediately after the Adapter layer**, before bu
 
 ## Micro-Skills
 
-> Full definitions: `.claude/migration-micro-skill-architecture.md`
 
-| ID | Brick | Artifact | ⚠ |
-|---|---|---|---|
-| **B1** | `create-behat-feature-context` | `Context/Domain/{Domain}/{Domain}FeatureContext.php` | — |
-| **B2** | `write-behat-crud-scenarios` | `Scenario/{Domain}/{domain}_management.feature` | — |
-| **B3** | `write-behat-constraint-scenarios` | append to `{domain}_management.feature` | — |
-| **B4** | `write-behat-i18n-scenarios` | append to `{domain}_management.feature` | if i18n |
-| **B5** | `write-behat-sub-resource-scenarios` | `Scenario/{Domain}/{domain}_{subres}.feature` ×N | if sub-res |
-| **B6** | `write-behat-multistore-scenarios` | `Scenario/{Domain}/{domain}_multishop.feature` | if multistore |
+| Skill | Artifact | ⚠ |
+|---|---|---|
+| `create-behat-feature-context` | `Context/Domain/{Domain}/{Domain}FeatureContext.php` | — |
+| `write-behat-crud-scenarios` | `Scenario/{Domain}/{domain}_management.feature` | — |
+| `write-behat-constraint-scenarios` | append to `{domain}_management.feature` | — |
+| `write-behat-i18n-scenarios` | append to `{domain}_management.feature` | if i18n |
+| `write-behat-sub-resource-scenarios` | `Scenario/{Domain}/{domain}_{subres}.feature` ×N | if sub-res |
+| `write-behat-multistore-scenarios` | `Scenario/{Domain}/{domain}_multishop.feature` | if multistore |
 
 ## 3.1 — Directory structure
 

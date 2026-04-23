@@ -1,7 +1,6 @@
 ---
 step: 8
 title: "Frontend (TypeScript + Vue)"
-skill: legacy-to-symfony-migration
 previous: step-07-form.md
 next: step-09-twig-templates.md
 deliverable: "admin-dev/themes/new-theme/js/pages/{domain}/ with TS entry points and Vue components for any dynamic form fields"
@@ -19,15 +18,14 @@ If none of these apply, skip this step and go directly to Step 9.
 
 ## Micro-Skills
 
-> Full definitions: `.claude/migration-micro-skill-architecture.md`
 
-| ID | Brick | Artifact | ⚠ |
-|---|---|---|---|
-| **JS1** | `create-form-entry-point` | `js/pages/{domain}/form/index.ts` | if Vue |
-| **JS2** | `create-form-manager` | `js/pages/{domain}/form/{domain}-form-manager.ts` | if Vue |
-| **JS3** | `create-vue-component` | `js/pages/{domain}/form/components/{Domain}{Field}.vue` ×N | if Vue |
-| **JS4** | `register-webpack-entry` | webpack config (edit) | if Vue |
-| **JS5** | `implement-tab-error-navigation` | append to `js/pages/{domain}/form/index.ts` | **always** |
+| Skill | Artifact | ⚠ |
+|---|---|---|
+| `create-form-entry-point` | `js/pages/{domain}/form/index.ts` | if Vue |
+| `create-form-manager` | `js/pages/{domain}/form/{domain}-form-manager.ts` | if Vue |
+| `create-vue-component` | `js/pages/{domain}/form/components/{Domain}{Field}.vue` ×N | if Vue |
+| `register-webpack-entry` | webpack config (edit) | if Vue |
+| `implement-tab-error-navigation` | append to `js/pages/{domain}/form/index.ts` | **always** |
 
 ## 8.1 — Directory structure
 

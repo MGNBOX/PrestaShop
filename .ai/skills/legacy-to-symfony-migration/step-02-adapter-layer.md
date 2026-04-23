@@ -1,7 +1,6 @@
 ---
 step: 2
 title: "Adapter Layer"
-skill: legacy-to-symfony-migration
 previous: step-01-domain-layer.md
 next: step-03-behat-tests.md
 deliverable: "src/Adapter/{Domain}/ with Repository, Validator, all Command and Query handlers — all Behat-green"
@@ -13,20 +12,19 @@ The adapter layer lives in `src/Adapter/{Domain}/`. It bridges Core domain contr
 
 ## Micro-Skills
 
-> Full definitions: `.claude/migration-micro-skill-architecture.md`
 
-| ID | Brick | Artifact | ⚠ |
-|---|---|---|---|
-| **P1** | `create-domain-repository` | `Repository/{Domain}Repository.php` | — |
-| **P2** | `create-sub-resource-repository` | `Repository/{Domain}{SubRes}Repository.php` ×N | if sub-res |
-| **P3** | `create-domain-validator` | `Validate/{Domain}Validator.php` | — |
-| **P4** | `create-add-command-handler` | `CommandHandler/Add{Domain}Handler.php` | — |
-| **P5** | `create-edit-command-handler` | `CommandHandler/Edit{Domain}Handler.php` | — |
-| **P6** | `create-delete-command-handlers` | `CommandHandler/Delete{Domain}Handler.php` + `BulkDelete{Domain}Handler.php` | — |
-| **P7** | `create-toggle-command-handlers` | `CommandHandler/Toggle{Domain}StatusHandler.php` + bulk variant ×N | — |
-| **P8** | `create-sub-resource-command-handler` | `CommandHandler/Set{Domain}{SubRes}Handler.php` ×N | if sub-res |
-| **P9** | `create-get-for-editing-handler` | `QueryHandler/Get{Domain}ForEditingHandler.php` | — |
-| **P10** | `create-file-uploader-implementation` | `File/Uploader/{Domain}LogoFileUploader.php` | if file uploads |
+| Skill | Artifact | ⚠ |
+|---|---|---|
+| `create-domain-repository` | `Repository/{Domain}Repository.php` | — |
+| `create-sub-resource-repository` | `Repository/{Domain}{SubRes}Repository.php` ×N | if sub-res |
+| `create-domain-validator` | `Validate/{Domain}Validator.php` | — |
+| `create-add-command-handler` | `CommandHandler/Add{Domain}Handler.php` | — |
+| `create-edit-command-handler` | `CommandHandler/Edit{Domain}Handler.php` | — |
+| `create-delete-command-handlers` | `CommandHandler/Delete{Domain}Handler.php` + `BulkDelete{Domain}Handler.php` | — |
+| `create-toggle-command-handlers` | `CommandHandler/Toggle{Domain}StatusHandler.php` + bulk variant ×N | — |
+| `create-sub-resource-command-handler` | `CommandHandler/Set{Domain}{SubRes}Handler.php` ×N | if sub-res |
+| `create-get-for-editing-handler` | `QueryHandler/Get{Domain}ForEditingHandler.php` | — |
+| `create-file-uploader-implementation` | `File/Uploader/{Domain}LogoFileUploader.php` | if file uploads |
 
 ## 2.1 — Repository
 

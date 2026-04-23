@@ -1,7 +1,6 @@
 ---
 step: 7
 title: "Form"
-skill: legacy-to-symfony-migration
 previous: step-06-routing.md
 next: step-08-frontend.md
 deliverable: "src/PrestaShopBundle/Form/Admin/ types + Core/Form/IdentifiableObject/ DataProvider and DataHandler, all wired in DI YAML"
@@ -13,16 +12,15 @@ PrestaShop uses the **IdentifiableObject** form pattern, which differs from stan
 
 ## Micro-Skills
 
-> Full definitions: `.claude/migration-micro-skill-architecture.md`
 
-| ID | Brick | Artifact | ⚠ |
-|---|---|---|---|
-| **F1** | `create-root-form-type` | `Form/Admin/{Section}/{Domain}/{Domain}Type.php` | — |
-| **F2** | `create-tab-form-type` | `Form/Admin/{Section}/{Domain}/{Tab}SettingsType.php` ×N | — |
-| **F3** | `create-complex-form-subtype` | `Form/Admin/{Section}/{Domain}/Type/{Domain}{Field}Type.php` ×N | if Vue |
-| **F4** | `create-form-data-provider` | `Core/Form/IdentifiableObject/DataProvider/{Domain}FormDataProvider.php` | — |
-| **F5** | `create-form-data-handler` | `Core/Form/IdentifiableObject/DataHandler/{Domain}FormDataHandler.php` | — |
-| **F6** | `register-form-services` | `services/bundle/form/` YAML entries | — |
+| Skill | Artifact | ⚠ |
+|---|---|---|
+| `create-root-form-type` | `Form/Admin/{Section}/{Domain}/{Domain}Type.php` | — |
+| `create-tab-form-type` | `Form/Admin/{Section}/{Domain}/{Tab}SettingsType.php` ×N | — |
+| `create-complex-form-subtype` | `Form/Admin/{Section}/{Domain}/Type/{Domain}{Field}Type.php` ×N | if Vue |
+| `create-form-data-provider` | `Core/Form/IdentifiableObject/DataProvider/{Domain}FormDataProvider.php` | — |
+| `create-form-data-handler` | `Core/Form/IdentifiableObject/DataHandler/{Domain}FormDataHandler.php` | — |
+| `register-form-services` | `services/bundle/form/` YAML entries | — |
 
 ## 7.1 — The IdentifiableObject pattern
 

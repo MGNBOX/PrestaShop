@@ -1,7 +1,6 @@
 ---
 step: 12
 title: "General Availability"
-skill: legacy-to-symfony-migration
 previous: step-11-playwright-tests.md
 next: step-13-legacy-deprecation.md
 deliverable: "feature_flag.xml updated to stability='stable' and state='1'; all Playwright tests migrated to use new routes by default"
@@ -13,13 +12,12 @@ GA is a dedicated PR. It contains no new features — only the flag promotion an
 
 ## Micro-Skills
 
-> Full definitions: `.claude/migration-micro-skill-architecture.md`
 
-| ID | Brick | Artifact | ⚠ |
-|---|---|---|---|
-| **R1** | `promote-feature-flag-to-stable` | `install-dev/data/xml/feature_flag.xml` (edit) | — |
-| **R2** | `write-upgrade-sql` | `upgrade/sql/{version}.sql` | if upgrade path |
-| **R3** | `migrate-playwright-tests-to-default` | edit all E3–E7 campaign files | — |
+| Skill | Artifact | ⚠ |
+|---|---|---|
+| `promote-feature-flag-to-stable` | `install-dev/data/xml/feature_flag.xml` (edit) | — |
+| `write-upgrade-sql` | `upgrade/sql/{version}.sql` | if upgrade path |
+| `migrate-playwright-tests-to-default` | edit all Playwright campaign files | — |
 
 ## 12.1 — GA prerequisites checklist
 

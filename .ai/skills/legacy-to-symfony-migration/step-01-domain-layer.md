@@ -1,7 +1,6 @@
 ---
 step: 1
 title: "Domain Layer"
-skill: legacy-to-symfony-migration
 previous: step-00-audit.md
 next: step-02-adapter-layer.md
 deliverable: "src/Core/Domain/{Domain}/ fully populated: ValueObjects, Commands, Queries, DTOs, Exceptions, handler interfaces"
@@ -13,24 +12,23 @@ The domain layer lives in `src/Core/Domain/{Domain}/`. It contains **no implemen
 
 ## Micro-Skills
 
-> Full definitions: `.claude/migration-micro-skill-architecture.md`
 
-| ID | Brick | Artifact | ⚠ |
-|---|---|---|---|
-| **D1** | `create-identity-value-object` | `ValueObject/{Domain}Id.php` | — |
-| **D2** | `create-semantic-value-object` | `ValueObject/{Concept}.php` ×N | if enums |
-| **D3** | `create-add-command` | `Command/Add{Domain}Command.php` | — |
-| **D4** | `create-edit-command` | `Command/Edit{Domain}Command.php` | — |
-| **D5** | `create-delete-commands` | `Command/Delete{Domain}Command.php` + `BulkDelete{Domain}Command.php` | — |
-| **D6** | `create-toggle-commands` | `Command/Toggle{Domain}StatusCommand.php` + bulk variant | — |
-| **D7** | `create-sub-resource-command` | `Command/Set{Domain}{SubRes}Command.php` ×N | if sub-res |
-| **D8** | `create-get-for-editing-query` | `Query/Get{Domain}ForEditing.php` | — |
-| **D9** | `create-list-query` | `Query/Get{Domain}s.php` | — |
-| **D10** | `create-editable-dto` | `QueryResult/Editable{Domain}.php` | — |
-| **D11** | `create-exception-hierarchy` | `Exception/` hierarchy ×N | — |
-| **D12** | `create-command-handler-interfaces` | `CommandHandler/*HandlerInterface.php` ×N | — |
-| **D13** | `create-query-handler-interfaces` | `QueryHandler/*HandlerInterface.php` ×N | — |
-| **D14** | `create-file-uploader-interface` | `{Domain}LogoFileUploaderInterface.php` | if file uploads |
+| Skill | Artifact | ⚠ |
+|---|---|---|
+| `create-identity-value-object` | `ValueObject/{Domain}Id.php` | — |
+| `create-semantic-value-object` | `ValueObject/{Concept}.php` ×N | if enums |
+| `create-add-command` | `Command/Add{Domain}Command.php` | — |
+| `create-edit-command` | `Command/Edit{Domain}Command.php` | — |
+| `create-delete-commands` | `Command/Delete{Domain}Command.php` + `BulkDelete{Domain}Command.php` | — |
+| `create-toggle-commands` | `Command/Toggle{Domain}StatusCommand.php` + bulk variant | — |
+| `create-sub-resource-command` | `Command/Set{Domain}{SubRes}Command.php` ×N | if sub-res |
+| `create-get-for-editing-query` | `Query/Get{Domain}ForEditing.php` | — |
+| `create-list-query` | `Query/Get{Domain}s.php` | — |
+| `create-editable-dto` | `QueryResult/Editable{Domain}.php` | — |
+| `create-exception-hierarchy` | `Exception/` hierarchy ×N | — |
+| `create-command-handler-interfaces` | `CommandHandler/*HandlerInterface.php` ×N | — |
+| `create-query-handler-interfaces` | `QueryHandler/*HandlerInterface.php` ×N | — |
+| `create-file-uploader-interface` | `{Domain}LogoFileUploaderInterface.php` | if file uploads |
 
 ## 1.1 — ValueObjects
 
