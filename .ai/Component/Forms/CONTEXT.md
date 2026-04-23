@@ -32,6 +32,21 @@ Infrastructure for building, populating, and handling back-office forms tied to 
 - `src/Core/Form/IdentifiableObject/DataHandler/ProductFormDataHandler.php` — complex handler delegating to CommandBuilders (advanced use case)
 - `src/PrestaShopBundle/Form/Admin/Configure/AdvancedParameters/Security/FormDataProvider.php` — settings page data provider
 
+## Conventions
+
+- **Default form base class:** standard entity forms extend `TranslatorAwareType` or `AbstractType`. `NavigationTabType` is only for complex multi-tab forms (exception, not the default)
+- **Form types define structure only** — no knowledge of commands/queries. Validation via Symfony constraints on fields
+- **IdentifiableObject pattern:** entity forms use `FormDataProviderInterface` (reads data for edit) + `FormDataHandlerInterface` (dispatches commands on create/update). These are encapsulated by two framework services:
+  - `FormBuilder` (`PrestaShop\PrestaShop\Core\Form\IdentifiableObject\Builder\FormBuilder`) — builds the Symfony form. For edit, calls `DataProvider::getData($id)` to pre-fill. For create, calls `DataProvider::getDefaultData()`. The controller calls `$this->getFormBuilder()->getForm(...)`
+  - `FormHandler` (`PrestaShop\PrestaShop\Core\Form\IdentifiableObject\Handler\FormHandler`) — handles form submission. Validates the form, then calls `DataHandler::create()` or `DataHandler::update()`. The controller calls `$this->getFormHandler()->handle($form)`
+  - The controller never calls DataProvider or DataHandler directly — it goes through FormBuilder and FormHandler
+- **DataProvider contract:** `getData($id): array` dispatches the Get query and maps DTO to form array structure. `getDefaultData(): array` returns defaults for create form — must match the same structure as `getData()`
+- **DataHandler contract:** `create(array $data): mixed` builds Add command from form data and dispatches via command bus, returns new ID. `update($id, array $data): void` builds Edit command with setters for non-null fields. Sub-resource commands are dispatched separately after the main command
+- **Multilingual fields:** use `TranslatableType` wrapping the inner field type. Data is an array keyed by language ID
+- **Choice providers:** dynamic select options use `ChoiceProviderInterface` services injected into form types. Keys are labels, values are DB IDs
+- **Service registration:** form types tagged with `form.type`, DataProvider/DataHandler registered with `autowire: true` and `autoconfigure: true`. Service IDs follow `prestashop.core.form.identifiable_object.{domain}.*`
+- **Error handling:** server-side validation via Symfony constraints is the source of truth. JS tab error navigation is enhancement only
+
 ## Related
 
 - [CQRS Component](../CQRS/CONTEXT.md) — `FormDataHandler` implementations dispatch commands via `CommandBus`

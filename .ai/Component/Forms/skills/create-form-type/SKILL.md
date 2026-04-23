@@ -1,29 +1,89 @@
 ---
 name: create-form-type
 description: >
-  Create the Symfony form type that renders the multi-tab add/edit form for the
-  entity. Uses PrestaShop's `NavigationTabType` for tab organization, not
-  standard Symfony tabs.
-produces: "{Domain}Type.php — Symfony form type with tab layout containing all form fields"
+  Create the Symfony form type for an entity's add/edit form. Covers standard field
+  types, translatable fields, money fields, file uploads, and choice providers.
+  For multi-tab layout with NavigationTabType, see create-form-tab-layout.
+  Read Component/Forms/CONTEXT.md for conventions. Trigger: "create form type for {Domain}".
+needs: [create-cqrs-commands, create-cqrs-queries]
+produces: "{Domain}Type.php + choice providers — Symfony form structure for add/edit"
 ---
 
 # create-form-type
 
-## Instructions
+Read `@.ai/Component/Forms/CONTEXT.md` for form conventions (base classes, data flow, service registration).
 
-1. Create `{Domain}Type.php` extending `AbstractType`.
-2. `buildForm()`: add each tab as a sub-form embedded using `NavigationTabType` (PS-specific).
-3. For each tab, add the corresponding field types.
-4. Text fields: `TextType`.
-5. Multilingual text fields: `TranslatableType` wrapping `TextType`.
-6. Boolean fields: `SwitchType` (PS-specific toggle switch).
-7. Select fields: `ChoiceType` with choices provided by a `ChoiceProvider` service (F extra).
-8. File upload: `FileType` with allowed MIME types.
-9. `configureOptions()`: set `data_class` to the form data class if used.
-10. Every tab must be reachable by error — configure tab error CSS class injection (JS5 handles the JS side).
+## 1. Root form type
+
+Create `src/PrestaShopBundle/Form/Admin/{Section}/{Domain}/{Domain}Type.php`:
+
+- Extend `TranslatorAwareType` (provides `$this->trans()`) or `AbstractType` for simple forms
+- `buildForm()`: add all fields for the entity
+- `configureOptions()`: set defaults as needed
+- Form types define structure and validation only — no knowledge of commands/queries
+
+**Reference:** `src/PrestaShopBundle/Form/Admin/Improve/International/Tax/TaxType.php` (simple), `src/PrestaShopBundle/Form/Admin/Sell/Catalog/Manufacturer/ManufacturerType.php` (with image)
+
+## 2. Standard field types
+
+| PS field concept | Symfony/PS type | Notes |
+|---|---|---|
+| Text | `TextType` | Standard input |
+| Boolean toggle | `SwitchType` (PS-specific) | On/off switch |
+| Select with static options | `ChoiceType` | Inline choices array |
+| Select with dynamic options | `ChoiceType` + `ChoiceProvider` | See section 5 |
+| Textarea / HTML | `TextareaType` or `FormattedTextareaType` | |
+
+## 3. Translatable fields
+
+For multilingual fields (entity has `_lang` table):
+
+```php
+->add('name', TranslatableType::class, [
+    'type' => TextType::class,
+    'options' => ['constraints' => [new NotBlank()]],
+])
+```
+
+- `TranslatableType` renders one input per active shop language
+- Submitted data: `['name' => [1 => 'English', 2 => 'French']]`
+- Map to command's `setLocalizedNames()` setter in the DataHandler
+
+For translatable textareas: wrap `TextareaType` or `FormattedTextareaType`.
+
+## 4. Money / price fields
+
+For monetary fields:
+
+- Static currency: `MoneyType::class` with `'currency' => $defaultCurrencyIsoCode`
+- Multi-currency: PS-specific `AmountType` if available
+- Always set explicit decimal scale — PS stores prices with 6 decimal places
+- Use `DecimalNumber` in commands (never native `float` — see CQRS conventions)
+- Use appropriate transformers to convert between form display and storage
+
+## 5. Choice providers
+
+For select fields with dynamic options from DB:
+
+- Create `{Domain}{Field}ChoiceProvider.php` implementing `ChoiceProviderInterface`
+- Inject repository or DBAL connection
+- `getChoices(): array` — return `['Label' => value]` array
+- Inject into the form type and pass as `choices` option
+
+**Reference:** `src/Core/Form/ChoiceProvider/` (61+ existing providers)
+
+## 6. File upload fields
+
+For image/logo uploads:
+
+- Add `FileType::class` with `'mapped' => false, 'required' => false`
+- Add `File` constraint with allowed MIME types
+- Actual file saving happens in the DataHandler, not the form type
+- Display existing image in the edit template via custom Twig block
 
 ## Rules
 
-- Use NavigationTabType for multi-tab forms — not Symfony's standard tab components
-- Sub-forms for tabs use the same form type conventions (buildForm inside the tab form type)
-- Form type has no knowledge of commands/queries — it only defines structure and validation
+- Form types define structure only — no commands, no queries, no persistence
+- Add Symfony validation constraints directly on form fields (`NotBlank`, `Length`, `Regex`)
+- `NavigationTabType` is for complex multi-tab forms only — see `create-form-tab-layout` for that pattern
+- Choice provider keys are display labels, values are DB IDs

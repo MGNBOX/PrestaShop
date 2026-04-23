@@ -1,30 +1,41 @@
 ---
 name: create-form-tab-layout
 description: >
-  Documents the PrestaShop-specific tab layout pattern using
-  `NavigationTabType`. Each form tab is a separate sub-form type embedded in the
-  root form type via NavigationTabType.
+  Create a multi-tab form layout using PrestaShop's NavigationTabType. This is a
+  specific pattern for complex forms with many fields organized by tabs — NOT the
+  default form layout. Most forms do not need tabs. Trigger: "create tab layout
+  for {Domain} form", "add tabs to {Domain} form".
 needs: [create-form-type]
-produces: "NavigationTabType-based tab structure with correct anchor IDs and tab error classes"
+produces: "NavigationTabType-based tab structure with sub-form types per tab"
+conditional: "only for complex entities with many fields requiring tab organization"
 ---
 
 # create-form-tab-layout
 
+> **This is NOT the default form pattern.** Most entity forms are simple single-page forms
+> using `TranslatorAwareType` or `AbstractType`. Only use `NavigationTabType` when the entity
+> has many fields that benefit from tab organization (e.g. Carrier with general, shipping,
+> size/weight tabs).
+
 ## Instructions
 
-1. In root `{Domain}Type::buildForm()`: add each tab using `NavigationTabType`:
+1. In root `{Domain}Type`, declare `NavigationTabType` as the parent type via `getParent()`:
    ```php
-   ->add('generalTab', NavigationTabType::class, [
-       'tab_title' => $this->trans('General', [], 'Admin.Global'),
-   ])
+   public function getParent(): string
+   {
+       return NavigationTabType::class;
+   }
    ```
+   Then in `buildForm()`, add each tab as a sub-form — each child is rendered as a tab.
 2. Create one form type per tab: `{Domain}GeneralTabType.php`, `{Domain}ShippingTabType.php`, etc.
-3. Each tab type is an `AbstractType` with its own `buildForm()` containing only that tab's fields.
-4. The tab anchor IDs (used for error scrolling in JS5) are derived from the tab names.
-5. Never use Symfony's standard `TabsType` — always use `NavigationTabType`.
+3. Each tab type extends `TranslatorAwareType` with its own `buildForm()` containing only that tab's fields.
+4. Tab anchor IDs (used for JS error scrolling) are derived from the tab names.
+
+**Reference:** `src/PrestaShopBundle/Form/Admin/Shipping/Carrier/CarrierType.php`, `src/PrestaShopBundle/Form/Admin/Sell/Product/EditProductFormType.php`
 
 ## Rules
 
-- NavigationTabType is PS-specific — do not replace with Symfony alternatives
+- `NavigationTabType` is PS-specific — do not use Symfony's standard tab components
 - Each tab gets its own form type class for maintainability
-- Tab title must use the `$this->trans()` method for translation
+- Tab titles must use `$this->trans()` for translation
+- JS tab error navigation (switching to first tab with errors) is handled separately in the frontend entry point
