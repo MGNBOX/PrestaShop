@@ -333,11 +333,20 @@ class ExtraPropertyNaming
     /** Returns the storage column name: "{module}_{field}" (or "{field}" for core) */
     public static function storageColumnName(string $moduleName, string $fieldName): string;
 
-    /** Returns the BO form field name: "extra_{scope}_{module}_{field}" */
+    /** Returns the BO form field name and grid column alias: "extra_{scope}_{module}_{field}" */
     public static function formFieldName(string $moduleName, string $fieldName, string $scope): string;
 
     /** Normalizes module_name: null, '' or '_core' → '_core', otherwise returns the value as-is */
     public static function displayModuleKey(?string $moduleName): string;
+
+    /**
+     * Returns ordered entity table name candidates for definition lookups.
+     * Tries: exact name → suffix extraction ("order_detail" → "detail"/"details") → plural/singular toggle.
+     * Used by ExtraPropertiesFormDefinitionProvider and ExtraPropertiesGridDefinitionProvider.
+     *
+     * @return list<string>
+     */
+    public static function resolveEntityTableCandidates(string $name): array;
 }
 ```
 

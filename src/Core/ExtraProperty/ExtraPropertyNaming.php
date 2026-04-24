@@ -106,6 +106,50 @@ final class ExtraPropertyNaming
     }
 
     /**
+     * Returns the ordered list of entity table name candidates to try when looking up definitions.
+     *
+     * Handles the mismatch between the grid/form caller name and the registry entity name:
+     *   - The exact name is always tried first.
+     *   - Underscore suffix stripping: "order_detail" → try "detail" and "details".
+     *   - Plural/singular toggle: "products" → try "product", "product" → try "products".
+     *
+     * This covers the most common PrestaShop patterns where grid IDs differ from entity table names
+     * (e.g. grid "products" → entity "product", grid "order_details" → entity "order_detail").
+     *
+     * @param string $name Entity or grid identifier to resolve
+     *
+     * @return list<string>
+     */
+    public static function resolveEntityTableCandidates(string $name): array
+    {
+        $name = trim($name);
+        if ('' === $name) {
+            return [];
+        }
+
+        $candidates = [$name];
+
+        // Suffix stripping: "order_detail" → bare suffix "detail" (and its plural)
+        $lastUnderscore = strrpos($name, '_');
+        if (false !== $lastUnderscore && $lastUnderscore < strlen($name) - 1) {
+            $suffix = substr($name, $lastUnderscore + 1);
+            $candidates[] = $suffix;
+            if (!str_ends_with($suffix, 's')) {
+                $candidates[] = $suffix . 's';
+            }
+        }
+
+        // Plural/singular toggle
+        if (!str_ends_with($name, 's')) {
+            $candidates[] = $name . 's';
+        } else {
+            $candidates[] = rtrim($name, 's');
+        }
+
+        return array_values(array_unique(array_filter($candidates, static fn (string $v): bool => '' !== $v)));
+    }
+
+    /**
      * Normalizes a module name for use in identifiers (form field names, grid aliases).
      *
      * Returns '_core' for empty/null/core-sentinel values so identifiers are always valid.
