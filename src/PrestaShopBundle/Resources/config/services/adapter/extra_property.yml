@@ -2,6 +2,15 @@ services:
   _defaults:
     public: true
 
+  # ─── Legacy validation bridge (V1) ───────────────────────────────────────────
+
+  PrestaShop\PrestaShop\Adapter\ExtraProperty\Validation\LegacyExtraPropertyValidation:
+    public: false
+
+  PrestaShop\PrestaShop\Core\ExtraProperty\Validation\ExtraPropertyValidationInterface:
+    alias: 'PrestaShop\PrestaShop\Adapter\ExtraProperty\Validation\LegacyExtraPropertyValidation'
+    public: false
+
   # Filesystem pool for extra property definitions when cache.app is absent (FO legacy container).
   # Namespace '' + dedicated subdir (same idea as prestashop.core.circuit_breaker.cache: avoid duplicating
   # the folder name: FilesystemAdapter always appends the namespace under the storage directory).
@@ -19,6 +28,7 @@ services:
     arguments:
       $connection: '@doctrine.dbal.default_connection'
       $prefix: '%database_prefix%'
+      $validator: '@PrestaShop\PrestaShop\Core\ExtraProperty\Validation\ExtraPropertyValidationInterface'
 
   PrestaShop\PrestaShop\Core\ExtraProperty\Repository\ExtraPropertyDefinitionWriterInterface:
     alias: 'PrestaShop\PrestaShop\Core\ExtraProperty\Repository\ExtraPropertyDefinitionRepository'
@@ -67,6 +77,7 @@ services:
       $readRepository: '@PrestaShop\PrestaShop\Core\ExtraProperty\Repository\ExtraPropertyDefinitionRepositoryInterface'
       $writeRepository: '@PrestaShop\PrestaShop\Core\ExtraProperty\Repository\ExtraPropertyDefinitionRepository'
       $schemaManager: '@PrestaShop\PrestaShop\Core\ExtraProperty\Schema\ExtraPropertySchemaManagerInterface'
+      $validator: '@PrestaShop\PrestaShop\Core\ExtraProperty\Validation\ExtraPropertyValidationInterface'
       $cacheApp: '@?cache.app'
       $filesystemDefinitionCache: '@prestashop.extra_property.definition.filesystem_cache'
       $logger: '@?logger'
@@ -108,6 +119,7 @@ services:
     public: true
     arguments:
       $translator: '@?translator'
+      $validatorAdapter: '@PrestaShop\PrestaShop\Core\ExtraProperty\Validation\ExtraPropertyValidationInterface'
 
   # ─── Back-office form services ────────────────────────────────────────────────
 
@@ -116,18 +128,13 @@ services:
     arguments:
       $repository: '@PrestaShop\PrestaShop\Core\ExtraProperty\Repository\ExtraPropertyDefinitionRepositoryInterface'
 
-  PrestaShop\PrestaShop\Core\ExtraProperty\Form\ExtraPropertiesFormDataLoader:
-    public: false
-    arguments:
-      $connection: '@doctrine.dbal.default_connection'
-      $prefix: '%database_prefix%'
-
   PrestaShop\PrestaShop\Core\ExtraProperty\Form\ExtraPropertiesFormBuilderModifier:
     public: false
     arguments:
       $definitionProvider: '@PrestaShop\PrestaShop\Core\ExtraProperty\Form\ExtraPropertiesFormDefinitionProvider'
-      $dataLoader: '@PrestaShop\PrestaShop\Core\ExtraProperty\Form\ExtraPropertiesFormDataLoader'
+      $reader: '@PrestaShop\PrestaShop\Core\ExtraProperty\Storage\ExtraPropertyReaderInterface'
       $translator: '@translator'
+      $validatorAdapter: '@PrestaShop\PrestaShop\Core\ExtraProperty\Validation\ExtraPropertyValidationInterface'
 
   PrestaShop\PrestaShop\Core\ExtraProperty\Form\ExtraPropertiesFormDataPersister:
     public: false
@@ -150,8 +157,7 @@ services:
     autoconfigure: true
     arguments:
       $repository: '@PrestaShop\PrestaShop\Core\ExtraProperty\Repository\ExtraPropertyDefinitionRepositoryInterface'
-      $connection: '@doctrine.dbal.default_connection'
-      $prefix: '%database_prefix%'
+      $reader: '@PrestaShop\PrestaShop\Core\ExtraProperty\Storage\ExtraPropertyReaderInterface'
 
   # ─── Admin API extra properties service ──────────────────────────────────────
   # Declared in this common context so it is available in the admin-api container
@@ -165,4 +171,5 @@ services:
       $dbPrefix: '%database_prefix%'
       $requestStack: '@request_stack'
       $commandBus: '@prestashop.core.command_bus'
+      $validatorAdapter: '@PrestaShop\PrestaShop\Core\ExtraProperty\Validation\ExtraPropertyValidationInterface'
       $shopContext: '@?PrestaShop\PrestaShop\Core\Context\ShopContext'

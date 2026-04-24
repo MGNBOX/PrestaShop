@@ -9,15 +9,16 @@ declare(strict_types=1);
 namespace PrestaShop\PrestaShop\Core\ExtraProperty\Storage;
 
 use PrestaShop\PrestaShop\Core\Domain\ExtraProperty\QueryResult\ExtraPropertyDefinitionInfo;
+use PrestaShop\PrestaShop\Core\ExtraProperty\ExtraPropertyNaming;
+use PrestaShop\PrestaShop\Core\ExtraProperty\Validation\ExtraPropertyValidationInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
-use Validate;
 
 /**
  * Validates extra property values against their registered definitions.
  *
  * Centralizes validation so that ObjectModel, BO form handlers and API integrations
- * all use the same rules. Each call to validate() or validateValue() applies the
- * Validate:: method declared in the definition's validator field.
+ * all use the same rules. Each call to validate() or validateValue() applies
+ * the validator method declared in the definition.
  *
  * Note: the validators isRequiredWhenActive and defaultLanguageRequiredWhenActive need
  * access to the ObjectModel instance and are therefore intentionally skipped by this
@@ -27,32 +28,33 @@ class ExtraPropertyValueValidator
 {
     public function __construct(
         protected readonly ?TranslatorInterface $translator = null,
+        protected readonly ?ExtraPropertyValidationInterface $validatorAdapter = null,
     ) {
     }
 
     /**
      * Validates a set of extra property values against a list of definitions.
      *
-     * Values must use the same grouped-by-module format as ExtraPropertyReader output:
-     * ['module_key' => ['property_name' => value_or_lang_array]].
+     * Values use the flat storage-column format: ['module_field' => value_or_lang_array].
      * Returns true on success, or the first error message string on failure.
      *
-     * @param array<string, array<string, mixed>> $valuesByModule
+     * @param array<string, mixed> $flatValues column_name => value
      * @param list<ExtraPropertyDefinitionInfo> $definitions
      *
      * @return true|string
      */
-    public function validate(array $valuesByModule, array $definitions): bool|string
+    public function validate(array $flatValues, array $definitions): bool|string
     {
         foreach ($definitions as $definition) {
-            $moduleName = null !== $definition->getModuleName() ? $definition->getModuleName() : '_core';
-            $propertyName = $definition->getPropertyName();
-
-            if (!array_key_exists($propertyName, $valuesByModule[$moduleName] ?? [])) {
+            $columnName = ExtraPropertyNaming::storageColumnName(
+                $definition->getModuleName() ?? '',
+                $definition->getPropertyName()
+            );
+            if (!array_key_exists($columnName, $flatValues)) {
                 continue;
             }
 
-            $result = $this->validateValue($definition, $valuesByModule[$moduleName][$propertyName]);
+            $result = $this->validateValue($definition, $flatValues[$columnName]);
             if (true !== $result) {
                 return $result;
             }
@@ -75,7 +77,7 @@ class ExtraPropertyValueValidator
     public function validateValue(ExtraPropertyDefinitionInfo $definition, mixed $value): bool|string
     {
         $validator = $definition->getValidator() ?? '';
-        if ('' === $validator || !method_exists(Validate::class, $validator)) {
+        if ('' === $validator || null === $this->validatorAdapter || !$this->validatorAdapter->hasValidator($validator)) {
             return true;
         }
 
@@ -94,7 +96,7 @@ class ExtraPropertyValueValidator
                 if (('' === (string) $langValue || null === $langValue) && !$isEmptyValidationMethod) {
                     continue;
                 }
-                if (!call_user_func([Validate::class, $validator], $langValue)) {
+                if (!$this->validatorAdapter->validateByName($validator, $langValue)) {
                     return $errorMessage;
                 }
             }
@@ -106,6 +108,6 @@ class ExtraPropertyValueValidator
             return true;
         }
 
-        return call_user_func([Validate::class, $validator], $value) ? true : $errorMessage;
+        return $this->validatorAdapter->validateByName($validator, $value) ? true : $errorMessage;
     }
 }

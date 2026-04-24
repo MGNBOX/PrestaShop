@@ -1,4 +1,5 @@
 <?php
+
 /**
  * For the full copyright and license information, please view the
  * docs/licenses/LICENSE.txt file that was distributed with this source code.
@@ -11,22 +12,23 @@ namespace PrestaShop\PrestaShop\Adapter\Presenter;
 use Context;
 use ObjectModel;
 use PrestaShop\PrestaShop\Adapter\ContainerFinder;
-use PrestaShop\PrestaShop\Core\ExtraProperty\Storage\ExtraPropertyValueProviderInterface;
+use PrestaShop\PrestaShop\Core\ExtraProperty\Storage\ExtraPropertyReaderInterface;
+use Throwable;
 
 /**
  * Resolves extra field values (grouped by module) for an entity instance.
  *
  * This is not an AbstractLazyArray: it only encapsulates the call to
- * ExtraPropertyValueProviderInterface::getExtraProperties() using entity metadata
+ * ExtraPropertyReaderInterface::getExtraProperties() using entity metadata
  * from ObjectModel definitions (table + primary key) and the current context (lang / shop).
  *
- * The static factories resolve the ExtraPropertyValueProviderInterface and the current
+ * The static factories resolve the ExtraPropertyReaderInterface and the current
  * Context internally so callers only need to supply the entity identity.
  */
 final class ExtraPropertiesLazyArray
 {
     /**
-     * @param ExtraPropertyValueProviderInterface|null $provider
+     * @param ExtraPropertyReaderInterface|null $provider
      * @param string $entityTable Registry entity name (ObjectModel definition `table`)
      * @param string $primaryKeyName Primary column name (ObjectModel definition `primary`)
      * @param int $entityId Entity row id
@@ -35,7 +37,7 @@ final class ExtraPropertiesLazyArray
      * @param bool $isLangMultishop Whether lang-scoped fields should also be filtered by shop (FO multishop pattern)
      */
     public function __construct(
-        private readonly ?ExtraPropertyValueProviderInterface $provider,
+        private readonly ?ExtraPropertyReaderInterface $provider,
         private readonly string $entityTable,
         private readonly string $primaryKeyName,
         private readonly int $entityId,
@@ -55,9 +57,9 @@ final class ExtraPropertiesLazyArray
         $provider = null;
         try {
             $containerFinder = new ContainerFinder(Context::getContext());
-            /** @var ExtraPropertyValueProviderInterface $provider */
-            $provider = $containerFinder->getContainer()->get(ExtraPropertyValueProviderInterface::class);
-        } catch (\Throwable) {
+            /** @var ExtraPropertyReaderInterface $provider */
+            $provider = $containerFinder->getContainer()->get(ExtraPropertyReaderInterface::class);
+        } catch (Throwable) {
         }
 
         /** @var array<string, mixed> $def */
@@ -95,9 +97,9 @@ final class ExtraPropertiesLazyArray
         $provider = null;
         try {
             $containerFinder = new ContainerFinder(Context::getContext());
-            /** @var ExtraPropertyValueProviderInterface $provider */
-            $provider = $containerFinder->getContainer()->get(ExtraPropertyValueProviderInterface::class);
-        } catch (\Throwable) {
+            /** @var ExtraPropertyReaderInterface $provider */
+            $provider = $containerFinder->getContainer()->get(ExtraPropertyReaderInterface::class);
+        } catch (Throwable) {
         }
 
         $context = Context::getContext();

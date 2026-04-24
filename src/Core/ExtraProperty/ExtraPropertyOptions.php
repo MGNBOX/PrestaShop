@@ -1,4 +1,5 @@
 <?php
+
 /**
  * For the full copyright and license information, please view the
  * docs/licenses/LICENSE.txt file that was distributed with this source code.
@@ -60,8 +61,8 @@ final class ExtraPropertyOptions
      * @param ExtraPropertySqlIndex $sqlIndex
      *                                        SQL index strategy on the storage column
      * @param string|null $formFieldType
-     *                                      Fully-qualified Symfony Form type class name used by the BO form renderer.
-     *                                      When null, the default mapping from ExtraPropertyType is applied.
+     *                                   Fully-qualified Symfony Form type class name used by the BO form renderer.
+     *                                   When null, the default mapping from ExtraPropertyType is applied.
      * @param array<string, mixed>|null $formOptions
      *                                               Extra options passed verbatim to the Symfony form type constructor.
      *                                               Merged with the automatically-resolved options; developer-supplied values win.
@@ -70,7 +71,7 @@ final class ExtraPropertyOptions
      * @param bool $displayApi
      *                         Include this field in Admin API JSON responses
      * @param bool $displayForm
-     *                        Show and edit this field in BO forms
+     *                          Show and edit this field in BO forms
      * @param bool $displayGrid
      *                          Display this field as a column in BO Symfony grids
      * @param string|null $formPosition

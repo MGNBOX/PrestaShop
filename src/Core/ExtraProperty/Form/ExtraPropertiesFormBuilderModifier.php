@@ -13,6 +13,8 @@ use DateTimeInterface;
 use Exception;
 use PrestaShop\PrestaShop\Core\Domain\ExtraProperty\QueryResult\ExtraPropertyDefinitionInfo;
 use PrestaShop\PrestaShop\Core\ExtraProperty\ExtraPropertyNaming;
+use PrestaShop\PrestaShop\Core\ExtraProperty\Storage\ExtraPropertyReaderInterface;
+use PrestaShop\PrestaShop\Core\ExtraProperty\Validation\ExtraPropertyValidationInterface;
 use PrestaShopBundle\Form\Admin\Type\NavigationTabType;
 use PrestaShopBundle\Form\Admin\Type\TranslatableType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
@@ -25,7 +27,6 @@ use Symfony\Component\Form\ResolvedFormTypeInterface;
 use Symfony\Component\Validator\Constraints as Assert;
 use Symfony\Component\Validator\Context\ExecutionContextInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
-use Validate;
 
 /**
  * Adds extra properties fields into an identifiable object form builder.
@@ -44,8 +45,9 @@ class ExtraPropertiesFormBuilderModifier
 
     public function __construct(
         protected readonly ExtraPropertiesFormDefinitionProvider $definitionProvider,
-        protected readonly ExtraPropertiesFormDataLoader $dataLoader,
+        protected readonly ExtraPropertyReaderInterface $reader,
         protected readonly TranslatorInterface $translator,
+        protected readonly ExtraPropertyValidationInterface $validatorAdapter,
     ) {
     }
 
@@ -63,7 +65,16 @@ class ExtraPropertiesFormBuilderModifier
 
         $existingValues = null;
         if (null !== $entityId && $entityId > 0) {
-            $existingValues = $this->dataLoader->load($entityName, $entityId, $shopId, $definitions);
+            $storageEntityName = $definitions->first()?->getEntityName() ?: $entityName;
+            $existingValues = $this->reader->getExtraProperties(
+                $storageEntityName,
+                'id_' . $storageEntityName,
+                $entityId,
+                null,
+                $shopId,
+                true,
+                $definitions
+            );
         }
 
         foreach ($definitions as $definition) {
@@ -129,7 +140,7 @@ class ExtraPropertiesFormBuilderModifier
         $baseType = (null !== $declaredType && class_exists($declaredType)) ? $declaredType : TextType::class;
 
         $fieldConstraint = null;
-        if (null !== $validator && '' !== $validator && method_exists(Validate::class, $validator)) {
+        if (null !== $validator && $this->validatorAdapter->hasValidator($validator)) {
             $message = $this->translator->trans('The field is invalid.', domain: 'Admin.Notifications.Error');
             // Keep same behavior as in ObjectModel::validateField() for those two validators
             $isEmptyValidationMethod = 'isrequiredwhenactive' === strtolower($validator)
@@ -147,7 +158,7 @@ class ExtraPropertiesFormBuilderModifier
                         $value = $value->format('Y-m-d H:i:s');
                     }
 
-                    if (!call_user_func([Validate::class, $validator], $value)) {
+                    if (!$this->validatorAdapter->validateByName($validator, $value)) {
                         $context->addViolation($message);
                     }
                 }

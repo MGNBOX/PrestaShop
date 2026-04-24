@@ -5,14 +5,12 @@
  */
 
 use PrestaShop\PrestaShop\Adapter\Configuration as AdapterConfiguration;
-use PrestaShop\PrestaShop\Adapter\ContainerFinder;
 use PrestaShop\PrestaShop\Adapter\HookManager;
 use PrestaShop\PrestaShop\Adapter\Image\ImageRetriever;
 use PrestaShop\PrestaShop\Adapter\Presenter\Product\ProductListingPresenter;
 use PrestaShop\PrestaShop\Adapter\Presenter\Product\ProductPresenter;
 use PrestaShop\PrestaShop\Adapter\Product\PriceFormatter;
 use PrestaShop\PrestaShop\Adapter\Product\ProductColorsRetriever;
-use PrestaShop\PrestaShop\Core\ExtraProperty\Storage\ExtraPropertyValueProviderInterface;
 use PrestaShop\PrestaShop\Core\Product\ProductPresentationSettings;
 
 /**
@@ -66,7 +64,6 @@ class ProductPresenterFactoryCore
         $imageRetriever = new ImageRetriever(
             $this->context->link
         );
-        $extraPropertyValueProvider = $this->resolveExtraPropertyValueProvider();
 
         if (is_a($this->context->controller, 'ProductListingFrontControllerCore')) {
             return new ProductListingPresenter(
@@ -76,8 +73,7 @@ class ProductPresenterFactoryCore
                 new ProductColorsRetriever(),
                 $this->context->getTranslator(),
                 null,
-                null,
-                $extraPropertyValueProvider
+                null
             );
         }
 
@@ -88,27 +84,7 @@ class ProductPresenterFactoryCore
             new ProductColorsRetriever(),
             $this->context->getTranslator(),
             new HookManager(),
-            new AdapterConfiguration(),
-            $extraPropertyValueProvider
+            new AdapterConfiguration()
         );
-    }
-
-    /**
-     * Resolves the front-office extra property provider from the service container when available.
-     *
-     * @return ExtraPropertyValueProviderInterface|null
-     */
-    protected function resolveExtraPropertyValueProvider(): ?ExtraPropertyValueProviderInterface
-    {
-        try {
-            $containerFinder = new ContainerFinder($this->context);
-
-            /** @var ExtraPropertyValueProviderInterface $extraPropertyValueProvider */
-            $extraPropertyValueProvider = $containerFinder->getContainer()->get(ExtraPropertyValueProviderInterface::class);
-
-            return $extraPropertyValueProvider;
-        } catch (Throwable $e) {
-            return null;
-        }
     }
 }

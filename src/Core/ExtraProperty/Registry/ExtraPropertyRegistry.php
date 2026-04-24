@@ -16,11 +16,11 @@ use PrestaShop\PrestaShop\Core\ExtraProperty\Repository\ExtraPropertyDefinitionR
 use PrestaShop\PrestaShop\Core\ExtraProperty\Repository\ExtraPropertyDefinitionWriterInterface;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Schema\ColumnDefinitionMapper;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Schema\ExtraPropertySchemaManagerInterface;
+use PrestaShop\PrestaShop\Core\ExtraProperty\Validation\ExtraPropertyValidationInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Symfony\Contracts\Cache\CacheInterface;
 use Throwable;
-use Validate;
 
 /**
  * Write-only registry implementation: register/unregister extra property definitions.
@@ -39,6 +39,7 @@ class ExtraPropertyRegistry implements ExtraPropertyRegistryInterface
         protected readonly ExtraPropertyDefinitionRepositoryInterface $readRepository,
         protected readonly ExtraPropertyDefinitionWriterInterface $writeRepository,
         protected readonly ExtraPropertySchemaManagerInterface $schemaManager,
+        protected readonly ExtraPropertyValidationInterface $validator,
         protected readonly ?CacheInterface $cacheApp,
         protected readonly CacheInterface $filesystemDefinitionCache,
         ?LoggerInterface $logger = null,
@@ -51,14 +52,14 @@ class ExtraPropertyRegistry implements ExtraPropertyRegistryInterface
      */
     public function register(string $entityName, string $propertyName, ExtraPropertyOptions $options): bool
     {
-        if (!Validate::isTableOrIdentifier($propertyName)) {
+        if (!$this->validator->isTableOrIdentifier($propertyName)) {
             return false;
         }
 
         // Resolve module name: from options (explicit override) or null (core property).
         // '_core' is a display-only sentinel — never stored in DB; treat it as no module.
         $moduleName = (null !== $options->moduleName && '' !== $options->moduleName && ExtraPropertyNaming::CORE_MODULE_KEY !== $options->moduleName) ? $options->moduleName : null;
-        if (null !== $moduleName && !Validate::isModuleName($moduleName)) {
+        if (null !== $moduleName && !$this->validator->isModuleName($moduleName)) {
             return false;
         }
 
@@ -115,7 +116,8 @@ class ExtraPropertyRegistry implements ExtraPropertyRegistryInterface
             return false;
         }
 
-        $this->invalidateEntityCache($normalizedEntityName);
+        // Cache invalidation is handled by CacheInvalidatingSchemaManager (called above via ensureExtraTableAndColumn).
+        // No additional invalidation needed here.
 
         return true;
     }
@@ -125,7 +127,7 @@ class ExtraPropertyRegistry implements ExtraPropertyRegistryInterface
      */
     public function unregister(string $entityName, string $propertyName, ?string $moduleName, ExtraPropertyScope $fieldScope = ExtraPropertyScope::Common, bool $dropColumn = false): bool
     {
-        if (!Validate::isTableOrIdentifier($propertyName)) {
+        if (!$this->validator->isTableOrIdentifier($propertyName)) {
             return false;
         }
 
@@ -148,9 +150,19 @@ class ExtraPropertyRegistry implements ExtraPropertyRegistryInterface
     }
 
     /**
-     * {@inheritdoc}
+     * Unregisters one definition by its primary key.
+     *
+     * When $dropColumn is true, the physical SQL column is dropped first via the schema manager
+     * (which also invalidates the cache via CacheInvalidatingSchemaManager).
+     * When $dropColumn is false, there is no DDL and no decorator-triggered invalidation,
+     * so this method must invalidate the cache directly after deleting the registry row.
+     *
+     * @param int $idExtraPropertyDefinition
+     * @param bool $dropColumn
+     *
+     * @return bool
      */
-    public function unregisterById(int $idExtraPropertyDefinition, bool $dropColumn = false): bool
+    protected function unregisterById(int $idExtraPropertyDefinition, bool $dropColumn = false): bool
     {
         if ($idExtraPropertyDefinition <= 0) {
             return false;

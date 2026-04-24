@@ -6,7 +6,7 @@
 
 namespace PrestaShop\PrestaShop\Core\Form\IdentifiableObject\Builder;
 
-use PrestaShop\PrestaShop\Adapter\ExtraProperty\BackOffice\ExtraPropertiesFormBuilderModifier;
+use PrestaShop\PrestaShop\Core\ExtraProperty\Form\ExtraPropertiesFormBuilderModifier;
 use PrestaShop\PrestaShop\Core\Form\IdentifiableObject\DataProvider\FormDataProviderInterface;
 use PrestaShop\PrestaShop\Core\Form\IdentifiableObject\OptionProvider\FormOptionsProviderInterface;
 use PrestaShop\PrestaShop\Core\Hook\HookDispatcherInterface;

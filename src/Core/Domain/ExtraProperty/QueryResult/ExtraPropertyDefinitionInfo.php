@@ -18,8 +18,8 @@ class ExtraPropertyDefinitionInfo
     /**
      * @param int $id Definition primary key
      * @param string $entityName Entity table name (e.g. 'product')
-     * @param string $moduleName Module technical name ('' for core fields)
-     * @param string $fieldName Field name as declared by the module
+     * @param string|null $moduleName Module technical name (null for core fields)
+     * @param string $propertyName Field name as declared by the module
      * @param string $fieldType Type literal matching ExtraPropertyType (e.g. 'string', 'bool')
      * @param string $fieldScope Scope literal matching ExtraPropertyScope ('common', 'lang', 'shop')
      * @param bool $displayApi Whether the field is exposed via the Admin API
@@ -41,7 +41,7 @@ class ExtraPropertyDefinitionInfo
     public function __construct(
         protected readonly int $id,
         protected readonly string $entityName,
-        protected readonly string $moduleName,
+        protected readonly ?string $moduleName,
         protected readonly string $propertyName,
         protected readonly string $fieldType,
         protected readonly string $fieldScope,
@@ -78,7 +78,7 @@ class ExtraPropertyDefinitionInfo
         return new self(
             (int) ($row['id_extra_property_definition'] ?? 0),
             (string) ($row['entity_name'] ?? ''),
-            (string) ($row['module_name'] ?? ''),
+            isset($row['module_name']) && '' !== $row['module_name'] ? (string) $row['module_name'] : null,
             (string) ($row['property_name'] ?? ''),
             (string) ($row['type'] ?? ''),
             (string) ($row['scope'] ?? 'common'),
@@ -110,7 +110,7 @@ class ExtraPropertyDefinitionInfo
         return $this->entityName;
     }
 
-    public function getModuleName(): string
+    public function getModuleName(): ?string
     {
         return $this->moduleName;
     }
@@ -122,7 +122,7 @@ class ExtraPropertyDefinitionInfo
 
     public function getStorageColumnName(): string
     {
-        return ExtraPropertyNaming::storageColumnName($this->moduleName, $this->propertyName);
+        return ExtraPropertyNaming::storageColumnName($this->moduleName ?? '', $this->propertyName);
     }
 
     public function getFieldType(): string

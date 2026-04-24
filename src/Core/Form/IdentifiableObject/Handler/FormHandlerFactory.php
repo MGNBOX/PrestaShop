@@ -6,7 +6,7 @@
 
 namespace PrestaShop\PrestaShop\Core\Form\IdentifiableObject\Handler;
 
-use PrestaShop\PrestaShop\Adapter\ExtraProperty\BackOffice\ExtraPropertiesFormDataPersister;
+use PrestaShop\PrestaShop\Core\ExtraProperty\Form\ExtraPropertiesFormDataPersister;
 use PrestaShop\PrestaShop\Core\Form\IdentifiableObject\DataHandler\FormDataHandlerInterface;
 use PrestaShop\PrestaShop\Core\Hook\HookDispatcherInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;

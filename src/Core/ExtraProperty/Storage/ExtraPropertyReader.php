@@ -142,6 +142,12 @@ class ExtraPropertyReader implements ExtraPropertyReaderInterface
     }
 
     /**
+     * Hydrates extra properties for one scope into $propertiesByModule.
+     *
+     * When $langId is null (lang scope) or $shopId is null (shop scope), all rows are fetched
+     * and grouped by id_lang / id_shop respectively (used by BO forms and Admin API).
+     * When specific IDs are given, a single row is fetched (FO pattern).
+     *
      * @param list<ExtraPropertyDefinitionInfo> $definitions
      * @param array<string, array<string, mixed>> $propertiesByModule
      */
@@ -156,6 +162,10 @@ class ExtraPropertyReader implements ExtraPropertyReaderInterface
         ?int $shopId,
         bool $isLangMultishop
     ): void {
+        $groupByLang = 'lang' === $fieldScope && null === $langId;
+        $groupByShop = 'shop' === $fieldScope && null === $shopId;
+        $isGrouped = $groupByLang || $groupByShop;
+
         $extraTableName = ExtraPropertyNaming::extraTableName($entityName, $fieldScope);
 
         $columnToPropertyMap = [];
@@ -167,7 +177,7 @@ class ExtraPropertyReader implements ExtraPropertyReaderInterface
 
             $moduleName = ExtraPropertyNaming::displayModuleKey($definition->getModuleName());
             $propertiesByModule[$moduleName] ??= [];
-            $propertiesByModule[$moduleName][$propertyName] ??= null;
+            $propertiesByModule[$moduleName][$propertyName] ??= ($isGrouped ? [] : null);
 
             $columnName = ExtraPropertyNaming::storageColumnName($definition->getModuleName() ?? '', $propertyName);
             if ('' === $columnName) {
@@ -181,14 +191,13 @@ class ExtraPropertyReader implements ExtraPropertyReaderInterface
             return;
         }
 
-        if ('lang' === $fieldScope) {
-            if ((int) $langId <= 0) {
-                return;
-            }
-            if ($isLangMultishop && (int) $shopId <= 0) {
-                return;
-            }
-        } elseif ('shop' === $fieldScope && (int) $shopId <= 0) {
+        if ('lang' === $fieldScope && null !== $langId && (int) $langId <= 0) {
+            return;
+        }
+        if ('shop' === $fieldScope && null !== $shopId && (int) $shopId <= 0) {
+            return;
+        }
+        if ('lang' === $fieldScope && $isLangMultishop && null !== $shopId && (int) $shopId <= 0) {
             return;
         }
 
@@ -198,35 +207,63 @@ class ExtraPropertyReader implements ExtraPropertyReaderInterface
             ->where('extra.' . $this->connection->quoteIdentifier($primaryKeyName) . ' = :entityId')
             ->setParameter('entityId', $entityId);
 
-        $qb->select(...array_map(
+        $selectCols = array_map(
             fn (string $col): string => 'extra.' . $this->connection->quoteIdentifier($col),
             array_keys($columnToPropertyMap)
-        ));
+        );
 
         if ('lang' === $fieldScope) {
-            $qb->andWhere('extra.id_lang = :langId')->setParameter('langId', (int) $langId);
-            if ($isLangMultishop) {
+            if ($groupByLang) {
+                array_unshift($selectCols, 'extra.' . $this->connection->quoteIdentifier('id_lang'));
+            } else {
+                $qb->andWhere('extra.id_lang = :langId')->setParameter('langId', (int) $langId);
+            }
+            if ($isLangMultishop && null !== $shopId) {
                 $qb->andWhere('extra.id_shop = :shopId')->setParameter('shopId', (int) $shopId);
             }
         } elseif ('shop' === $fieldScope) {
-            $qb->andWhere('extra.id_shop = :shopId')->setParameter('shopId', (int) $shopId);
+            if ($groupByShop) {
+                array_unshift($selectCols, 'extra.' . $this->connection->quoteIdentifier('id_shop'));
+            } else {
+                $qb->andWhere('extra.id_shop = :shopId')->setParameter('shopId', (int) $shopId);
+            }
         }
 
+        $qb->select(...$selectCols);
+
         try {
-            $row = $qb->executeQuery()->fetchAssociative();
+            if ($isGrouped) {
+                $rows = $qb->executeQuery()->fetchAllAssociative();
+            } else {
+                $singleRow = $qb->executeQuery()->fetchAssociative();
+                $rows = is_array($singleRow) ? [$singleRow] : [];
+            }
         } catch (Throwable) {
             return;
         }
 
-        if (!is_array($row)) {
-            return;
-        }
-
-        foreach ($columnToPropertyMap as $columnName => $propertyPath) {
-            if (!array_key_exists($columnName, $row)) {
-                continue;
+        foreach ($rows as $row) {
+            if ($groupByLang) {
+                $groupKey = (int) ($row['id_lang'] ?? 0);
+                foreach ($columnToPropertyMap as $columnName => $propertyPath) {
+                    if (array_key_exists($columnName, $row)) {
+                        $propertiesByModule[$propertyPath['module_name']][$propertyPath['property_name']][$groupKey] = $row[$columnName];
+                    }
+                }
+            } elseif ($groupByShop) {
+                $groupKey = (int) ($row['id_shop'] ?? 0);
+                foreach ($columnToPropertyMap as $columnName => $propertyPath) {
+                    if (array_key_exists($columnName, $row)) {
+                        $propertiesByModule[$propertyPath['module_name']][$propertyPath['property_name']][$groupKey] = $row[$columnName];
+                    }
+                }
+            } else {
+                foreach ($columnToPropertyMap as $columnName => $propertyPath) {
+                    if (array_key_exists($columnName, $row)) {
+                        $propertiesByModule[$propertyPath['module_name']][$propertyPath['property_name']] = $row[$columnName];
+                    }
+                }
             }
-            $propertiesByModule[$propertyPath['module_name']][$propertyPath['property_name']] = $row[$columnName];
         }
     }
 }

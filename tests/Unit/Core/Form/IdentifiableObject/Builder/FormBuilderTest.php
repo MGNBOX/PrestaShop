@@ -7,7 +7,7 @@
 namespace Tests\Unit\Core\Form\IdentifiableObject\Builder;
 
 use PHPUnit\Framework\TestCase;
-use PrestaShop\PrestaShop\Adapter\ExtraProperty\BackOffice\ExtraPropertiesFormBuilderModifier;
+use PrestaShop\PrestaShop\Core\ExtraProperty\Form\ExtraPropertiesFormBuilderModifier;
 use PrestaShop\PrestaShop\Core\Form\IdentifiableObject\Builder\FormBuilder;
 use PrestaShop\PrestaShop\Core\Form\IdentifiableObject\Builder\FormBuilderInterface;
 use PrestaShop\PrestaShop\Core\Form\IdentifiableObject\DataProvider\FormDataProviderInterface;

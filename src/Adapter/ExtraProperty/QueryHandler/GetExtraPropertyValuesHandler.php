@@ -8,23 +8,20 @@ declare(strict_types=1);
 
 namespace PrestaShop\PrestaShop\Adapter\ExtraProperty\QueryHandler;
 
-use Doctrine\DBAL\Connection;
 use PrestaShop\PrestaShop\Core\CommandBus\Attributes\AsQueryHandler;
 use PrestaShop\PrestaShop\Core\Domain\ExtraProperty\Query\GetExtraPropertyValues;
 use PrestaShop\PrestaShop\Core\Domain\ExtraProperty\QueryHandler\GetExtraPropertyValuesHandlerInterface;
 use PrestaShop\PrestaShop\Core\Domain\ExtraProperty\QueryResult\ExtraPropertyDefinitionInfo;
 use PrestaShop\PrestaShop\Core\Domain\ExtraProperty\QueryResult\ExtraPropertyValuesResult;
-use PrestaShop\PrestaShop\Core\ExtraProperty\ExtraPropertyNaming;
+use PrestaShop\PrestaShop\Core\ExtraProperty\ExtraPropertyDefinitionCollection;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Repository\ExtraPropertyDefinitionRepositoryInterface;
-use Throwable;
+use PrestaShop\PrestaShop\Core\ExtraProperty\Storage\ExtraPropertyReaderInterface;
 
 /**
  * Reads extra property values for a single entity instance across all three scopes.
  *
- * Unlike ExtraPropertyReader (which reads one specific lang/shop at a time),
- * this handler loads ALL languages and ALL shops for the entity in one pass.
- * This is the pattern required by the Admin API, which must return values for
- * every registered language and every registered shop in a single response.
+ * Delegates to ExtraPropertyReader with null lang / null shop to fetch all languages
+ * and all shops in one pass — the pattern required by the Admin API.
  *
  * Lang-scope values are returned indexed by id_lang (int).
  * Shop-scope values are returned indexed by id_shop (int).
@@ -38,8 +35,7 @@ class GetExtraPropertyValuesHandler implements GetExtraPropertyValuesHandlerInte
 {
     public function __construct(
         protected readonly ExtraPropertyDefinitionRepositoryInterface $repository,
-        protected readonly Connection $connection,
-        protected readonly string $prefix,
+        protected readonly ExtraPropertyReaderInterface $reader,
     ) {
     }
 
@@ -57,7 +53,6 @@ class GetExtraPropertyValuesHandler implements GetExtraPropertyValuesHandlerInte
             return new ExtraPropertyValuesResult([]);
         }
 
-        // Apply display_api filter when requested
         if ($query->isDisplayApiOnly()) {
             $allDefinitions = array_values(array_filter(
                 $allDefinitions,
@@ -69,208 +64,16 @@ class GetExtraPropertyValuesHandler implements GetExtraPropertyValuesHandlerInte
             return new ExtraPropertyValuesResult([]);
         }
 
-        $commonFields = $this->loadCommonScope($query, $allDefinitions);
-        $langFields = $this->loadLangScope($query, $allDefinitions);
-        $shopFields = $this->loadShopScope($query, $allDefinitions);
+        $values = $this->reader->getExtraProperties(
+            $query->getEntityName(),
+            $query->getPrimaryKeyName(),
+            $query->getEntityId(),
+            null,  // all languages
+            null,  // all shops
+            false, // no shop filter on lang table: return all lang rows
+            new ExtraPropertyDefinitionCollection($allDefinitions)
+        );
 
-        // Deep merge all three partial results into a single module-keyed array
-        $result = [];
-        foreach ([$commonFields, $langFields, $shopFields] as $partial) {
-            foreach ($partial as $moduleName => $fields) {
-                foreach ($fields as $fieldName => $value) {
-                    $result[$moduleName][$fieldName] = $value;
-                }
-            }
-        }
-
-        return new ExtraPropertyValuesResult($result);
-    }
-
-    /**
-     * @param list<ExtraPropertyDefinitionInfo> $allDefinitions
-     *
-     * @return array<string, array<string, mixed>>
-     */
-    protected function loadCommonScope(GetExtraPropertyValues $query, array $allDefinitions): array
-    {
-        $columnToPropertyMap = $this->buildColumnPropertyMap($allDefinitions, 'common');
-        if (empty($columnToPropertyMap)) {
-            return [];
-        }
-
-        $extraTableName = $this->prefix . ExtraPropertyNaming::extraTableName($query->getEntityName(), 'common');
-        $primaryKeyName = $query->getPrimaryKeyName();
-
-        $selectedColumns = implode(', ', array_map(
-            fn (string $col): string => $this->connection->quoteIdentifier($col),
-            array_keys($columnToPropertyMap)
-        ));
-
-        try {
-            $row = $this->connection->fetchAssociative(
-                sprintf(
-                    'SELECT %s FROM %s WHERE %s = :entityId',
-                    $selectedColumns,
-                    $this->connection->quoteIdentifier($extraTableName),
-                    $this->connection->quoteIdentifier($primaryKeyName)
-                ),
-                ['entityId' => $query->getEntityId()]
-            );
-        } catch (Throwable) {
-            return [];
-        }
-
-        if (false === $row) {
-            return [];
-        }
-
-        $result = [];
-        foreach ($columnToPropertyMap as $columnName => $propertyPath) {
-            if (!array_key_exists($columnName, $row)) {
-                continue;
-            }
-            $result[$propertyPath['module_name']][$propertyPath['property_name']] = $row[$columnName];
-        }
-
-        return $result;
-    }
-
-    /**
-     * @param list<ExtraPropertyDefinitionInfo> $allDefinitions
-     *
-     * @return array<string, array<string, mixed>>
-     */
-    protected function loadLangScope(GetExtraPropertyValues $query, array $allDefinitions): array
-    {
-        $columnToPropertyMap = $this->buildColumnPropertyMap($allDefinitions, 'lang');
-        if (empty($columnToPropertyMap)) {
-            return [];
-        }
-
-        $langTableName = $this->prefix . ExtraPropertyNaming::extraTableName($query->getEntityName(), 'lang');
-        $primaryKeyName = $query->getPrimaryKeyName();
-
-        // id_lang is always included to group values by language
-        $selectedColumns = array_merge(['id_lang'], array_keys($columnToPropertyMap));
-        $quotedColumns = implode(', ', array_map(
-            fn (string $col): string => $this->connection->quoteIdentifier($col),
-            $selectedColumns
-        ));
-
-        try {
-            $rows = $this->connection->fetchAllAssociative(
-                sprintf(
-                    'SELECT %s FROM %s WHERE %s = :entityId',
-                    $quotedColumns,
-                    $this->connection->quoteIdentifier($langTableName),
-                    $this->connection->quoteIdentifier($primaryKeyName)
-                ),
-                ['entityId' => $query->getEntityId()]
-            );
-        } catch (Throwable) {
-            return [];
-        }
-
-        if (empty($rows)) {
-            return [];
-        }
-
-        $result = [];
-        foreach ($rows as $row) {
-            $idLang = (int) $row['id_lang'];
-            foreach ($columnToPropertyMap as $columnName => $propertyPath) {
-                if (!array_key_exists($columnName, $row)) {
-                    continue;
-                }
-                $result[$propertyPath['module_name']][$propertyPath['property_name']][$idLang] = $row[$columnName];
-            }
-        }
-
-        return $result;
-    }
-
-    /**
-     * @param list<ExtraPropertyDefinitionInfo> $allDefinitions
-     *
-     * @return array<string, array<string, mixed>>
-     */
-    protected function loadShopScope(GetExtraPropertyValues $query, array $allDefinitions): array
-    {
-        $columnToPropertyMap = $this->buildColumnPropertyMap($allDefinitions, 'shop');
-        if (empty($columnToPropertyMap)) {
-            return [];
-        }
-
-        $shopTableName = $this->prefix . ExtraPropertyNaming::extraTableName($query->getEntityName(), 'shop');
-        $primaryKeyName = $query->getPrimaryKeyName();
-
-        // id_shop is always included to group values by shop
-        $selectedColumns = array_merge(['id_shop'], array_keys($columnToPropertyMap));
-        $quotedColumns = implode(', ', array_map(
-            fn (string $col): string => $this->connection->quoteIdentifier($col),
-            $selectedColumns
-        ));
-
-        try {
-            $rows = $this->connection->fetchAllAssociative(
-                sprintf(
-                    'SELECT %s FROM %s WHERE %s = :entityId',
-                    $quotedColumns,
-                    $this->connection->quoteIdentifier($shopTableName),
-                    $this->connection->quoteIdentifier($primaryKeyName)
-                ),
-                ['entityId' => $query->getEntityId()]
-            );
-        } catch (Throwable) {
-            return [];
-        }
-
-        if (empty($rows)) {
-            return [];
-        }
-
-        $result = [];
-        foreach ($rows as $row) {
-            $idShop = (int) $row['id_shop'];
-            foreach ($columnToPropertyMap as $columnName => $propertyPath) {
-                if (!array_key_exists($columnName, $row)) {
-                    continue;
-                }
-                $result[$propertyPath['module_name']][$propertyPath['property_name']][$idShop] = $row[$columnName];
-            }
-        }
-
-        return $result;
-    }
-
-    /**
-     * Builds a storage-column → property-path map for a given scope.
-     *
-     * @param list<ExtraPropertyDefinitionInfo> $allDefinitions
-     * @param string $scope 'common', 'lang', or 'shop'
-     *
-     * @return array<string, array{module_name: string, property_name: string}>
-     */
-    protected function buildColumnPropertyMap(array $allDefinitions, string $scope): array
-    {
-        $map = [];
-        foreach ($allDefinitions as $def) {
-            if ($def->getFieldScope() !== $scope) {
-                continue;
-            }
-
-            $fieldName = $def->getPropertyName();
-            if ('' === $fieldName) {
-                continue;
-            }
-
-            $storageColumn = ExtraPropertyNaming::storageColumnName($def->getModuleName() ?? '', $fieldName);
-            $map[$storageColumn] = [
-                'module_name' => ExtraPropertyNaming::displayModuleKey($def->getModuleName()),
-                'property_name' => $fieldName,
-            ];
-        }
-
-        return $map;
+        return new ExtraPropertyValuesResult($values);
     }
 }

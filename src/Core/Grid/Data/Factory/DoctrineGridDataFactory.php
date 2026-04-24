@@ -9,7 +9,7 @@ namespace PrestaShop\PrestaShop\Core\Grid\Data\Factory;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Doctrine\SqlFormatter\NullHighlighter;
 use Doctrine\SqlFormatter\SqlFormatter;
-use PrestaShop\PrestaShop\Adapter\ExtraProperty\Grid\ExtraPropertiesGridQueryBuilderModifier;
+use PrestaShop\PrestaShop\Core\ExtraProperty\Grid\ExtraPropertiesGridQueryBuilderModifier;
 use PrestaShop\PrestaShop\Core\Grid\Data\GridData;
 use PrestaShop\PrestaShop\Core\Grid\Query\DoctrineQueryBuilderInterface;
 use PrestaShop\PrestaShop\Core\Grid\Query\QueryParserInterface;

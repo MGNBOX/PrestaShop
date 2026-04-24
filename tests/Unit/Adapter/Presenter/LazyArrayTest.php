@@ -19,7 +19,7 @@ class LazyArrayTest extends TestCase
         $test->getPropertyOne();
 
         $this->assertTrue($test->wasPropertyOneCalled());
-        $this->assertEquals(1, $test->count());
+        $this->assertEquals(2, $test->count());
     }
 
     public function testAppendArray()
@@ -27,7 +27,7 @@ class LazyArrayTest extends TestCase
         $test = new LazyArrayImplementation();
         $test->appendArray(['a' => 1]);
 
-        $this->assertEquals(2, $test->count());
+        $this->assertEquals(3, $test->count());
         $this->assertEquals(1, $test['a']);
     }
 
@@ -42,7 +42,7 @@ class LazyArrayTest extends TestCase
             return $counter;
         });
 
-        $this->assertEquals(2, $test->count());
+        $this->assertEquals(3, $test->count());
 
         $this->assertEquals(1, $test['a']);
         // as result is stored in cache, next call does not increment the counter
@@ -60,7 +60,7 @@ class LazyArrayTest extends TestCase
             return $dummyLog->getPingCounter();
         });
 
-        $this->assertEquals(2, $test->count());
+        $this->assertEquals(3, $test->count());
         $this->assertEquals(1, $test['b']);
         // as result is stored in cache, next call does not perform a ping
         $this->assertEquals(1, $test['b']);

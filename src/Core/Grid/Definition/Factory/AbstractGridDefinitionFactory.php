@@ -6,7 +6,7 @@
 
 namespace PrestaShop\PrestaShop\Core\Grid\Definition\Factory;
 
-use PrestaShop\PrestaShop\Adapter\ExtraProperty\Grid\ExtraPropertiesGridDefinitionModifier;
+use PrestaShop\PrestaShop\Core\ExtraProperty\Grid\ExtraPropertiesGridDefinitionModifier;
 use PrestaShop\PrestaShop\Core\Grid\Action\Bulk\BulkActionCollection;
 use PrestaShop\PrestaShop\Core\Grid\Action\Bulk\BulkActionCollectionInterface;
 use PrestaShop\PrestaShop\Core\Grid\Action\GridActionCollection;

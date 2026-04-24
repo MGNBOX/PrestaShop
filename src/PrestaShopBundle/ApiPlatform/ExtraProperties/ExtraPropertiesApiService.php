@@ -1,4 +1,5 @@
 <?php
+
 /**
  * For the full copyright and license information, please view the
  * docs/licenses/LICENSE.txt file that was distributed with this source code.
@@ -13,16 +14,16 @@ use PrestaShop\PrestaShop\Core\CommandBus\CommandBusInterface;
 use PrestaShop\PrestaShop\Core\Context\ShopContext;
 use PrestaShop\PrestaShop\Core\Domain\ExtraProperty\Command\UpdateExtraPropertyValuesCommand;
 use PrestaShop\PrestaShop\Core\Domain\ExtraProperty\Query\GetExtraPropertyValues;
-use PrestaShop\PrestaShop\Core\Domain\ExtraProperty\QueryResult\ExtraPropertyValuesResult;
 use PrestaShop\PrestaShop\Core\Domain\ExtraProperty\QueryResult\ExtraPropertyDefinitionInfo;
+use PrestaShop\PrestaShop\Core\Domain\ExtraProperty\QueryResult\ExtraPropertyValuesResult;
 use PrestaShop\PrestaShop\Core\ExtraProperty\ExtraPropertyNaming;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Repository\ExtraPropertyDefinitionRepositoryInterface;
+use PrestaShop\PrestaShop\Core\ExtraProperty\Validation\ExtraPropertyValidationInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Validator\ConstraintViolation;
 use Symfony\Component\Validator\ConstraintViolationList;
 use Symfony\Component\Validator\ConstraintViolationListInterface;
 use Throwable;
-use Validate;
 
 /**
  * Handles extra properties injection and extraction in the Admin API layer.
@@ -87,6 +88,7 @@ class ExtraPropertiesApiService
         protected readonly string $dbPrefix,
         protected readonly RequestStack $requestStack,
         protected readonly CommandBusInterface $commandBus,
+        protected readonly ExtraPropertyValidationInterface $validatorAdapter,
         protected readonly ?ShopContext $shopContext = null,
     ) {
     }
@@ -178,7 +180,7 @@ class ExtraPropertiesApiService
     }
 
     /**
-     * Validates an extraProperties payload using registry validators (Validate::xxx).
+     * Validates an extraProperties payload using registry validator methods.
      *
      * Returned violations are compatible with ApiPlatform error handling (HTTP 422).
      *
@@ -202,7 +204,7 @@ class ExtraPropertiesApiService
             }
 
             $validator = $def->getValidator() ?? '';
-            if ('' === $validator || !method_exists(Validate::class, $validator)) {
+            if ('' === $validator || !$this->validatorAdapter->hasValidator($validator)) {
                 continue;
             }
 
@@ -252,13 +254,13 @@ class ExtraPropertiesApiService
         string $validator,
         $value,
         string $propertyPath,
-        bool $isEmptyValidationMethod
+        bool $isEmptyValidationMethod,
     ): void {
         if ((null === $value || '' === $value) && !$isEmptyValidationMethod) {
             return;
         }
 
-        if (!call_user_func([Validate::class, $validator], $value)) {
+        if (!$this->validatorAdapter->validateByName($validator, $value)) {
             $violations->add(new ConstraintViolation(
                 'This value is not valid.',
                 'This value is not valid.',

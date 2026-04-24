@@ -13,7 +13,7 @@ use PrestaShop\PrestaShop\Core\Domain\ExtraProperty\QueryResult\ExtraPropertyDef
 use PrestaShop\PrestaShop\Core\ExtraProperty\ExtraPropertyDefinitionCollection;
 use PrestaShop\PrestaShop\Core\ExtraProperty\ExtraPropertyOptions;
 use PrestaShop\PrestaShop\Core\ExtraProperty\ExtraPropertyScope;
-use Validate;
+use PrestaShop\PrestaShop\Core\ExtraProperty\Validation\ExtraPropertyValidationInterface;
 
 /**
  * Reads and writes extra property definitions in the extra_property_definition registry table.
@@ -32,6 +32,7 @@ class ExtraPropertyDefinitionRepository implements ExtraPropertyDefinitionReposi
     public function __construct(
         protected readonly Connection $connection,
         protected readonly string $prefix,
+        protected readonly ExtraPropertyValidationInterface $validator,
     ) {
     }
 
@@ -114,7 +115,7 @@ class ExtraPropertyDefinitionRepository implements ExtraPropertyDefinitionReposi
      */
     public function getByEntityAndPropertyName(string $entityName, string $propertyName, string $fieldScope = self::FIELD_SCOPE_COMMON): ?ExtraPropertyDefinitionInfo
     {
-        if (!Validate::isTableOrIdentifier($propertyName)) {
+        if (!$this->validator->isTableOrIdentifier($propertyName)) {
             return null;
         }
         [$normalizedEntityName, $normalizedFieldScope] = $this->normalizeEntityNameAndFieldScope($entityName, $fieldScope);
@@ -312,7 +313,7 @@ class ExtraPropertyDefinitionRepository implements ExtraPropertyDefinitionReposi
         if (!in_array($normalizedScope, ExtraPropertyScope::values(), true)) {
             return [null, null];
         }
-        if ('' === $normalizedEntityName || !Validate::isTableOrIdentifier($normalizedEntityName)) {
+        if ('' === $normalizedEntityName || !$this->validator->isTableOrIdentifier($normalizedEntityName)) {
             return [null, null];
         }
 

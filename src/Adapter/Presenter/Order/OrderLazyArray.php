@@ -1,4 +1,5 @@
 <?php
+
 /**
  * For the full copyright and license information, please view the
  * docs/licenses/LICENSE.txt file that was distributed with this source code.
@@ -26,7 +27,6 @@ use PrestaShop\PrestaShop\Adapter\Presenter\LazyArrayAttribute;
 use PrestaShop\PrestaShop\Adapter\Presenter\Object\ObjectPresenter;
 use PrestaShop\PrestaShop\Adapter\Product\PriceFormatter;
 use PrestaShop\PrestaShop\Adapter\Shipment\ShipmentTotalsCalculatorInterface;
-
 use PrestaShop\PrestaShop\Core\Util\ColorBrightnessCalculator;
 use PrestaShopBundle\Entity\Repository\ShipmentRepository;
 use PrestaShopBundle\Entity\ShipmentProduct;
@@ -65,7 +65,6 @@ class OrderLazyArray extends AbstractLazyArray
 
     /** @var ShipmentTotalsCalculatorInterface */
     private $shipmentTotalCalculator;
-
 
     /**
      * OrderArray constructor.

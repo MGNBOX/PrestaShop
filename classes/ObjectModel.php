@@ -3,11 +3,14 @@
  * For the full copyright and license information, please view the
  * docs/licenses/LICENSE.txt file that was distributed with this source code.
  */
-use PrestaShop\PrestaShop\Adapter\Presenter\ExtraPropertiesLazyArray;
+use PrestaShop\PrestaShop\Adapter\ContainerFinder;
 use PrestaShop\PrestaShop\Adapter\ServiceLocator;
 use PrestaShop\PrestaShop\Core\Domain\ExtraProperty\QueryResult\ExtraPropertyDefinitionInfo;
+use PrestaShop\PrestaShop\Core\ExtraProperty\ExtraPropertiesBag;
 use PrestaShop\PrestaShop\Core\ExtraProperty\ExtraPropertyDefinitionCollection;
+use PrestaShop\PrestaShop\Core\ExtraProperty\ExtraPropertyNaming;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Repository\ExtraPropertyDefinitionRepositoryInterface;
+use PrestaShop\PrestaShop\Core\ExtraProperty\Storage\ExtraPropertyReaderInterface;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Storage\ExtraPropertyValueValidator;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Storage\ExtraPropertyWriterInterface;
 use PrestaShop\PrestaShop\Core\Image\ImageFormatConfiguration;
@@ -124,15 +127,13 @@ abstract class ObjectModelCore implements PrestaShop\PrestaShop\Core\Foundation\
     protected $update_fields = null;
 
     /**
-     * Write buffer for extra properties pending persistence.
-     * Null means no extra properties have been set on this instance; use getExtraProperties() to read.
+     * Lazy-loading bag for extra properties on this entity instance.
+     * Null = not yet initialized. Accessed via __get('extra_properties') or getExtraPropertiesBag().
+     * Keys are storage column names (flat): ExtraPropertyNaming::storageColumnName($module, $field).
      *
-     * @var array<string, array<string, mixed>>|null
+     * @var ExtraPropertiesBag|null
      */
     protected $extra_properties = null;
-
-    /** @var ExtraPropertiesLazyArray|null Lazy reader for extra property values; initialized on first read when no write buffer is active. */
-    protected $extra_properties_lazy = null;
 
     /**
      * Definitions index for this entity's extra properties, keyed by [module_name][property_name].
@@ -911,7 +912,9 @@ abstract class ObjectModelCore implements PrestaShop\PrestaShop\Core\Foundation\
         if (!$has_multishop_entries && !empty($this->def['table']) && (int) $this->id > 0) {
             try {
                 /** @var ExtraPropertyWriterInterface $writer */
-                $writer = ServiceLocator::get(ExtraPropertyWriterInterface::class);
+                $writer = (new ContainerFinder(Context::getContext()))
+                    ->getContainer()
+                    ->get(ExtraPropertyWriterInterface::class);
                 $writer->deleteAll($this->def['table'], $this->def['primary'], (int) $this->id);
             } catch (Throwable) {
             }
@@ -1090,7 +1093,8 @@ abstract class ObjectModelCore implements PrestaShop\PrestaShop\Core\Foundation\
      */
     public function validateExtraProperties($die = true, $errorReturn = false)
     {
-        if (null === $this->extra_properties) {
+        $bag = $this->getExtraPropertiesBag();
+        if (!$bag->hasModifications()) {
             return true;
         }
 
@@ -1101,7 +1105,9 @@ abstract class ObjectModelCore implements PrestaShop\PrestaShop\Core\Foundation\
 
         try {
             /** @var ExtraPropertyValueValidator $validator */
-            $validator = ServiceLocator::get(ExtraPropertyValueValidator::class);
+            $validator = (new ContainerFinder(Context::getContext()))
+                ->getContainer()
+                ->get(ExtraPropertyValueValidator::class);
         } catch (Throwable) {
             return true;
         }
@@ -1110,7 +1116,7 @@ abstract class ObjectModelCore implements PrestaShop\PrestaShop\Core\Foundation\
             ? $this->extra_property_definition_rows->toArray()
             : [];
 
-        $result = $validator->validate($this->extra_properties, $definitions);
+        $result = $validator->validate($bag->getModifiedValues(), $definitions);
         if (true !== $result) {
             if ($die) {
                 throw new PrestaShopException($result);
@@ -2167,48 +2173,89 @@ abstract class ObjectModelCore implements PrestaShop\PrestaShop\Core\Foundation\
     }
 
     /**
-     * Returns extra properties for this object model, grouped by module technical name.
+     * Returns extra properties for this entity instance, flat (column_name => value).
      *
-     * When the write buffer is active ($extra_properties is not null), it is returned as-is.
-     * Otherwise, values are read lazily from the database via ExtraPropertiesLazyArray.
-     *
-     * Returned format:
-     * [
-     *     'module_technical_name' => [
-     *         'field_name' => 'value',
-     *     ],
-     * ]
-     *
-     * @return array<string, array<string, mixed>>
-     */
-    public function getExtraProperties(): array
-    {
-        if (null !== $this->extra_properties) {
-            return $this->extra_properties;
-        }
-
-        if (null === $this->extra_properties_lazy) {
-            $this->extra_properties_lazy = ExtraPropertiesLazyArray::fromObjectModel($this);
-        }
-
-        return $this->extra_properties_lazy->getValues();
-    }
-
-    /**
-     * Returns all extra property values for a given module on this entity instance.
-     *
-     * Equivalent to getExtraProperties()[$moduleName] ?? [].
-     * Pass null or '_core' to retrieve core (no-module) fields.
-     *
-     * @param string|null $moduleName technical module name, or null / '_core' for core fields
+     * Values are loaded from the database on first call; subsequent calls return in-memory state.
      *
      * @return array<string, mixed>
      */
-    public function getExtraPropertiesByModule(?string $moduleName): array
+    public function getExtraProperties(): array
     {
-        $normalizedModule = (null === $moduleName || '_core' === $moduleName) ? '_core' : $moduleName;
+        return $this->getExtraPropertiesBag()->toArray();
+    }
 
-        return $this->getExtraProperties()[$normalizedModule] ?? [];
+    /**
+     * Returns magic properties for legacy ObjectModel usage.
+     *
+     * For 'extra_properties', returns the lazy ExtraPropertiesBag instance so callers can use
+     * array access ($object->extra_properties['module_column_name']).
+     *
+     * For all other names, keeps the legacy fallback behavior (null when unresolved).
+     *
+     * @return mixed
+     */
+    public function __get(string $name): mixed
+    {
+        if ('extra_properties' === $name) {
+            return $this->getExtraPropertiesBag();
+        }
+
+        return null;
+    }
+
+    /**
+     * Returns (and lazily creates) the extra properties bag for this instance.
+     *
+     * @return ExtraPropertiesBag
+     */
+    private function getExtraPropertiesBag(): ExtraPropertiesBag
+    {
+        if (null === $this->extra_properties) {
+            $this->extra_properties = $this->createExtraPropertiesBag();
+        }
+
+        return $this->extra_properties;
+    }
+
+    /**
+     * Builds the ExtraPropertiesBag with a loader closure that reads flat values from the DB.
+     *
+     * @return ExtraPropertiesBag
+     */
+    private function createExtraPropertiesBag(): ExtraPropertiesBag
+    {
+        return new ExtraPropertiesBag(function (): array {
+            if ((int) $this->id <= 0 || empty($this->def['table'])) {
+                return [];
+            }
+            try {
+                /** @var ExtraPropertyReaderInterface $reader */
+                $reader = (new ContainerFinder(Context::getContext()))
+                    ->getContainer()
+                    ->get(ExtraPropertyReaderInterface::class);
+                $grouped = $reader->getExtraProperties(
+                    $this->def['table'],
+                    $this->def['primary'],
+                    (int) $this->id,
+                    (int) Context::getContext()->language->id,
+                    (int) Context::getContext()->shop->id,
+                    (bool) $this->isLangMultishop()
+                );
+            } catch (Throwable) {
+                return [];
+            }
+            $flat = [];
+            foreach ($grouped as $moduleKey => $fields) {
+                foreach ($fields as $fieldName => $value) {
+                    $flat[ExtraPropertyNaming::storageColumnName(
+                        '_core' === $moduleKey ? '' : $moduleKey,
+                        $fieldName
+                    )] = $value;
+                }
+            }
+
+            return $flat;
+        });
     }
 
     /**
@@ -2236,10 +2283,9 @@ abstract class ObjectModelCore implements PrestaShop\PrestaShop\Core\Foundation\
             return null;
         }
 
-        $normalizedModule = null !== $definition->getModuleName() ? $definition->getModuleName() : '_core';
-        $propertiesByModule = $this->getExtraProperties();
+        $columnName = ExtraPropertyNaming::storageColumnName($definition->getModuleName() ?? '', $definition->getPropertyName());
 
-        return $propertiesByModule[$normalizedModule][$propertyName] ?? null;
+        return $this->getExtraPropertiesBag()[$columnName];
     }
 
     /**
@@ -2261,13 +2307,8 @@ abstract class ObjectModelCore implements PrestaShop\PrestaShop\Core\Foundation\
             return false;
         }
 
-        $normalizedModule = null !== $definition->getModuleName() ? $definition->getModuleName() : '_core';
-        $propertiesByModule = $this->getExtraProperties();
-        if (!array_key_exists($normalizedModule, $propertiesByModule)) {
-            $propertiesByModule[$normalizedModule] = [];
-        }
-        $propertiesByModule[$normalizedModule][$propertyName] = $propertyValue;
-        $this->extra_properties = $propertiesByModule;
+        $columnName = ExtraPropertyNaming::storageColumnName($definition->getModuleName() ?? '', $definition->getPropertyName());
+        $this->getExtraPropertiesBag()[$columnName] = $propertyValue;
 
         return true;
     }
@@ -2312,7 +2353,7 @@ abstract class ObjectModelCore implements PrestaShop\PrestaShop\Core\Foundation\
      * Returns a 2D index keyed by [module_name][property_name], where '_core' is used for properties
      * without a module owner (DB module_name IS NULL).
      *
-     * Uses ExtraPropertyDefinitionRepositoryInterface via ServiceLocator (Symfony service,
+     * Uses ExtraPropertyDefinitionRepositoryInterface via ContainerFinder (Symfony service,
      * available in both FO and BO contexts via common.yml).
      *
      * @return array<string, array<string, list<ExtraPropertyDefinitionInfo>>>
@@ -2332,7 +2373,9 @@ abstract class ObjectModelCore implements PrestaShop\PrestaShop\Core\Foundation\
 
         try {
             /** @var ExtraPropertyDefinitionRepositoryInterface $repository */
-            $repository = ServiceLocator::get(ExtraPropertyDefinitionRepositoryInterface::class);
+            $repository = (new ContainerFinder(Context::getContext()))
+                ->getContainer()
+                ->get(ExtraPropertyDefinitionRepositoryInterface::class);
             $definitions = $repository->getByEntityNameAllScopes($this->def['table']);
         } catch (Throwable) {
             return $this->extra_property_definitions;
@@ -2356,7 +2399,7 @@ abstract class ObjectModelCore implements PrestaShop\PrestaShop\Core\Foundation\
     /**
      * Persists runtime extra properties into dedicated *_extra tables.
      *
-     * Uses ExtraPropertyWriterInterface via ServiceLocator (Symfony service,
+     * Uses ExtraPropertyWriterInterface via ContainerFinder (Symfony service,
      * available in both FO and BO contexts via common.yml).
      *
      * @param bool $nullValues
@@ -2365,7 +2408,8 @@ abstract class ObjectModelCore implements PrestaShop\PrestaShop\Core\Foundation\
      */
     protected function persistExtraProperties(bool $nullValues = false): bool
     {
-        if (null === $this->extra_properties || empty($this->def['table']) || (int) $this->id <= 0) {
+        $bag = $this->getExtraPropertiesBag();
+        if (!$bag->hasModifications() || empty($this->def['table']) || (int) $this->id <= 0) {
             return true;
         }
 
@@ -2374,21 +2418,20 @@ abstract class ObjectModelCore implements PrestaShop\PrestaShop\Core\Foundation\
             return true;
         }
 
+        $modifiedValues = $bag->getModifiedValues();
         $entityValues = [];
         $langValuesByIdLang = [];
         $shopValues = [];
 
-        foreach ($definitions as $moduleName => $fieldsByModule) {
+        foreach ($definitions as $fieldsByModule) {
             foreach ($fieldsByModule as $fieldName => $fieldDefinitions) {
                 foreach ($fieldDefinitions as $definition) {
                     $fieldScope = $definition->getFieldScope();
-                    if (
-                        !isset($this->extra_properties[$moduleName])
-                        || !array_key_exists($fieldName, $this->extra_properties[$moduleName])
-                    ) {
+                    $columnName = ExtraPropertyNaming::storageColumnName($definition->getModuleName() ?? '', $fieldName);
+                    if (!array_key_exists($columnName, $modifiedValues)) {
                         continue;
                     }
-                    $value = $this->extra_properties[$moduleName][$fieldName];
+                    $value = $modifiedValues[$columnName];
                     if ($nullValues && '' === $value) {
                         $value = null;
                     }
@@ -2397,7 +2440,6 @@ abstract class ObjectModelCore implements PrestaShop\PrestaShop\Core\Foundation\
                     if (null === $value && !$nullValues) {
                         continue;
                     }
-                    $columnName = $this->resolveExtraPropertyStorageColumnName($definition);
 
                     if ('lang' === $fieldScope) {
                         $langId = $this->resolveCurrentLangId();
@@ -2419,7 +2461,9 @@ abstract class ObjectModelCore implements PrestaShop\PrestaShop\Core\Foundation\
 
         try {
             /** @var ExtraPropertyWriterInterface $writer */
-            $writer = ServiceLocator::get(ExtraPropertyWriterInterface::class);
+            $writer = (new ContainerFinder(Context::getContext()))
+                ->getContainer()
+                ->get(ExtraPropertyWriterInterface::class);
             $writer->writeAll(
                 $this->def['table'],
                 $this->def['primary'],
@@ -2460,32 +2504,6 @@ abstract class ObjectModelCore implements PrestaShop\PrestaShop\Core\Foundation\
         return ((int) $this->id_shop > 0)
             ? (int) $this->id_shop
             : (int) Context::getContext()->shop->id;
-    }
-
-    /**
-     * @param string|null $moduleName
-     * @param string $fieldName
-     *
-     * @return string
-     */
-    protected function buildExtraPropertyColumnName(?string $moduleName, string $fieldName): string
-    {
-        return empty($moduleName)
-            ? $fieldName
-            : $moduleName . '_' . $fieldName;
-    }
-
-    /**
-     * @param ExtraPropertyDefinitionInfo $definition
-     *
-     * @return string
-     */
-    protected function resolveExtraPropertyStorageColumnName(ExtraPropertyDefinitionInfo $definition): string
-    {
-        return $this->buildExtraPropertyColumnName(
-            $definition->getModuleName(),
-            $definition->getPropertyName()
-        );
     }
 
     /**

@@ -97,8 +97,8 @@ class CommonController extends PrestaShopAdminController
         string $moduleName,
         string $propertyName,
         string $scope,
-        int $shopId = 0,
         ParameterBagInterface $parameterBag,
+        int $shopId = 0,
     ): JsonResponse {
         /** @var ExtraPropertyDefinitionRepositoryInterface $repository */
         $repository = $this->container->get(ExtraPropertyDefinitionRepositoryInterface::class);
