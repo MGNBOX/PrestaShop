@@ -36,7 +36,7 @@ class Cart extends CartCore
     /**
      * test for multi-line constant override
      */
-    const TEST_MULTILINE_CONSTANT = [
+    public const TEST_MULTILINE_CONSTANT = [
         'const_key1' => 'const_value1',
         'const_key2' => 'const_value2',
     ];
