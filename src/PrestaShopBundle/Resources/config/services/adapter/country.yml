@@ -19,6 +19,18 @@ services:
     arguments:
       - '@prestashop.adapter.data_provider.country'
 
+  PrestaShop\PrestaShop\Adapter\Country\AddressFormat\LegacyAddressFormatChecker:
+    public: false
+
+  PrestaShop\PrestaShop\Core\Domain\Country\AddressFormat\AddressFormatCheckerInterface:
+    alias: 'PrestaShop\PrestaShop\Adapter\Country\AddressFormat\LegacyAddressFormatChecker'
+
+  PrestaShop\PrestaShop\Adapter\Country\AddressFormat\LegacyAddressFormatFieldsProvider:
+    public: false
+
+  PrestaShop\PrestaShop\Core\Domain\Country\AddressFormat\AddressFormatFieldsProviderInterface:
+    alias: 'PrestaShop\PrestaShop\Adapter\Country\AddressFormat\LegacyAddressFormatFieldsProvider'
+
   PrestaShop\PrestaShop\Adapter\Country\Repository\CountryRepository:
     autowire: true
 

@@ -19,6 +19,7 @@ use PrestaShop\PrestaShop\Core\Domain\Country\Exception\BulkCountryException;
 use PrestaShop\PrestaShop\Core\Domain\Country\Exception\CountryConstraintException;
 use PrestaShop\PrestaShop\Core\Domain\Country\Exception\CountryException;
 use PrestaShop\PrestaShop\Core\Domain\Country\Exception\CountryNotFoundException;
+use PrestaShop\PrestaShop\Core\Domain\Country\Exception\InvalidAddressFormatException;
 use PrestaShop\PrestaShop\Core\Domain\Country\Query\GetCountryForEditing;
 use PrestaShop\PrestaShop\Core\Domain\Country\QueryResult\CountryForEditing;
 use PrestaShop\PrestaShop\Core\Domain\Zone\Exception\ZoneNotFoundException;
@@ -109,7 +110,7 @@ class CountryFeatureContext extends AbstractDomainFeatureContext
                 (int) $data['zone'],
                 PrimitiveUtils::castStringBooleanIntoBoolean($data['need_zip_code']),
                 $data['zip_code_format'],
-                (string) $data['address_format'],
+                $this->unescapeFormat((string) $data['address_format']),
                 PrimitiveUtils::castStringBooleanIntoBoolean($data['is_enabled']),
                 PrimitiveUtils::castStringBooleanIntoBoolean($data['contains_states']),
                 PrimitiveUtils::castStringBooleanIntoBoolean($data['need_identification_number']),
@@ -163,7 +164,7 @@ class CountryFeatureContext extends AbstractDomainFeatureContext
         }
 
         if (isset($data['address_format'])) {
-            $command->setAddressFormat($data['address_format']);
+            $command->setAddressFormat($this->unescapeFormat($data['address_format']));
         }
 
         if (isset($data['is_enabled'])) {
@@ -182,7 +183,52 @@ class CountryFeatureContext extends AbstractDomainFeatureContext
             $command->setDisplayTaxLabel(PrimitiveUtils::castStringBooleanIntoBoolean($data['display_tax_label']));
         }
 
-        $this->getCommandBus()->handle($command);
+        try {
+            $this->getCommandBus()->handle($command);
+        } catch (CountryException $e) {
+            $this->setLastException($e);
+        }
+    }
+
+    /**
+     * @When I try to edit country :countryReference with the following address format:
+     */
+    public function tryEditCountryAddressFormat(string $countryReference, TableNode $table): void
+    {
+        $data = $this->localizeByRows($table);
+        $command = new EditCountryCommand(SharedStorage::getStorage()->get($countryReference));
+        $command->setAddressFormat($this->unescapeFormat((string) $data['address_format']));
+
+        try {
+            $this->getCommandBus()->handle($command);
+        } catch (CountryException $e) {
+            $this->setLastException($e);
+        }
+    }
+
+    /**
+     * @Then I should get an :exceptionShortName error
+     */
+    public function assertCountryDomainError(string $exceptionShortName): void
+    {
+        $map = [
+            'InvalidAddressFormat' => InvalidAddressFormatException::class,
+        ];
+
+        if (!isset($map[$exceptionShortName])) {
+            throw new RuntimeException(sprintf('Unknown country error short name "%s"', $exceptionShortName));
+        }
+
+        $this->assertLastErrorIs($map[$exceptionShortName]);
+    }
+
+    /**
+     * Behat tables strip backslash escapes in cell values, so the feature file uses
+     * the literal `\n` two-character sequence instead of a newline. Convert back here.
+     */
+    private function unescapeFormat(string $format): string
+    {
+        return str_replace('\\n', "\n", $format);
     }
 
     /**
@@ -320,6 +366,12 @@ class CountryFeatureContext extends AbstractDomainFeatureContext
         Assert::assertEquals($expectedData['needIdNumber'], $result->isNeedIdNumber());
         Assert::assertEquals($expectedData['displayTaxLabel'], $result->isDisplayTaxLabel());
         Assert::assertEquals([$expectedData['shopAssociation']], $result->getShopAssociation());
+        if (array_key_exists('addressFormat', $expectedData)) {
+            Assert::assertEquals(
+                $this->unescapeFormat((string) $expectedData['addressFormat']),
+                $result->getAddressFormat()
+            );
+        }
     }
 
     private function formatCountryDataIfNeeded(array $data)

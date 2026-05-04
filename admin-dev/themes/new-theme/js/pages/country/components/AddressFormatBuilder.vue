@@ -1,0 +1,912 @@
+<!--*
+ * For the full copyright and license information, please view the
+ * docs/licenses/LICENSE.txt file that was distributed with this source code.
+ *-->
+<template>
+  <div class="address-format-builder">
+    <div class="address-format-builder__header">
+      <ul
+        class="nav nav-tabs"
+        role="tablist"
+      >
+        <li class="nav-item">
+          <button
+            type="button"
+            class="nav-link"
+            :class="{active: mode === 'visual'}"
+            role="tab"
+            :aria-selected="mode === 'visual'"
+            @click.prevent="setMode('visual')"
+          >
+            <i class="material-icons">view_module</i>
+            {{ $t('mode.visual') }}
+          </button>
+        </li>
+        <li class="nav-item">
+          <button
+            type="button"
+            class="nav-link"
+            :class="{active: mode === 'raw'}"
+            role="tab"
+            :aria-selected="mode === 'raw'"
+            @click.prevent="setMode('raw')"
+          >
+            <i class="material-icons">code</i>
+            {{ $t('mode.raw') }}
+          </button>
+        </li>
+      </ul>
+
+      <div class="dropdown">
+        <button
+          type="button"
+          class="btn btn-outline-secondary dropdown-toggle"
+          data-toggle="dropdown"
+          aria-haspopup="true"
+          aria-expanded="false"
+        >
+          <i class="material-icons">restart_alt</i>
+          {{ $t('reset.button') }}
+        </button>
+        <div class="dropdown-menu dropdown-menu-right">
+          <button
+            type="button"
+            class="dropdown-item"
+            @click.prevent="resetTo(defaultFormat)"
+          >
+            <i class="material-icons">history</i>
+            {{ $t('reset.default') }}
+          </button>
+          <button
+            type="button"
+            class="dropdown-item"
+            @click.prevent="resetTo(initialValue)"
+          >
+            <i class="material-icons">save</i>
+            {{ $t('reset.lastSaved') }}
+          </button>
+          <div class="dropdown-divider" />
+          <button
+            type="button"
+            class="dropdown-item text-danger"
+            @click.prevent="confirmClear"
+          >
+            <i class="material-icons">delete_sweep</i>
+            {{ $t('reset.clear') }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="address-format-builder__body">
+      <div class="address-format-builder__editor">
+        <div
+          v-if="mode === 'visual' && missingFields.length > 0"
+          class="alert alert-warning"
+          role="status"
+          aria-live="polite"
+        >
+          <strong v-if="missingFields.length === 1">{{ $t('banner.missingOne') }}</strong>
+          <strong v-else>{{ $t('banner.missingMany', {count: missingFields.length}) }}</strong>
+          <span class="address-format-builder__missing-tokens">
+            <button
+              v-for="field in missingFields"
+              :key="field"
+              type="button"
+              class="btn btn-sm address-format-builder__missing-chip"
+              @click.prevent="insertField(field)"
+            >{{ field }}</button>
+          </span>
+          <button
+            type="button"
+            class="btn btn-link btn-sm"
+            @click.prevent="insertAllMissing"
+          >
+            {{ $t('banner.insertAll') }} →
+          </button>
+        </div>
+
+        <div
+          v-if="mode === 'visual'"
+          class="address-format-builder__lines"
+        >
+          <div
+            v-for="(line, lineIndex) in lines"
+            :key="`line-${lineIndex}`"
+            class="address-format-builder__line"
+            :class="{
+              'is-drag-over': dragOverLine === lineIndex && draggingLine < 0,
+              'is-dragging': draggingLine === lineIndex,
+            }"
+            @dragenter="onLineDragEnter(lineIndex, $event)"
+            @dragover="onLineDragOver(lineIndex, $event)"
+            @dragleave="onLineDragLeave"
+            @drop="onLineDrop(lineIndex, $event)"
+          >
+            <span
+              class="address-format-builder__grip"
+              draggable="true"
+              :title="$t('lines.dragHint')"
+              :aria-label="$t('lines.dragHint')"
+              tabindex="0"
+              @dragstart="onLineDragStart(lineIndex, $event)"
+              @dragend="onLineDragEnd"
+              @keydown="onGripKeydown(lineIndex, $event)"
+            >
+              <i class="material-icons">drag_indicator</i>
+            </span>
+            <span class="address-format-builder__line-number">{{ lineIndex + 1 }}</span>
+            <div class="address-format-builder__chips">
+              <span
+                v-if="line.length === 0"
+                class="address-format-builder__line-empty"
+              >{{ $t('lines.empty') }}</span>
+              <span
+                v-for="(token, chipIndex) in line"
+                :key="`chip-${lineIndex}-${chipIndex}-${token.raw}`"
+                class="tag address-format-builder__chip"
+                draggable="true"
+                @dragstart="onChipDragStart(lineIndex, chipIndex, $event)"
+                @dragend="onChipDragEnd"
+              >
+                <span class="address-format-builder__chip-key">{{ token.object }}</span>
+                <span class="address-format-builder__chip-sep">:</span>
+                <span class="address-format-builder__chip-value">{{ token.field }}</span>
+                <button
+                  type="button"
+                  class="address-format-builder__chip-close"
+                  :aria-label="$t('lines.removeChip')"
+                  @click.prevent="removeToken(lineIndex, chipIndex)"
+                >
+                  <i class="material-icons">close</i>
+                </button>
+              </span>
+            </div>
+            <button
+              type="button"
+              class="btn btn-link btn-sm address-format-builder__line-remove"
+              :aria-label="$t('lines.remove')"
+              @click.prevent="removeLine(lineIndex)"
+            >
+              <i class="material-icons">delete</i>
+            </button>
+          </div>
+          <button
+            type="button"
+            class="btn btn-outline-secondary btn-sm address-format-builder__add-line"
+            @click.prevent="addLine"
+          >
+            <i class="material-icons">add</i>
+            {{ $t('lines.add') }}
+          </button>
+        </div>
+
+        <div v-else>
+          <textarea
+            v-model="rawText"
+            class="form-control address-format-builder__raw"
+            rows="9"
+            spellcheck="false"
+            @blur="commitRaw"
+          />
+          <p class="form-text text-muted">
+            {{ $t('raw.help') }}
+          </p>
+        </div>
+      </div>
+
+      <div class="address-format-builder__sidebar">
+        <div class="address-format-builder__preview">
+          <p class="address-format-builder__section-title">
+            <i class="material-icons">visibility</i>
+            {{ $t('preview.title') }}
+          </p>
+          <address>
+            <div
+              v-for="(line, idx) in previewLines"
+              :key="`preview-${idx}`"
+            >
+              {{ line }}
+            </div>
+            <span
+              v-if="previewLines.length === 0"
+              class="text-muted font-italic"
+            >{{ $t('preview.empty') }}</span>
+          </address>
+        </div>
+
+        <div class="address-format-builder__picker">
+          <p class="address-format-builder__section-title">
+            <i class="material-icons">add_box</i>
+            {{ $t('picker.title') }}
+          </p>
+          <div class="form-group">
+            <input
+              v-model="searchQuery"
+              type="search"
+              class="form-control"
+              :placeholder="$t('picker.search')"
+            >
+          </div>
+          <ul
+            class="nav nav-tabs"
+            :class="{'is-disabled': isSearching}"
+            role="tablist"
+          >
+            <li
+              v-for="obj in pickerObjects"
+              :key="obj"
+              class="nav-item"
+            >
+              <button
+                type="button"
+                class="nav-link"
+                :class="{active: obj === activeTab && !isSearching}"
+                @click.prevent="selectTab(obj)"
+              >
+                {{ obj }}
+                <span
+                  v-if="objectHasMissing(obj)"
+                  class="address-format-builder__required-asterisk"
+                  aria-hidden="true"
+                >*</span>
+              </button>
+            </li>
+          </ul>
+          <div class="address-format-builder__picker-body">
+            <div
+              v-for="group in filteredGroups"
+              :key="group.object"
+              class="address-format-builder__picker-group"
+            >
+              <div
+                v-if="isSearching"
+                class="address-format-builder__picker-group-label"
+              >
+                {{ group.object }}
+              </div>
+              <div class="address-format-builder__pills">
+                <button
+                  v-for="field in group.fields"
+                  :key="`${group.object}:${field}`"
+                  type="button"
+                  class="btn btn-outline-secondary btn-sm address-format-builder__pill"
+                  :class="{'is-added': isPlaced(group.object, field)}"
+                  :disabled="isPlaced(group.object, field)"
+                  :draggable="!isPlaced(group.object, field)"
+                  :title="isPlaced(group.object, field) ? $t('picker.alreadyAdded') : ''"
+                  @click.prevent="addPickerField(group.object, field)"
+                  @dragstart="onPickerDragStart(group.object, field, $event)"
+                >
+                  <i
+                    v-if="isPlaced(group.object, field)"
+                    class="material-icons"
+                  >check</i>
+                  <i
+                    v-else
+                    class="material-icons"
+                  >add</i>
+                  {{ field }}
+                  <span
+                    v-if="isRequired(field) && !isPlaced(group.object, field)"
+                    class="address-format-builder__required-asterisk"
+                    :title="$t('picker.required')"
+                  >*</span>
+                </button>
+              </div>
+            </div>
+            <p
+              v-if="filteredGroups.length === 0"
+              class="text-muted small"
+            >
+              {{ $t('picker.noMatch') }}
+            </p>
+          </div>
+          <p class="form-text small text-muted address-format-builder__picker-footer">
+            <span class="address-format-builder__required-asterisk">*</span>
+            <span v-html="requiredFooterHtml" />
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script lang="ts">
+  import {defineComponent, PropType} from 'vue';
+  import {
+    AvailableObjects,
+    Line,
+    parseFormat,
+    serializeLines,
+    resolveToken,
+    renderPreview,
+    missingRequired,
+    placedFieldKeys,
+    preferredRaw,
+    SampleData,
+  } from '@pages/country/components/addressFormatModel';
+
+  type Mode = 'visual' | 'raw';
+  type DragSource =
+    | {kind: 'picker', object: string, field: string}
+    | {kind: 'chip', lineIndex: number, chipIndex: number}
+    | {kind: 'line', lineIndex: number}
+    | null;
+
+  interface State {
+    mode: Mode;
+    lines: Line[];
+    rawText: string;
+    activeTab: string;
+    searchQuery: string;
+    dragSource: DragSource;
+    dragOverLine: number;
+    draggingLine: number;
+  }
+
+  const PICKER_OBJECTS = ['Customer', 'Warehouse', 'Country', 'State', 'Address'];
+
+  export default defineComponent({
+    name: 'AddressFormatBuilder',
+    props: {
+      hiddenInput: {
+        type: HTMLInputElement,
+        required: true,
+      },
+      initialValue: {
+        type: String,
+        default: '',
+      },
+      objects: {
+        type: Object as PropType<AvailableObjects>,
+        required: true,
+      },
+      requiredFields: {
+        type: Array as PropType<string[]>,
+        default: () => [],
+      },
+      defaultFormat: {
+        type: String,
+        default: '',
+      },
+      sampleData: {
+        type: Object as PropType<SampleData>,
+        required: true,
+      },
+      requiredFieldsUrl: {
+        type: String,
+        default: '',
+      },
+    },
+    data(): State {
+      return {
+        mode: 'visual',
+        lines: parseFormat(this.initialValue, this.objects),
+        rawText: this.initialValue,
+        activeTab: 'Customer',
+        searchQuery: '',
+        dragSource: null,
+        dragOverLine: -1,
+        draggingLine: -1,
+      };
+    },
+    computed: {
+      pickerObjects(): string[] {
+        return PICKER_OBJECTS.filter((o) => Array.isArray(this.objects[o]));
+      },
+      isSearching(): boolean {
+        return this.searchQuery.trim().length > 0;
+      },
+      previewLines(): string[] {
+        return renderPreview(this.lines, this.sampleData);
+      },
+      missingFields(): string[] {
+        return missingRequired(this.lines, this.requiredFields);
+      },
+      placedKeys(): Set<string> {
+        return placedFieldKeys(this.lines);
+      },
+      filteredGroups(): {object: string, fields: string[]}[] {
+        const term = this.searchQuery.trim().toLowerCase();
+        const sources = this.isSearching ? this.pickerObjects : [this.activeTab];
+
+        return sources
+          .map((obj) => ({
+            object: obj,
+            fields: (this.objects[obj] ?? []).filter((f) => !term || f.toLowerCase().includes(term)),
+          }))
+          .filter((group) => group.fields.length > 0);
+      },
+      hiddenValue(): string {
+        return serializeLines(this.lines);
+      },
+      requiredFooterHtml(): string {
+        const raw = this.$t('picker.requiredFooter') as string;
+
+        return raw
+          .replace('[link]', `<a href="${this.requiredFieldsUrl}">`)
+          .replace('[/link]', '</a>');
+      },
+    },
+    watch: {
+      hiddenValue: {
+        immediate: true,
+        handler(value: string) {
+          this.hiddenInput.value = value;
+        },
+      },
+      mode(value: Mode) {
+        if (value === 'raw') {
+          this.rawText = serializeLines(this.lines);
+        } else {
+          this.commitRaw();
+        }
+      },
+    },
+    methods: {
+      setMode(mode: Mode): void {
+        this.mode = mode;
+      },
+      isPlaced(object: string, field: string): boolean {
+        return this.placedKeys.has(`${object}:${field}`);
+      },
+      isRequired(field: string): boolean {
+        return this.requiredFields.includes(field);
+      },
+      objectHasMissing(object: string): boolean {
+        const fields = this.objects[object] ?? [];
+
+        return fields.some((f) => this.isRequired(f) && this.missingFields.includes(f));
+      },
+      selectTab(obj: string): void {
+        this.searchQuery = '';
+        this.activeTab = obj;
+      },
+      addPickerField(object: string, field: string): void {
+        if (this.isPlaced(object, field)) {
+          return;
+        }
+        const token = {
+          object,
+          field,
+          raw: preferredRaw(object, field, this.objects),
+        };
+        const last = this.lines[this.lines.length - 1];
+
+        if (last && last.length === 0) {
+          last.push(token);
+        } else {
+          this.lines.push([token]);
+        }
+      },
+      insertField(field: string): void {
+        const token = resolveToken(field, this.objects);
+        const last = this.lines[this.lines.length - 1];
+
+        if (last && last.length === 0) {
+          last.push(token);
+        } else {
+          this.lines.push([token]);
+        }
+      },
+      insertAllMissing(): void {
+        [...this.missingFields].forEach((field) => this.insertField(field));
+      },
+      removeToken(lineIndex: number, chipIndex: number): void {
+        this.lines[lineIndex].splice(chipIndex, 1);
+      },
+      removeLine(lineIndex: number): void {
+        this.lines.splice(lineIndex, 1);
+        if (this.lines.length === 0) {
+          this.lines.push([]);
+        }
+      },
+      addLine(): void {
+        this.lines.push([]);
+      },
+      moveLine(from: number, to: number): void {
+        if (from === to || from < 0 || to < 0 || from >= this.lines.length) {
+          return;
+        }
+        const adjusted = to > from ? to - 1 : to;
+        const [moved] = this.lines.splice(from, 1);
+        this.lines.splice(Math.max(0, Math.min(this.lines.length, adjusted)), 0, moved);
+      },
+      moveChip(fromLine: number, fromChip: number, toLine: number): void {
+        if (fromLine === toLine) {
+          return;
+        }
+        if (!this.lines[fromLine] || !this.lines[toLine]) {
+          return;
+        }
+        const [token] = this.lines[fromLine].splice(fromChip, 1);
+        this.lines[toLine].push(token);
+      },
+      resetTo(format: string): void {
+        this.lines = parseFormat(format, this.objects);
+        this.rawText = format;
+      },
+      confirmClear(): void {
+        // window.confirm is fine here — the dropdown is closed by Bootstrap on item click
+        // and we want a lightweight confirmation rather than pulling in a modal for this single case.
+        // eslint-disable-next-line no-alert
+        if (window.confirm(this.$t('reset.confirm') as string)) {
+          this.lines = [[]];
+          this.rawText = '';
+        }
+      },
+      commitRaw(): void {
+        this.lines = parseFormat(this.rawText, this.objects);
+      },
+      onPickerDragStart(object: string, field: string, ev: DragEvent): void {
+        if (this.isPlaced(object, field)) {
+          ev.preventDefault();
+          return;
+        }
+        ev.dataTransfer?.setData(
+          'application/prestashop-address-format-field',
+          JSON.stringify({object, field}),
+        );
+        if (ev.dataTransfer) {
+          ev.dataTransfer.effectAllowed = 'copy';
+        }
+        this.dragSource = {kind: 'picker', object, field};
+      },
+      onChipDragStart(lineIndex: number, chipIndex: number, ev: DragEvent): void {
+        ev.dataTransfer?.setData(
+          'application/prestashop-address-format-chip',
+          JSON.stringify({lineIndex, chipIndex}),
+        );
+        if (ev.dataTransfer) {
+          ev.dataTransfer.effectAllowed = 'move';
+        }
+        this.dragSource = {kind: 'chip', lineIndex, chipIndex};
+      },
+      onChipDragEnd(): void {
+        this.dragSource = null;
+        this.dragOverLine = -1;
+      },
+      onLineDragStart(lineIndex: number, ev: DragEvent): void {
+        ev.dataTransfer?.setData(
+          'application/prestashop-address-format-line',
+          String(lineIndex),
+        );
+        if (ev.dataTransfer) {
+          ev.dataTransfer.effectAllowed = 'move';
+        }
+        this.dragSource = {kind: 'line', lineIndex};
+        this.draggingLine = lineIndex;
+      },
+      onLineDragEnd(): void {
+        this.dragSource = null;
+        this.draggingLine = -1;
+      },
+      onLineDragEnter(lineIndex: number, ev: DragEvent): void {
+        if (this.draggingLine !== -1) {
+          return;
+        }
+        const types = ev.dataTransfer?.types ?? [];
+
+        if (
+          types.includes('application/prestashop-address-format-field')
+          || types.includes('application/prestashop-address-format-chip')
+        ) {
+          this.dragOverLine = lineIndex;
+        }
+      },
+      onLineDragOver(lineIndex: number, ev: DragEvent): void {
+        const types = ev.dataTransfer?.types ?? [];
+
+        if (
+          types.includes('application/prestashop-address-format-field')
+          || types.includes('application/prestashop-address-format-chip')
+          || types.includes('application/prestashop-address-format-line')
+        ) {
+          ev.preventDefault();
+          if (ev.dataTransfer) {
+            const isFieldDrag = types.includes('application/prestashop-address-format-field');
+            ev.dataTransfer.dropEffect = isFieldDrag ? 'copy' : 'move';
+          }
+          this.dragOverLine = lineIndex;
+        }
+      },
+      onLineDragLeave(): void {
+        this.dragOverLine = -1;
+      },
+      onLineDrop(lineIndex: number, ev: DragEvent): void {
+        ev.preventDefault();
+        const fieldData = ev.dataTransfer?.getData('application/prestashop-address-format-field');
+        const chipData = ev.dataTransfer?.getData('application/prestashop-address-format-chip');
+        const lineData = ev.dataTransfer?.getData('application/prestashop-address-format-line');
+
+        if (fieldData) {
+          const {object, field} = JSON.parse(fieldData) as {object: string, field: string};
+
+          if (!this.isPlaced(object, field)) {
+            this.lines[lineIndex].push({
+              object,
+              field,
+              raw: preferredRaw(object, field, this.objects),
+            });
+          }
+        } else if (chipData) {
+          const {lineIndex: fromLine, chipIndex} = JSON.parse(chipData) as {lineIndex: number, chipIndex: number};
+          this.moveChip(fromLine, chipIndex, lineIndex);
+        } else if (lineData) {
+          const fromLine = parseInt(lineData, 10);
+          this.moveLine(fromLine, lineIndex + 1);
+        }
+
+        this.dragOverLine = -1;
+        this.dragSource = null;
+        this.draggingLine = -1;
+      },
+      onGripKeydown(lineIndex: number, ev: KeyboardEvent): void {
+        if (ev.key === 'ArrowUp') {
+          ev.preventDefault();
+          this.moveLine(lineIndex, lineIndex - 1);
+        } else if (ev.key === 'ArrowDown') {
+          ev.preventDefault();
+          this.moveLine(lineIndex, lineIndex + 2);
+        }
+      },
+    },
+  });
+</script>
+
+<style lang="scss" scoped>
+  .address-format-builder {
+    &__header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      margin-bottom: 1rem;
+      border-bottom: 1px solid #ced4da;
+
+      .nav-tabs {
+        border-bottom: none;
+        margin-bottom: -1px;
+      }
+
+      .nav-link i {
+        font-size: 1rem;
+        vertical-align: -3px;
+        margin-right: 0.25rem;
+      }
+    }
+
+    &__body {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 1.5rem;
+
+      @media (max-width: 992px) {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    &__lines {
+      border: 1px solid #ced4da;
+      padding: 0.375rem;
+      background: #ffffff;
+    }
+
+    &__line {
+      display: flex;
+      align-items: center;
+      padding: 0.5rem;
+      gap: 0.5rem;
+      border-radius: 2px;
+      transition: background-color 120ms ease;
+
+      &.is-drag-over {
+        background-color: rgba(37, 185, 215, 0.08);
+        outline: 1px dashed #25b9d7;
+      }
+
+      &.is-dragging {
+        opacity: 0.4;
+      }
+
+      & + & {
+        border-top: 1px solid #f1f3f5;
+      }
+    }
+
+    &__grip {
+      cursor: grab;
+      color: #6c757d;
+      display: inline-flex;
+
+      &:focus {
+        outline: 2px solid #25b9d7;
+        outline-offset: 2px;
+      }
+
+      i {
+        font-size: 1.125rem;
+      }
+    }
+
+    &__line-number {
+      min-width: 1.25rem;
+      color: #6c757d;
+      font-size: 0.75rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    &__chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.375rem;
+      flex: 1;
+      min-height: 2rem;
+      align-items: center;
+    }
+
+    &__line-empty {
+      color: #adb5bd;
+      font-style: italic;
+      font-size: 0.8125rem;
+    }
+
+    &__chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.25rem 0.5rem;
+      background: #ffffff;
+      border: 1px solid #ced4da;
+      border-radius: 2px;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+      font-size: 0.8125rem;
+      cursor: grab;
+    }
+
+    &__chip-key {
+      font-weight: 600;
+    }
+
+    &__chip-sep {
+      color: #6c757d;
+    }
+
+    &__chip-close {
+      background: none;
+      border: 0;
+      padding: 0;
+      color: #6c757d;
+      cursor: pointer;
+      display: inline-flex;
+
+      i {
+        font-size: 0.875rem;
+      }
+
+      &:hover {
+        color: #cd2c1d;
+      }
+    }
+
+    &__line-remove {
+      color: #6c757d;
+      padding: 0.25rem;
+
+      i {
+        font-size: 1rem;
+      }
+    }
+
+    &__add-line {
+      margin-top: 0.5rem;
+
+      i {
+        font-size: 1rem;
+        vertical-align: -3px;
+      }
+    }
+
+    &__sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    &__preview {
+      border: 1px solid #ced4da;
+      padding: 1rem;
+      background: #f8f9fa;
+
+      address {
+        margin-bottom: 0;
+        font-style: normal;
+      }
+    }
+
+    &__picker {
+      border: 1px solid #ced4da;
+      padding: 1rem;
+
+      .nav-tabs.is-disabled {
+        opacity: 0.55;
+        pointer-events: none;
+      }
+    }
+
+    &__section-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #6c757d;
+      margin-bottom: 0.625rem;
+
+      i {
+        font-size: 1rem;
+        vertical-align: -3px;
+        margin-right: 0.25rem;
+      }
+    }
+
+    &__pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.375rem;
+      margin: 0.5rem 0;
+    }
+
+    &__pill {
+      i {
+        font-size: 1rem;
+        vertical-align: -3px;
+      }
+
+      &.is-added {
+        opacity: 0.55;
+      }
+    }
+
+    &__picker-group + &__picker-group {
+      margin-top: 0.75rem;
+    }
+
+    &__picker-group-label {
+      font-size: 0.6875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #6c757d;
+    }
+
+    &__picker-footer {
+      margin-top: 0.875rem;
+    }
+
+    &__required-asterisk {
+      color: #cd2c1d;
+      font-weight: 700;
+    }
+
+    &__missing-tokens {
+      display: inline-flex;
+      flex-wrap: wrap;
+      gap: 0.25rem;
+      margin-left: 0.25rem;
+    }
+
+    &__missing-chip {
+      background: #ffffff;
+      border: 1px solid #ffa000;
+      padding: 0.125rem 0.375rem;
+      font-family: monospace;
+      font-size: 0.75rem;
+      cursor: pointer;
+    }
+
+    &__raw {
+      font-family: monospace;
+      font-size: 0.875rem;
+    }
+  }
+</style>
