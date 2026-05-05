@@ -13,10 +13,6 @@ use PrestaShop\PrestaShop\Adapter\Configuration as AdapterConfiguration;
 use PrestaShop\PrestaShop\Core\Domain\Carrier\ShippingCost\Calculator\ShippingCostCalculatorInterface;
 use PrestaShop\PrestaShop\Core\Domain\Carrier\ShippingCost\ShippingCostContext;
 
-/**
- * Adds the global handling cost (PS_SHIPPING_HANDLING) to the running cost
- * when the carrier has shipping_handling enabled.
- */
 class HandlingCostCalculator implements ShippingCostCalculatorInterface
 {
     public function __construct(

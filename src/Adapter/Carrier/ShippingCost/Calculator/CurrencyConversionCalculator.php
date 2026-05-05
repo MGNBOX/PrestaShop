@@ -15,9 +15,6 @@ use PrestaShop\PrestaShop\Core\Domain\Carrier\ShippingCost\Calculator\ShippingCo
 use PrestaShop\PrestaShop\Core\Domain\Carrier\ShippingCost\ShippingCostContext;
 use PrestaShop\PrestaShop\Core\Domain\Currency\ValueObject\CurrencyId;
 
-/**
- * Converts the accumulated cost to the order currency.
- */
 class CurrencyConversionCalculator implements ShippingCostCalculatorInterface
 {
     public function __construct(

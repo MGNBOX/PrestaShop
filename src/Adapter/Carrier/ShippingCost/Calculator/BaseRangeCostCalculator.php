@@ -13,10 +13,6 @@ use PrestaShop\PrestaShop\Core\Domain\Carrier\ShippingCost\Calculator\ShippingCo
 use PrestaShop\PrestaShop\Core\Domain\Carrier\ShippingCost\Provider\CarrierDataProviderInterface;
 use PrestaShop\PrestaShop\Core\Domain\Carrier\ShippingCost\ShippingCostContext;
 
-/**
- * Fetches the base shipping cost from carrier ranges and stores it in the context.
- * Falls back to free shipping when the carrier is out of range with behavior 0.
- */
 class BaseRangeCostCalculator implements ShippingCostCalculatorInterface
 {
     public function __construct(

@@ -12,11 +12,6 @@ use PrestaShop\PrestaShop\Core\Domain\Carrier\ShippingCost\Calculator\ShippingCo
 use PrestaShop\PrestaShop\Core\Domain\Carrier\ShippingCost\Provider\CarrierDataProviderInterface;
 use PrestaShop\PrestaShop\Core\Domain\Carrier\ShippingCost\ShippingCostContext;
 
-/**
- * Loads carrier configuration into the context.
- * When the carrier is not found, falls back to free shipping.
- * When the carrier shipping method is FREE, marks the context as free shipping.
- */
 class CarrierDataCalculator implements ShippingCostCalculatorInterface
 {
     public function __construct(

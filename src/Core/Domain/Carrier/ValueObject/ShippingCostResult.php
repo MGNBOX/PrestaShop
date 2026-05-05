@@ -11,13 +11,6 @@ namespace PrestaShop\PrestaShop\Core\Domain\Carrier\ValueObject;
 use InvalidArgumentException;
 use PrestaShop\Decimal\DecimalNumber;
 
-/**
- * Represents the result of a shipping cost calculation with both tax-included
- * and tax-excluded amounts.
- *
- * This value object is used by the standalone shipping cost calculator to return
- * calculated shipping costs without requiring a Cart object dependency.
- */
 final class ShippingCostResult
 {
     private DecimalNumber $taxExcluded;
@@ -25,14 +18,6 @@ final class ShippingCostResult
     private int $selectedCarrierId;
     private int $precision;
 
-    /**
-     * @param DecimalNumber $taxExcluded Shipping cost without taxes (HT)
-     * @param DecimalNumber $taxIncluded Shipping cost with taxes (TTC)
-     * @param int $selectedCarrierId The carrier ID that was selected/used for calculation
-     * @param int $precision Computing precision used for calculations
-     *
-     * @throws InvalidArgumentException If amounts are negative or carrier ID is invalid
-     */
     public function __construct(
         DecimalNumber $taxExcluded,
         DecimalNumber $taxIncluded,

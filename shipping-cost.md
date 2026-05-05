@@ -15,7 +15,7 @@ The architecture mirrors `src/Core/Pricing` (product pricing). It rests on three
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────┐
 │  CALLER                                                                          │
-│  (Handler, Service...)                                                           │
+│  (e.g. CreateShipmentHandler)                                                    │
 └────────────────────────────────┬────────────────────────────────────────────────┘
                                  │  ShippingCalculationRequest
                                  ▼
@@ -56,7 +56,7 @@ The architecture mirrors `src/Core/Pricing` (product pricing). It rests on three
 │                                                                                  │
 │  ⑥ AdditionalProductCostCalculator  [Core, no infra deps]                      │
 │     Adds per-product additional shipping costs                                   │
-│     Σ additional_shipping_cost × quantity                                       │
+│     Σ additional_shipping_cost × quantity  (uses DecimalNumber::times())        │
 │                                                                                  │
 │  ⑦ HandlingCostCalculator                                                       │
 │     Adds PS_SHIPPING_HANDLING global fee                                         │
@@ -76,6 +76,88 @@ The architecture mirrors `src/Core/Pricing` (product pricing). It rests on three
                          ShippingCostResult
                     { taxExcluded, taxIncluded }
 ```
+
+---
+
+## File Location
+
+```
+src/
+├── Adapter/Carrier/
+│   ├── ShippingCostCalculator.php              ← public entry point
+│   └── ShippingCost/
+│       ├── Calculator/
+│       │   ├── ZoneResolutionCalculator.php
+│       │   ├── CarrierDataCalculator.php
+│       │   ├── FreeShippingCalculator.php
+│       │   ├── BaseRangeCostCalculator.php
+│       │   ├── HandlingCostCalculator.php
+│       │   ├── CurrencyConversionCalculator.php
+│       │   └── TaxCalculator.php
+│       └── Provider/
+│           ├── CarrierDataProvider.php
+│           ├── ConfigFreeShippingCriteriaProvider.php
+│           └── ShippingTaxRateProvider.php
+│
+└── Core/Domain/Carrier/ShippingCost/
+    ├── ShippingCostContext.php                 ← mutable pipeline DTO
+    ├── Calculator/
+    │   ├── ShippingCostCalculatorInterface.php
+    │   ├── ShippingCostCalculator.php          ← Core orchestrator
+    │   ├── WeightCalculator.php
+    │   └── AdditionalProductCostCalculator.php
+    └── Provider/
+        ├── ShippingCostProviderInterface.php   ← marker interface
+        ├── CarrierDataProviderInterface.php
+        ├── CarrierShippingData.php             ← carrier config DTO
+        ├── FreeShippingCriteriaProviderInterface.php
+        ├── FreeShippingCriteria.php            ← free shipping thresholds DTO
+        └── ShippingTaxRateProviderInterface.php
+```
+
+---
+
+## Symfony Service Registration
+
+**`src/PrestaShopBundle/Resources/config/services/core/shipping_cost.yml`** — auto-imported via glob `services/core/*.yml`:
+- Provider implementations + interface aliases
+- All 9 calculators tagged `prestashop.carrier.shipping_cost_calculator` with priority
+- Pipeline orchestrator `prestashop.carrier.shipping_cost.pipeline` with `!tagged_iterator`
+- `ShippingCostCalculatorInterface` aliased to the pipeline
+
+**`src/PrestaShopBundle/Resources/config/services/adapter/carrier.yml`**:
+- `ShippingCostCalculator` (entry point) registered as public autowired service
+
+### Calculator tag priorities (higher = runs first)
+
+| Priority | Calculator |
+|---|---|
+| 900 | `ZoneResolutionCalculator` |
+| 800 | `CarrierDataCalculator` |
+| 700 | `WeightCalculator` |
+| 600 | `FreeShippingCalculator` |
+| 500 | `BaseRangeCostCalculator` |
+| 400 | `AdditionalProductCostCalculator` |
+| 300 | `HandlingCostCalculator` |
+| 200 | `CurrencyConversionCalculator` |
+| 100 | `TaxCalculator` ← always last |
+
+---
+
+## Usage in CreateShipmentHandler
+
+`CreateShipmentHandler` uses `ShippingCostCalculator` to compute the shipping cost when creating a new shipment. The behavior is gated by `PS_ORDER_RECALCULATE_SHIPPING`:
+
+| `PS_ORDER_RECALCULATE_SHIPPING` | Behavior |
+|---|---|
+| `1` (active) | Skip calculation — set `0.00` on shipment, leave order totals untouched |
+| `0` (inactive) | Calculate shipment cost → save shipment → recompute order total by **summing all shipments** (`findByOrderId`) → `$order->update()` |
+
+The `ShippingCalculationRequest` is built from:
+- `product_weight` from `ps_order_detail` (weight recorded at order time, includes attribute delta)
+- `is_virtual`, `additional_shipping_cost` from `ps_product`
+- `unit_price_tax_incl` from `ps_order_detail`
+- `countryZoneId: 0` — fallback unused since `addressId` is always provided; `ZoneResolutionCalculator` resolves zone from address directly
 
 ---
 
@@ -114,7 +196,7 @@ Pipeline orchestrator. Receives an `iterable<ShippingCostCalculatorInterface>` (
 Computes total cart weight by summing `(weight_attribute or weight) × quantity` for each physical product. Skips if free shipping is already active.
 
 #### `Core\...\Calculator\AdditionalProductCostCalculator`
-Adds per-product additional shipping costs (`additional_shipping_cost × quantity`) to the running cost. Skips if free shipping is active.
+Adds per-product additional shipping costs using `DecimalNumber::times()` for precision (`additional_shipping_cost × quantity`). Skips if free shipping is active.
 
 ---
 
@@ -187,5 +269,7 @@ Implements `ShippingTaxRateProviderInterface`. Loads the carrier and address via
 ## Typing Rules
 
 - All amounts and weights use `DecimalNumber` (never `float`) throughout Core and Adapters.
-- Legacy `Carrier` methods requiring floats (e.g. `getDeliveryPriceByWeight`): cast via `(float)(string)$decimalNumber`.
+- Legacy methods requiring floats (`Carrier::getDeliveryPriceByWeight`, `Tools::round`, `Tools::convertPrice`): cast via `(float)(string)$decimalNumber`.
+- `AdditionalProductCostCalculator`: use `DecimalNumber::times()` for multiplications, never `float × int`.
+- `TaxCalculator`: initialize `$taxIncluded` to `$cost` (DecimalNumber), not `0` (int), to keep a consistent type.
 - `TaxCalculator` **must always be the last** calculator in the pipeline.

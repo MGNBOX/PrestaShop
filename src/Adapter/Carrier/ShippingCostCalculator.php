@@ -13,11 +13,6 @@ use PrestaShop\PrestaShop\Core\Domain\Carrier\ShippingCost\ShippingCostContext;
 use PrestaShop\PrestaShop\Core\Domain\Carrier\ValueObject\ShippingCalculationRequest;
 use PrestaShop\PrestaShop\Core\Domain\Carrier\ValueObject\ShippingCostResult;
 
-/**
- * Entry point for shipping cost calculation.
- * Creates the context from the request, runs it through the pipeline,
- * and returns the final ShippingCostResult.
- */
 class ShippingCostCalculator
 {
     public function __construct(

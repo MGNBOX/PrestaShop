@@ -16,11 +16,6 @@ use PrestaShop\PrestaShop\Core\Domain\Carrier\ShippingCost\Calculator\ShippingCo
 use PrestaShop\PrestaShop\Core\Domain\Carrier\ShippingCost\Provider\ShippingTaxRateProviderInterface;
 use PrestaShop\PrestaShop\Core\Domain\Carrier\ShippingCost\ShippingCostContext;
 
-/**
- * Applies the carrier tax rate to produce final tax-excluded and tax-included amounts.
- * Also handles the free shipping case by writing zeros.
- * Must be the last calculator in the pipeline.
- */
 class TaxCalculator implements ShippingCostCalculatorInterface
 {
     public function __construct(
