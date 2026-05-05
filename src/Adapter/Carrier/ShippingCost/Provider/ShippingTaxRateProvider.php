@@ -8,6 +8,7 @@ declare(strict_types=1);
 
 namespace PrestaShop\PrestaShop\Adapter\Carrier\ShippingCost\Provider;
 
+use Exception;
 use PrestaShop\PrestaShop\Adapter\Address\Repository\AddressRepository;
 use PrestaShop\PrestaShop\Adapter\Carrier\Repository\CarrierRepository;
 use PrestaShop\PrestaShop\Core\Domain\Address\ValueObject\AddressId;
@@ -29,7 +30,7 @@ class ShippingTaxRateProvider implements ShippingTaxRateProviderInterface
             $address = $this->addressRepository->get(new AddressId($addressId));
 
             return (float) $carrier->getTaxesRate($address);
-        } catch (\Exception) {
+        } catch (Exception) {
             return 0.0;
         }
     }

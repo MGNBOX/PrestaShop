@@ -43,7 +43,7 @@ final class ShippingCostContext
     public static function createFromRequest(ShippingCalculationRequest $request): self
     {
         $physicalProducts = array_values(
-            array_filter($request->getProducts(), static fn(array $p): bool => $p['is_virtual'] === false)
+            array_filter($request->getProducts(), static fn (array $p): bool => $p['is_virtual'] === false)
         );
 
         $ctx = new self(

@@ -26,6 +26,7 @@ class AddressRepository extends AbstractMultiShopObjectModelRepository
         private string $dbPrefix,
     ) {
     }
+
     /**
      * @param AddressId $addressId
      *

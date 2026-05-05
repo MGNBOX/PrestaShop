@@ -9,6 +9,7 @@ declare(strict_types=1);
 namespace PrestaShop\PrestaShop\Adapter\Carrier\ShippingCost\Provider;
 
 use Carrier;
+use Exception;
 use PrestaShop\Decimal\DecimalNumber;
 use PrestaShop\PrestaShop\Adapter\Carrier\Repository\CarrierRepository;
 use PrestaShop\PrestaShop\Core\Domain\Carrier\ShippingCost\Provider\CarrierDataProviderInterface;
@@ -26,7 +27,7 @@ class CarrierDataProvider implements CarrierDataProviderInterface
     {
         try {
             $carrier = $this->carrierRepository->get(new CarrierId($carrierId));
-        } catch (\Exception) {
+        } catch (Exception) {
             return null;
         }
 
@@ -50,7 +51,7 @@ class CarrierDataProvider implements CarrierDataProviderInterface
     ): ?DecimalNumber {
         try {
             $carrier = $this->carrierRepository->get(new CarrierId($carrierData->getCarrierId()));
-        } catch (\Exception) {
+        } catch (Exception) {
             return null;
         }
 
