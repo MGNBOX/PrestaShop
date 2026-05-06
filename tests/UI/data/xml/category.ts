@@ -5,6 +5,13 @@ import {faker} from '@faker-js/faker';
  * @param idCategory {string|null}
  */
 export default function getCategoryXml(idCategory: string | null = null): string {
+  const department1: string = faker.commerce.department();
+  const department2: string = faker.commerce.department();
+  const linkRewriteEn: string = `${faker.helpers.slugify(department1).toLowerCase()}`
+    + `-${faker.string.alphanumeric(4).toLowerCase()}`;
+  const linkRewriteFr: string = `${faker.helpers.slugify(department2).toLowerCase()}`
+    + `-${faker.string.alphanumeric(4).toLowerCase()}`;
+
   return `<?xml version="1.0" encoding="UTF-8"?>
 <prestashop xmlns:xlink="http://www.w3.org/1999/xlink">
   <category>
@@ -12,16 +19,13 @@ export default function getCategoryXml(idCategory: string | null = null): string
     <id_parent><![CDATA[2]]></id_parent>
     <active><![CDATA[${faker.helpers.arrayElement([0, 1])}]]></active>
     <id_shop_default><![CDATA[1]]></id_shop_default>
-    <is_root_category><![CDATA[0]]></is_root_category>
-    <redirect_type><![CDATA[]]></redirect_type>
-    <id_type_redirected><![CDATA[0]]></id_type_redirected>
     <name>
-      <language id="1"><![CDATA[${faker.commerce.department()} ${faker.string.alphanumeric(4)}]]></language>
-      <language id="2"><![CDATA[${faker.commerce.department()} ${faker.string.alphanumeric(4)}]]></language>
+      <language id="1"><![CDATA[${department1} ${faker.string.alphanumeric(4)}]]></language>
+      <language id="2"><![CDATA[${department2} ${faker.string.alphanumeric(4)}]]></language>
     </name>
     <link_rewrite>
-      <language id="1"><![CDATA[${faker.helpers.slugify(faker.commerce.department()).toLowerCase()}-${faker.string.alphanumeric(4).toLowerCase()}]]></language>
-      <language id="2"><![CDATA[${faker.helpers.slugify(faker.commerce.department()).toLowerCase()}-${faker.string.alphanumeric(4).toLowerCase()}]]></language>
+      <language id="1"><![CDATA[${linkRewriteEn}]]></language>
+      <language id="2"><![CDATA[${linkRewriteFr}]]></language>
     </link_rewrite>
     <description>
       <language id="1"><![CDATA[${faker.lorem.sentence()}]]></language>

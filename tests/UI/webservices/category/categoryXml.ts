@@ -47,7 +47,7 @@ export default class CategoryXml extends BaseXml {
     xml: string,
   ): Element[] {
     return utilsXML.getNodes(xml, this.categoriesPath);
-  };
+  }
 
   /**
    * Get attribute with language value

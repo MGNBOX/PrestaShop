@@ -369,23 +369,29 @@ describe('WS - Categories : CRUD', async () => {
             const oNode: Element = categoriesNodes[o];
 
             // Skip the calculed node
-            if (ignoredFields.includes(oNode.nodeName)) {
-              continue;
-            }
-
-            if (oNode.nodeName === 'id') {
-              expect(oNode.textContent).to.be.eq(categoryNodeID as string);
-            } else if (['name', 'description', 'additional_description', 'link_rewrite', 'meta_title', 'meta_description', 'meta_keywords'].includes(oNode.nodeName)) {
-              const objectNodeValueEN = categoryXml.getAttributeLangValue(xmlResponse, oNode.nodeName, '1');
-              const createNodeValueEN = categoryXml.getAttributeLangValue(xmlCreate, oNode.nodeName, '1');
-              const objectNodeValueFR = categoryXml.getAttributeLangValue(xmlResponse, oNode.nodeName, '2');
-              const createNodeValueFR = categoryXml.getAttributeLangValue(xmlCreate, oNode.nodeName, '2');
-              expect(objectNodeValueEN).to.be.eq(createNodeValueEN);
-              expect(objectNodeValueFR).to.be.eq(createNodeValueFR);
-            } else {
-              const objectNodeValue = categoryXml.getAttributeValue(xmlCreate, oNode.nodeName);
-              expect(objectNodeValue).to.be.a('string');
-              expect(oNode.textContent).to.be.eq(objectNodeValue);
+            if (!ignoredFields.includes(oNode.nodeName)) {
+              if (oNode.nodeName === 'id') {
+                expect(oNode.textContent).to.be.eq(categoryNodeID as string);
+              } else if ([
+                'name',
+                'description',
+                'additional_description',
+                'link_rewrite',
+                'meta_title',
+                'meta_description',
+                'meta_keywords',
+              ].includes(oNode.nodeName)) {
+                const objectNodeValueEN = categoryXml.getAttributeLangValue(xmlResponse, oNode.nodeName, '1');
+                const createNodeValueEN = categoryXml.getAttributeLangValue(xmlCreate, oNode.nodeName, '1');
+                const objectNodeValueFR = categoryXml.getAttributeLangValue(xmlResponse, oNode.nodeName, '2');
+                const createNodeValueFR = categoryXml.getAttributeLangValue(xmlCreate, oNode.nodeName, '2');
+                expect(objectNodeValueEN).to.be.eq(createNodeValueEN);
+                expect(objectNodeValueFR).to.be.eq(createNodeValueFR);
+              } else {
+                const objectNodeValue = categoryXml.getAttributeValue(xmlCreate, oNode.nodeName);
+                expect(objectNodeValue).to.be.a('string');
+                expect(oNode.textContent).to.be.eq(objectNodeValue);
+              }
             }
           }
         });
@@ -572,10 +578,9 @@ describe('WS - Categories : CRUD', async () => {
           expect(categoriesNodes.length).to.be.gt(0);
         });
 
-        it('should check each node', async function () {
-          await testContext.addContextItem(this, 'testIdentifier', 'requestGetIDCheckAllAfterPut', baseContext);
+        it('should check each node id, name', async function () {
+          await testContext.addContextItem(this, 'testIdentifier', 'requestGetIDCheckAll', baseContext);
 
-          // Champs calculés automatiquement par PrestaShop → ignorer
           const ignoredFields: string[] = [
             'level_depth',
             'nb_products_recursive',
@@ -593,23 +598,29 @@ describe('WS - Categories : CRUD', async () => {
             const oNode: Element = categoriesNodes[o];
 
             // Ignorer les champs calculés
-            if (ignoredFields.includes(oNode.nodeName)) {
-              continue;
-            }
-
-            if (oNode.nodeName === 'id') {
-              expect(oNode.textContent).to.be.eq(categoryNodeID as string);
-            } else if (['name', 'description', 'additional_description', 'link_rewrite', 'meta_title', 'meta_description', 'meta_keywords'].includes(oNode.nodeName)) {
-              const objectNodeValueEN = categoryXml.getAttributeLangValue(xmlResponse, oNode.nodeName, '1');
-              const createNodeValueEN = categoryXml.getAttributeLangValue(xmlUpdate, oNode.nodeName, '1');
-              const objectNodeValueFR = categoryXml.getAttributeLangValue(xmlResponse, oNode.nodeName, '2');
-              const createNodeValueFR = categoryXml.getAttributeLangValue(xmlUpdate, oNode.nodeName, '2');
-              expect(objectNodeValueEN).to.be.eq(createNodeValueEN);
-              expect(objectNodeValueFR).to.be.eq(createNodeValueFR);
-            } else {
-              const objectNodeValue = categoryXml.getAttributeValue(xmlUpdate, oNode.nodeName);
-              expect(objectNodeValue).to.be.a('string');
-              expect(oNode.textContent).to.be.eq(objectNodeValue);
+            if (!ignoredFields.includes(oNode.nodeName)) {
+              if (oNode.nodeName === 'id') {
+                expect(oNode.textContent).to.be.eq(categoryNodeID as string);
+              } else if ([
+                'name',
+                'description',
+                'additional_description',
+                'link_rewrite',
+                'meta_title',
+                'meta_description',
+                'meta_keywords',
+              ].includes(oNode.nodeName)) {
+                const objectNodeValueEN = categoryXml.getAttributeLangValue(xmlResponse, oNode.nodeName, '1');
+                const createNodeValueEN = categoryXml.getAttributeLangValue(xmlUpdate, oNode.nodeName, '1');
+                const objectNodeValueFR = categoryXml.getAttributeLangValue(xmlResponse, oNode.nodeName, '2');
+                const createNodeValueFR = categoryXml.getAttributeLangValue(xmlUpdate, oNode.nodeName, '2');
+                expect(objectNodeValueEN).to.be.eq(createNodeValueEN);
+                expect(objectNodeValueFR).to.be.eq(createNodeValueFR);
+              } else {
+                const objectNodeValue = categoryXml.getAttributeValue(xmlUpdate, oNode.nodeName);
+                expect(objectNodeValue).to.be.a('string');
+                expect(oNode.textContent).to.be.eq(objectNodeValue);
+              }
             }
           }
         });
@@ -724,7 +735,6 @@ describe('WS - Categories : CRUD', async () => {
           const pageTitle = await boCategoriesPage.getPageTitle(page);
           expect(pageTitle).to.contains(boCategoriesPage.pageTitle);
         });
-
 
         it('should reset all filters', async function () {
           await testContext.addContextItem(this, 'testIdentifier', 'resetFilterFirstAfterPut', baseContext);
