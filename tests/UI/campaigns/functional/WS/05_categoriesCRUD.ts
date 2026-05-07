@@ -59,7 +59,7 @@ describe('WS - Categories : CRUD', async () => {
 
   describe('Categories : CRUD', () => {
     let categoryNodeID: string | null = '';
-    
+
     describe('Fetch the Webservice Key', () => {
       it('should login in BO', async function () {
         await testContext.addContextItem(this, 'testIdentifier', 'loginBO', baseContext);
@@ -99,7 +99,7 @@ describe('WS - Categories : CRUD', async () => {
         expect(wsKey).to.not.have.lengthOf(0);
       });
     });
-    
+
     describe(`Endpoint : ${CategoryWS.endpoint} - Schema : Blank`, () => {
       let apiResponse: APIResponse;
       let xmlResponse: string;
@@ -151,7 +151,7 @@ describe('WS - Categories : CRUD', async () => {
         }
       });
     });
-    
+
     describe(`Endpoint : ${CategoryWS.endpoint} - Schema : Synopsis`, () => {
       let apiResponse: APIResponse;
       let xmlResponse: string;
@@ -198,13 +198,13 @@ describe('WS - Categories : CRUD', async () => {
             expect(nodeAttributes[nodeAttributes.length - 1].nodeName)
               .to.be.oneOf(['format', 'readOnly', 'read_only', 'notFilterable', 'required']);
           }
-          
+
           const isEmptyNode = utilsXML.isEmpty(node);
           expect(isEmptyNode, `The node ${node.nodeName} is not empty`).to.eq(true);
         }
       });
     });
-    
+
     describe(`Endpoint : ${CategoryWS.endpoint} - Method : GET`, () => {
       let apiResponse: APIResponse;
       let xmlResponse: string;
@@ -260,7 +260,7 @@ describe('WS - Categories : CRUD', async () => {
         }
       });
     });
-    
+
     describe(`Endpoint : ${CategoryWS.endpoint} - Method : POST`, () => {
       describe(`Endpoint : ${CategoryWS.endpoint} - Method : POST - Add Category`, () => {
         let apiResponse: APIResponse;
@@ -333,7 +333,7 @@ describe('WS - Categories : CRUD', async () => {
 
         it('should check each node attribute', async function () {
           await testContext.addContextItem(this, 'testIdentifier', 'requestGetIDCheckAll', baseContext);
-          
+
           const ignoredFields: string[] = [
             'level_depth',
             'nb_products_recursive',
@@ -507,7 +507,7 @@ describe('WS - Categories : CRUD', async () => {
         });
       });
     });
-    
+
     describe(`Endpoint : ${CategoryWS.endpoint} - Method : PUT`, () => {
       describe(`Endpoint : ${CategoryWS.endpoint} - Method : PUT - Update Category`, () => {
         let apiResponse: APIResponse;
@@ -575,7 +575,7 @@ describe('WS - Categories : CRUD', async () => {
 
           for (let o: number = 0; o < categoriesNodes.length; o++) {
             const oNode: Element = categoriesNodes[o];
-            
+
             if (!ignoredFields.includes(oNode.nodeName)) {
               if (oNode.nodeName === 'id') {
                 expect(oNode.textContent).to.be.eq(categoryNodeID as string);
@@ -706,7 +706,7 @@ describe('WS - Categories : CRUD', async () => {
         });
 
         it('should go to \'Categories\' page', async function () {
-          await testContext.addContextItem(this, 'testIdentifier', 'goToCategoriesPage3', baseContext);
+          await testContext.addContextItem(this, 'testIdentifier', 'goToCategoriesPage4', baseContext);
 
           await boCategoriesCreatePage.clickOnBreadCrumbLink(page, 'categories');
 
@@ -722,7 +722,7 @@ describe('WS - Categories : CRUD', async () => {
         });
       });
     });
-    
+
     describe(`Endpoint : ${CategoryWS.endpoint} - Method : DELETE`, () => {
       it(`should request the endpoint ${CategoryWS.endpoint}/{id} with method DELETE`, async function () {
         await testContext.addContextItem(this, 'testIdentifier', 'requestEndpointCategoriesMethodDelete', baseContext);
