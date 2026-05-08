@@ -395,13 +395,7 @@ class ProductAttributeCore extends ObjectModel
             E_USER_DEPRECATED
         );
 
-        $sql = 'SELECT MAX(`position`)
-                FROM `' . _DB_PREFIX_ . 'attribute`
-                WHERE id_attribute_group = ' . (int) $idAttributeGroup;
-
-        $position = Db::getInstance()->getValue($sql);
-
-        return (is_numeric($position)) ? $position : -1;
+        return self::getHighestPosition((int) $idAttributeGroup);
     }
 
     /**
