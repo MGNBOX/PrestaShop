@@ -397,10 +397,6 @@ class ProductAttributeCore extends ObjectModel
     /**
      * Get the highest attribute position from a group attribute
      *
-     * @param int $idAttributeGroup AttributeGroup ID
-     *
-     * @return int $position Position
-     *
      */
     public static function getHighestPosition(int $idAttributeGroup): int
     {
