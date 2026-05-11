@@ -11,13 +11,10 @@ use PrestaShop\PrestaShop\Adapter\Configuration;
 use PrestaShop\PrestaShop\Adapter\LegacyContext;
 use PrestaShop\PrestaShop\Adapter\Module\AdminModuleDataProvider;
 use PrestaShop\PrestaShop\Adapter\Module\Configuration\ModuleSelfConfigurator;
-use PrestaShop\PrestaShop\Adapter\Module\Module;
 use PrestaShop\PrestaShop\Core\Context\ContextBuilderPreparer;
 use PrestaShop\PrestaShop\Core\Module\ModuleManager;
-use PrestaShop\PrestaShop\Core\Module\ModuleRepository;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Helper\FormatterHelper;
-use Symfony\Component\Console\Helper\Table;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -35,7 +32,6 @@ class ModuleCommand extends Command
         'upgrade',
         'configure',
         'delete',
-        'list',
     ];
 
     /**
@@ -55,7 +51,6 @@ class ModuleCommand extends Command
         protected readonly ModuleManager $moduleManager,
         protected readonly ContextBuilderPreparer $contextBuilderPreparer,
         protected readonly Configuration $configuration,
-        protected readonly ModuleRepository $moduleRepository,
     ) {
         parent::__construct();
     }
@@ -66,13 +61,9 @@ class ModuleCommand extends Command
             ->setName('prestashop:module')
             ->setDescription('Manage your modules via command line')
             ->addArgument('action', InputArgument::REQUIRED, sprintf('Action to execute (Allowed actions: %s).', implode(' / ', $this->allowedActions)))
-            ->addArgument('module name', InputArgument::OPTIONAL, 'Module on which the action will be executed (not required for the "list" action)')
+            ->addArgument('module name', InputArgument::REQUIRED, 'Module on which the action will be executed')
             ->addArgument('file path', InputArgument::OPTIONAL, 'YML file path for configuration')
-            ->addOption('skip-overrides', null, InputOption::VALUE_NONE, 'Skip installing/uninstalling module overrides')
-            ->addOption('all', null, InputOption::VALUE_NONE, 'When used with the "list" action, include uninstalled modules.')
-            ->addOption('active', null, InputOption::VALUE_NONE, 'When used with the "list" action, show only installed and enabled modules.')
-            ->addOption('disabled', null, InputOption::VALUE_NONE, 'When used with the "list" action, show only installed but disabled modules.')
-            ->addOption('not-installed', null, InputOption::VALUE_NONE, 'When used with the "list" action, show only modules present on disk but not installed.');
+            ->addOption('skip-overrides', null, InputOption::VALUE_NONE, 'Skip installing/uninstalling module overrides');
     }
 
     protected function init(InputInterface $input, OutputInterface $output)
@@ -113,42 +104,6 @@ class ModuleCommand extends Command
             return 1;
         }
 
-        if ($action === 'list') {
-            $filterFlags = [
-                'all' => (bool) $input->getOption('all'),
-                'active' => (bool) $input->getOption('active'),
-                'disabled' => (bool) $input->getOption('disabled'),
-                'not-installed' => (bool) $input->getOption('not-installed'),
-            ];
-
-            $enabledFilters = array_keys(array_filter($filterFlags));
-            if (count($enabledFilters) > 1) {
-                $this->displayMessage(
-                    sprintf(
-                        'The --%s options are mutually exclusive; only one may be passed at a time.',
-                        implode(', --', $enabledFilters)
-                    ),
-                    'error'
-                );
-
-                return 1;
-            }
-
-            $filter = $enabledFilters[0] ?? 'installed';
-            $this->executeListAction($output, $filter);
-
-            return 0;
-        }
-
-        if (empty($moduleName)) {
-            $this->displayMessage(
-                sprintf('A module name is required for the "%s" action.', $action),
-                'error'
-            );
-
-            return 1;
-        }
-
         if ($skipOverrides) {
             $disableModuleOriginaleValue = $this->configuration->get('PS_DISABLE_MODULE_OVERRIDES');
             $this->configuration->setTemporary('PS_DISABLE_MODULE_OVERRIDES', 1);
@@ -167,48 +122,6 @@ class ModuleCommand extends Command
         }
 
         return 0;
-    }
-
-    protected function executeListAction(OutputInterface $output, string $filter): void
-    {
-        $modules = match ($filter) {
-            'all' => $this->moduleRepository->getList(),
-            'not-installed' => $this->moduleRepository->getList()->filter(
-                static fn (Module $module) => !$module->isInstalled()
-            ),
-            'active' => $this->moduleRepository->getInstalledModules()->filter(
-                static fn (Module $module) => $module->isActive()
-            ),
-            'disabled' => $this->moduleRepository->getInstalledModules()->filter(
-                static fn (Module $module) => !$module->isActive()
-            ),
-            default => $this->moduleRepository->getInstalledModules(),
-        };
-
-        $rows = [];
-        foreach ($modules as $module) {
-            $rows[] = [
-                (string) $module->get('name'),
-                $module->isInstalled() ? (string) $module->get('version') : '-',
-                $this->describeModuleStatus($module),
-            ];
-        }
-
-        usort($rows, static fn (array $a, array $b) => strcasecmp($a[0], $b[0]));
-
-        $table = new Table($output);
-        $table->setHeaders(['Name', 'Version', 'Status']);
-        $table->setRows($rows);
-        $table->render();
-    }
-
-    private function describeModuleStatus(Module $module): string
-    {
-        if (!$module->isInstalled()) {
-            return 'Not installed';
-        }
-
-        return $module->isActive() ? 'Enabled' : 'Disabled';
     }
 
     protected function executeConfigureModuleAction($moduleName, $file = null)
