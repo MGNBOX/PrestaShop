@@ -9,10 +9,11 @@ declare(strict_types=1);
 namespace PrestaShop\PrestaShop\Adapter\Shipment\CommandHandler;
 
 use Exception;
-use PrestaShop\PrestaShop\Adapter\Carrier\ShippingCostCalculator;
 use PrestaShop\PrestaShop\Adapter\Configuration as AdapterConfiguration;
 use PrestaShop\PrestaShop\Adapter\Order\Repository\OrderRepository;
 use PrestaShop\PrestaShop\Core\CommandBus\Attributes\AsCommandHandler;
+use PrestaShop\PrestaShop\Core\Domain\Carrier\ShippingCost\Calculator\ShippingCostCalculatorInterface;
+use PrestaShop\PrestaShop\Core\Domain\Carrier\ShippingCost\ShippingCostContext;
 use PrestaShop\PrestaShop\Core\Domain\Carrier\ValueObject\ShippingCalculationRequest;
 use PrestaShop\PrestaShop\Core\Domain\Order\ValueObject\OrderId;
 use PrestaShop\PrestaShop\Core\Domain\Shipment\Command\CreateShipment;
@@ -27,7 +28,7 @@ class CreateShipmentHandler implements CreateShipmentHandlerInterface
     public function __construct(
         private readonly ShipmentRepository $shipmentRepository,
         private readonly OrderRepository $orderRepository,
-        private readonly ShippingCostCalculator $shippingCostCalculator,
+        private readonly ShippingCostCalculatorInterface $shippingCostCalculator,
         private readonly AdapterConfiguration $configuration,
     ) {
     }
@@ -68,13 +69,13 @@ class CreateShipmentHandler implements CreateShipmentHandlerInterface
                         orderTotal: (float) $order->total_products,
                     );
 
-                    $result = $this->shippingCostCalculator->calculate($request);
-                    if ($result !== null) {
-                        $shippingCostTaxExcluded = (float) (string) $result->getTaxExcluded();
-                        $shippingCostTaxIncluded = (float) (string) $result->getTaxIncluded();
+                    $context = ShippingCostContext::createFromRequest($request);
+                    $this->shippingCostCalculator->compute($context);
+                    if ($context->getTaxExcluded() !== null && $context->getTaxIncluded() !== null) {
+                        $shippingCostTaxExcluded = (float) (string) $context->getTaxExcluded();
+                        $shippingCostTaxIncluded = (float) (string) $context->getTaxIncluded();
                     }
                 }
-                $this->updateOrderShippingTotal((int) $order->id);
             }
 
             $shipment = new Shipment();
@@ -89,6 +90,10 @@ class CreateShipmentHandler implements CreateShipmentHandlerInterface
             $shipment->setCancelledAt(null);
 
             $shipmentId = $this->shipmentRepository->save($shipment);
+
+            if (!$this->configuration->get('PS_ORDER_RECALCULATE_SHIPPING')) {
+                $this->updateOrderShippingTotal((int) $order->id);
+            }
 
             return $shipmentId;
         } catch (Exception $e) {

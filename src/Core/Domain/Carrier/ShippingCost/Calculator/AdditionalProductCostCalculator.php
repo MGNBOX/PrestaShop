@@ -22,7 +22,7 @@ class AdditionalProductCostCalculator implements ShippingCostCalculatorInterface
         $additionalCost = new DecimalNumber('0');
         foreach ($context->getPhysicalProducts() as $product) {
             $productShippingCost = (string) ($product['additional_shipping_cost'] ?? 0);
-            if ($productShippingCost > 0) {
+            if ((float) $productShippingCost > 0.0) {
                 $productCost = (new DecimalNumber($productShippingCost))
                     ->times(new DecimalNumber((string) $product['quantity']));
                 $additionalCost = $additionalCost->plus($productCost);
