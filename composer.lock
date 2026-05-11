@@ -4662,16 +4662,16 @@
         },
         {
             "name": "prestashop/classic",
-            "version": "3.1.1",
+            "version": "3.1.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/PrestaShop/classic-theme.git",
-                "reference": "de7e61d9c4ef752c31d6c3d8633c51be33402865"
+                "reference": "003b07c6d2aa9076eebd6314520b431876b7d511"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/PrestaShop/classic-theme/zipball/de7e61d9c4ef752c31d6c3d8633c51be33402865",
-                "reference": "de7e61d9c4ef752c31d6c3d8633c51be33402865",
+                "url": "https://api.github.com/repos/PrestaShop/classic-theme/zipball/003b07c6d2aa9076eebd6314520b431876b7d511",
+                "reference": "003b07c6d2aa9076eebd6314520b431876b7d511",
                 "shasum": ""
             },
             "require-dev": {
@@ -4696,9 +4696,9 @@
             "description": "Classic theme for develop PrestaShop version",
             "support": {
                 "issues": "https://github.com/PrestaShop/classic-theme/issues",
-                "source": "https://github.com/PrestaShop/classic-theme/tree/3.1.1"
+                "source": "https://github.com/PrestaShop/classic-theme/tree/3.1.2"
             },
-            "time": "2026-02-17T13:50:00+00:00"
+            "time": "2026-03-25T14:45:03+00:00"
         },
         {
             "name": "prestashop/contactform",
