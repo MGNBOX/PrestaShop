@@ -6,7 +6,7 @@ description: >
   via the base FormHandler). Never builds commands directly. Trigger: "create
   form actions for {Domain}", "create add/edit for {Domain}", "create settings
   save action for {Page}".
-needs: [create-cqrs-commands, create-cqrs-queries, create-crud-form-type, create-crud-form-data-handling]
+needs: [create-cqrs-commands, create-cqrs-queries, create-crud-form-type, create-crud-form-data-handling, create-settings-form]
 produces: "createAction, editAction, and entity-specific actions in {Domain}Controller.php (CRUD); index/save actions for settings blocks"
 ---
 

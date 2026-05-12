@@ -6,7 +6,7 @@ description: >
   each with an explicit action URL). Renders the Symfony form, save buttons,
   and optional form theme overrides for custom field rendering. Trigger:
   "create form template for {Domain}".
-needs: [create-crud-form-type, create-controller-form-actions, create-admin-routing]
+needs: [create-crud-form-type, create-settings-form, create-controller-form-actions, create-admin-routing]
 produces: "form.html.twig (CRUD) or block template (settings) — Symfony form rendering"
 subagent: optional
 ---
