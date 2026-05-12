@@ -97,7 +97,7 @@ final class UpdateProductInOrderHandler extends AbstractOrderCommandHandler impl
 
                 $this->shipmentProductQuantityUpdater->updateShipmentQuantity($command->getOrderDetailId(), $command->getShipmentsQuantities());
 
-                if ($this->shipmentShippingCostUpdater !== null && $this->configuration !== null && !$this->configuration->get('PS_ORDER_RECALCULATE_SHIPPING')) {
+                if ($this->shipmentShippingCostUpdater !== null && $this->configuration !== null && $this->configuration->get('PS_ORDER_RECALCULATE_SHIPPING')) {
                     $this->shipmentShippingCostUpdater->recalculateForOrder((int) $order->id);
                 }
             } else {
