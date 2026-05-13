@@ -1,4 +1,5 @@
 <?php
+
 /**
  * For the full copyright and license information, please view the
  * docs/licenses/LICENSE.txt file that was distributed with this source code.
@@ -33,10 +34,6 @@ final class ShipmentDeliverySlipPdfGenerator implements PDFGeneratorInterface
      */
     private $shipmentRepository;
 
-    /**
-     * @param TranslatorInterface $translator
-     * @param ShipmentRepository $shipmentRepository
-     */
     public function __construct(
         TranslatorInterface $translator,
         ShipmentRepository $shipmentRepository
@@ -51,7 +48,11 @@ final class ShipmentDeliverySlipPdfGenerator implements PDFGeneratorInterface
     public function generatePDF(array $shipmentIds): string
     {
         if (empty($shipmentIds)) {
-            throw new CoreException(sprintf('"%s" requires at least one shipment ID.', self::class));
+            throw new CoreException($this->translator->trans(
+                '%class% requires at least one shipment ID.',
+                ['%class%' => self::class],
+                'Admin.Orderscustomers.Notification'
+            ));
         }
 
         $shipmentData = [];

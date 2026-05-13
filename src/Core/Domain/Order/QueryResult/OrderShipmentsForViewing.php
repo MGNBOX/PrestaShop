@@ -1,4 +1,5 @@
 <?php
+
 /**
  * For the full copyright and license information, please view the
  * docs/licenses/LICENSE.txt file that was distributed with this source code.
@@ -15,14 +16,8 @@ class OrderShipmentsForViewing
      */
     private array $shipments;
 
-    /**
-     * @var int
-     */
     private int $totalCount;
 
-    /**
-     * @var int
-     */
     private int $fulfilledCount;
 
     /**
@@ -49,17 +44,11 @@ class OrderShipmentsForViewing
         return $this->shipments;
     }
 
-    /**
-     * @return int
-     */
     public function getTotalCount(): int
     {
         return $this->totalCount;
     }
 
-    /**
-     * @return int
-     */
     public function getFulfilledCount(): int
     {
         return $this->fulfilledCount;
@@ -68,8 +57,6 @@ class OrderShipmentsForViewing
     /**
      * Returns true if all shipments have been fulfilled.
      * A fulfilled shipment has both a tracking_number and a packed_at date set.
-     *
-     * @return bool
      */
     public function areAllShipmentsPacked(): bool
     {

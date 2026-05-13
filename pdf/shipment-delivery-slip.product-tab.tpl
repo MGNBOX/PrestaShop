@@ -89,12 +89,8 @@
             {/foreach}
           {/foreach}
         {/if}
-			{/if}
-
-
-
-		{/foreach}
-		<!-- END PRODUCTS -->
-	</tbody>
-
+      {/if}
+    {/foreach}
+    <!-- END PRODUCTS -->
+  </tbody>
 </table>

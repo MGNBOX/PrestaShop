@@ -26,12 +26,19 @@ class HTMLTemplateShipmentDeliverySlipCore extends HTMLTemplate
     public $order_invoice;
 
     /**
+     * @var array{
+     *     shipment: Shipment,
+     *     order: Order,
+     *     order_invoice_collection: PrestaShopCollection,
+     * }[] $ranges
+     *
      * @throws PrestaShopException
      */
     public function __construct(array $shipmentData, Smarty $smarty)
     {
         if (!isset($shipmentData['shipment']) || !is_array($shipmentData)) {
-            throw new PrestaShopException('Invalid shipment data provided to HTMLTemplateShipmentDeliverySlip');
+            $errorMessage = Context::getContext()->getTranslator()->trans('Invalid shipment data provided to HTMLTemplateShipmentDeliverySlip');
+            throw new PrestaShopException($errorMessage);
         }
 
         $this->shipment = $shipmentData['shipment'];
@@ -164,7 +171,21 @@ class HTMLTemplateShipmentDeliverySlipCore extends HTMLTemplate
     /**
      * Get products from shipment entity
      *
-     * @return array
+     * @return array{
+     *     quantity: int,
+     *     product_quantity: int,
+     *     id_order_detail: int,
+     *     product_id: int,
+     *     product_attribute_id: int,
+     *     product_name: string,
+     *     product_reference: string,
+     *     product_supplier_reference: string,
+     *     product_weight: float,
+     *     product_price: float,
+     *     unit_price_tax_incl: float,
+     *     unit_price_tax_excl: float,
+     *     image: Image|null,
+     * }[]
      */
     protected function getShipmentProducts()
     {

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * For the full copyright and license information, please view the
  * docs/licenses/LICENSE.txt file that was distributed with this source code.
@@ -135,9 +136,7 @@ class OrderController extends PrestaShopAdminController
      */
     public const PRODUCTS_PAGINATION_OPTIONS = [8, 20, 50, 100];
 
-    public function __construct(private readonly FormFactoryInterface $formFactory)
-    {
-    }
+    public function __construct(private readonly FormFactoryInterface $formFactory) {}
 
     /**
      * Shows list of orders
@@ -347,7 +346,7 @@ class OrderController extends PrestaShopAdminController
     /**
      * Generate delivery slip PDF for a specific shipment
      */
-    #[AdminSecurity("is_granted('read', request.get('_legacy_controller'))", message: 'You do not have permission to view this.', redirectRoute: 'admin_orders_index')]
+    #[AdminSecurity("is_granted('read', 'AdminOrders')", message: 'You do not have permission to view this.', redirectRoute: 'admin_orders_index')]
     public function generateShipmentDeliverySlipPdfAction(
         int $shipmentId,
         #[Autowire(service: 'prestashop.adapter.pdf.shipment_delivery_slip_pdf_generator')] PDFGeneratorInterface $shipmentDeliverySlipPdfGenerator,
@@ -360,7 +359,7 @@ class OrderController extends PrestaShopAdminController
      *
      * @return BinaryFileResponse|RedirectResponse
      */
-    #[AdminSecurity("is_granted('read', request.get('_legacy_controller'))", message: 'You do not have permission to view this.', redirectRoute: 'admin_orders_index')]
+    #[AdminSecurity("is_granted('read', 'AdminOrders')", message: 'You do not have permission to view this.', redirectRoute: 'admin_orders_index')]
     public function generateShipmentsDeliverySlipPdfAction(
         Request $request,
         int $orderId,
@@ -862,8 +861,6 @@ class OrderController extends PrestaShopAdminController
     /**
      * @param int $orderId
      * @param Request $request
-     *
-     * @return RedirectResponse
      */
     #[AdminSecurity("is_granted('update', 'AdminOrders')", redirectRoute: 'admin_orders_view', redirectQueryParamsToKeep: ['orderId'], message: 'You do not have permission to edit this.')]
     public function fulfillShipmentAction(int $orderId, int $shipmentId, Request $request, #[Autowire(service: 'prestashop.core.form.identifiable_object.builder.fulfill_shipment_form_builder')] FormBuilderInterface $formBuilder): RedirectResponse
@@ -873,7 +870,7 @@ class OrderController extends PrestaShopAdminController
         $submittedData = $request->request->all('fulfill_shipment');
 
         if (!$form->isSubmitted() || !$form->isValid()) {
-            $this->addFlash('error', 'An error occurend while fulfilling shipment');
+            $this->addFlash('error', $this->trans('An error occured while fulfilling shipment', [], 'Admin.Orderscustomers.Notification'));
 
             return $this->redirectToRoute('admin_orders_view', ['orderId' => $orderId]);
         }
