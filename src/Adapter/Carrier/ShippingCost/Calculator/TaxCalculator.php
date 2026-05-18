@@ -56,7 +56,7 @@ class TaxCalculator implements ShippingCostCalculatorInterface
             && !$this->configuration->get('PS_ATCP_SHIPWRAP')
         ) {
             $taxRate = $this->taxRateProvider->getTaxRate($carrierId, $addressId);
-            $taxIncluded = $cost->times(new DecimalNumber((string) (1 + ($taxRate / 100))));
+            $taxIncluded = $cost->times($taxRate->getMultiplier());
         }
 
         $context->setTaxExcluded($this->roundAmount($cost, $precision));

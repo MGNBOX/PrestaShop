@@ -9,11 +9,13 @@ declare(strict_types=1);
 namespace PrestaShop\PrestaShop\Adapter\Carrier\ShippingCost\Provider;
 
 use Exception;
+use PrestaShop\Decimal\DecimalNumber;
 use PrestaShop\PrestaShop\Adapter\Address\Repository\AddressRepository;
 use PrestaShop\PrestaShop\Adapter\Carrier\Repository\CarrierRepository;
 use PrestaShop\PrestaShop\Core\Domain\Address\ValueObject\AddressId;
 use PrestaShop\PrestaShop\Core\Domain\Carrier\ShippingCost\Provider\ShippingTaxRateProviderInterface;
 use PrestaShop\PrestaShop\Core\Domain\Carrier\ValueObject\CarrierId;
+use PrestaShop\PrestaShop\Core\Pricing\ValueObject\TaxRate;
 use Psr\Log\LoggerInterface;
 
 class ShippingTaxRateProvider implements ShippingTaxRateProviderInterface
@@ -25,20 +27,20 @@ class ShippingTaxRateProvider implements ShippingTaxRateProviderInterface
     ) {
     }
 
-    public function getTaxRate(int $carrierId, int $addressId): float
+    public function getTaxRate(int $carrierId, int $addressId): TaxRate
     {
         try {
             $carrier = $this->carrierRepository->get(new CarrierId($carrierId));
             $address = $this->addressRepository->get(new AddressId($addressId));
 
-            return (float) $carrier->getTaxesRate($address);
+            return new TaxRate(new DecimalNumber((string) $carrier->getTaxesRate($address)));
         } catch (Exception $e) {
             $this->logger->error(
                 sprintf('Failed to retrieve tax rate for carrier %d and address %d: %s', $carrierId, $addressId, $e->getMessage()),
                 ['exception' => $e]
             );
 
-            return 0.0;
+            return TaxRate::zero();
         }
     }
 }

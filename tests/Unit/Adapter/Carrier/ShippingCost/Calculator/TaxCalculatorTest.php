@@ -18,6 +18,7 @@ use PrestaShop\PrestaShop\Core\Domain\Carrier\ShippingCost\Provider\ShippingTaxR
 use PrestaShop\PrestaShop\Core\Domain\Carrier\ShippingCost\ShippingCostPrice;
 use PrestaShop\PrestaShop\Core\Domain\Carrier\ShippingCost\ShippingCostPriceInterface;
 use PrestaShop\PrestaShop\Core\Domain\Carrier\ValueObject\ShippingCalculationRequest;
+use PrestaShop\PrestaShop\Core\Pricing\ValueObject\TaxRate;
 
 class TaxCalculatorTest extends TestCase
 {
@@ -87,7 +88,7 @@ class TaxCalculatorTest extends TestCase
 
             return $map[$key] ?? null;
         });
-        $this->taxRateProvider->method('getTaxRate')->willReturn(20.0); // 20% tax
+        $this->taxRateProvider->method('getTaxRate')->willReturn(new TaxRate(new DecimalNumber('20'))); // 20% tax
 
         $this->calculator->compute($context);
 
