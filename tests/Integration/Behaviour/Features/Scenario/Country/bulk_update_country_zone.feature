@@ -40,6 +40,15 @@ Feature: Bulk update countries zone
     Then country "zone_country_1" should be assigned to zone 2
     And country "zone_country_2" should be assigned to zone 2
 
+  Scenario: Bulk update countries zone should fail when country id is invalid
+    Given country "invalid_zone_country" has invalid id
+    When I bulk update countries "invalid_zone_country" to zone 2
+    Then I should get error that country id is invalid
+
+  Scenario: Bulk update countries zone should fail when country list is empty
+    When I bulk update an empty list of countries to zone 2
+    Then I should get error that country list is empty
+
   Scenario: Bulk update countries zone should fail when zone does not exist
     Given language "language1" with locale "en-US" exists
     And I add new country "zone_missing_country" with following properties:

@@ -214,6 +214,46 @@ class CountryFeatureContext extends AbstractDomainFeatureContext
     }
 
     /**
+     * @When I bulk enable an empty list of countries
+     */
+    public function bulkEnableEmptyCountriesList(): void
+    {
+        try {
+            $this->getCommandBus()->handle(new BulkToggleCountriesStatusCommand(true, []));
+        } catch (CountryException $e) {
+            $this->setLastException($e);
+        }
+    }
+
+    /**
+     * @When I bulk update an empty list of countries to zone :zoneId
+     */
+    public function bulkUpdateEmptyCountriesListZone(int $zoneId): void
+    {
+        try {
+            $this->getCommandBus()->handle(new BulkUpdateCountryZoneCommand([], $zoneId));
+        } catch (CountryException $e) {
+            $this->setLastException($e);
+        }
+    }
+
+    /**
+     * @Then no exception should have been thrown
+     */
+    public function assertNoExceptionWasThrown(): void
+    {
+        $this->assertLastErrorIsNull();
+    }
+
+    /**
+     * @Then I should get error that country list is empty
+     */
+    public function assertCountryListIsEmpty(): void
+    {
+        $this->assertLastErrorIs(CountryException::class);
+    }
+
+    /**
      * @When I bulk update countries :countryReferences to zone :zoneId
      */
     public function bulkUpdateCountriesZone(string $countryReferences, int $zoneId): void
@@ -258,7 +298,7 @@ class CountryFeatureContext extends AbstractDomainFeatureContext
     /**
      * @Then /^the country "(.+)" should have the following properties:$/
      */
-    public function assertQueryCustomerProperties($countryReference, TableNode $table)
+    public function assertCountryProperties(string $countryReference, TableNode $table)
     {
         $countryId = SharedStorage::getStorage()->get($countryReference);
         $expectedData = $this->localizeByRows($table);

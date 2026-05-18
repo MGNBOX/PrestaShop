@@ -48,6 +48,10 @@ Feature: Bulk toggle countries status
     When I bulk enable countries "invalid_country"
     Then I should get error that country id is invalid
 
+  Scenario: Bulk toggle should no-op when country list is empty
+    When I bulk enable an empty list of countries
+    Then no exception should have been thrown
+
   Scenario: Bulk toggle should continue on partial failure and aggregate errors
     Given language "language1" with locale "en-US" exists
     And I add new country "bulk_partial_country" with following properties:
