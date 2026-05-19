@@ -8,14 +8,19 @@ declare(strict_types=1);
 
 namespace PrestaShopBundle\Controller\Admin\Configure\AdvancedParameters;
 
+use Exception;
 use PrestaShop\PrestaShop\Core\Domain\QuickAccess\Command\BulkDeleteQuickAccessCommand;
 use PrestaShop\PrestaShop\Core\Domain\QuickAccess\Command\DeleteQuickAccessCommand;
 use PrestaShop\PrestaShop\Core\Domain\QuickAccess\Command\ToggleQuickAccessNewWindowCommand;
 use PrestaShop\PrestaShop\Core\Domain\QuickAccess\Exception\BulkQuickAccessException;
+use PrestaShop\PrestaShop\Core\Domain\QuickAccess\Exception\CannotAddQuickAccessException;
 use PrestaShop\PrestaShop\Core\Domain\QuickAccess\Exception\CannotDeleteQuickAccessException;
 use PrestaShop\PrestaShop\Core\Domain\QuickAccess\Exception\CannotUpdateQuickAccessException;
+use PrestaShop\PrestaShop\Core\Domain\QuickAccess\Exception\QuickAccessConstraintException;
 use PrestaShop\PrestaShop\Core\Domain\QuickAccess\Exception\QuickAccessException;
 use PrestaShop\PrestaShop\Core\Domain\QuickAccess\Exception\QuickAccessNotFoundException;
+use PrestaShop\PrestaShop\Core\Form\IdentifiableObject\Builder\FormBuilderInterface;
+use PrestaShop\PrestaShop\Core\Form\IdentifiableObject\Handler\FormHandlerInterface;
 use PrestaShop\PrestaShop\Core\Grid\GridFactoryInterface;
 use PrestaShop\PrestaShop\Core\Search\Filters\QuickAccessFilters;
 use PrestaShopBundle\Controller\Admin\PrestaShopAdminController;
@@ -49,17 +54,82 @@ class QuickAccessController extends PrestaShopAdminController
     }
 
     #[AdminSecurity("is_granted('create', request.get('_legacy_controller'))", redirectRoute: 'admin_quick_accesses_index')]
-    public function createAction(): Response
-    {
-        // TODO: implement in Step 6 (form page)
-        return $this->redirectToRoute('admin_quick_accesses_index');
+    public function createAction(
+        Request $request,
+        #[Autowire(service: 'prestashop.core.form.identifiable_object.builder.quick_access_form_builder')]
+        FormBuilderInterface $quickAccessFormBuilder,
+        #[Autowire(service: 'prestashop.core.form.identifiable_object.handler.quick_access_form_handler')]
+        FormHandlerInterface $quickAccessFormHandler
+    ): Response {
+        try {
+            $quickAccessForm = $quickAccessFormBuilder->getForm();
+        } catch (Exception $e) {
+            $this->addFlash('error', $this->getErrorMessageForException($e, $this->getErrorMessages()));
+
+            return $this->redirectToRoute('admin_quick_accesses_index');
+        }
+
+        try {
+            $quickAccessForm->handleRequest($request);
+            $result = $quickAccessFormHandler->handle($quickAccessForm);
+
+            if (null !== $result->getIdentifiableObjectId()) {
+                $this->addFlash('success', $this->trans('Successful creation.', [], 'Admin.Notifications.Success'));
+
+                return $this->redirectToRoute('admin_quick_accesses_index');
+            }
+        } catch (Exception $e) {
+            $this->addFlash('error', $this->getErrorMessageForException($e, $this->getErrorMessages()));
+        }
+
+        return $this->render('@PrestaShop/Admin/Configure/AdvancedParameters/QuickAccess/create.html.twig', [
+            'quickAccessForm' => $quickAccessForm->createView(),
+            'enableSidebar' => true,
+            'help_link' => $this->generateSidebarLink($request->attributes->get('_legacy_controller')),
+            'layoutTitle' => $this->trans('New quick access', [], 'Admin.Navigation.Menu'),
+        ]);
     }
 
     #[AdminSecurity("is_granted('update', request.get('_legacy_controller'))", redirectRoute: 'admin_quick_accesses_index')]
-    public function editAction(int $quickAccessId): Response
-    {
-        // TODO: implement in Step 6 (form page)
-        return $this->redirectToRoute('admin_quick_accesses_index');
+    public function editAction(
+        int $quickAccessId,
+        Request $request,
+        #[Autowire(service: 'prestashop.core.form.identifiable_object.builder.quick_access_form_builder')]
+        FormBuilderInterface $quickAccessFormBuilder,
+        #[Autowire(service: 'prestashop.core.form.identifiable_object.handler.quick_access_form_handler')]
+        FormHandlerInterface $quickAccessFormHandler
+    ): Response {
+        try {
+            $quickAccessForm = $quickAccessFormBuilder->getFormFor($quickAccessId);
+        } catch (Exception $e) {
+            $this->addFlash('error', $this->getErrorMessageForException($e, $this->getErrorMessages()));
+
+            return $this->redirectToRoute('admin_quick_accesses_index');
+        }
+
+        try {
+            $quickAccessForm->handleRequest($request);
+            $result = $quickAccessFormHandler->handleFor($quickAccessId, $quickAccessForm);
+
+            if ($result->isSubmitted() && $result->isValid()) {
+                $this->addFlash('success', $this->trans('Successful update.', [], 'Admin.Notifications.Success'));
+
+                return $this->redirectToRoute('admin_quick_accesses_index');
+            }
+        } catch (Exception $e) {
+            $this->addFlash('error', $this->getErrorMessageForException($e, $this->getErrorMessages()));
+
+            if ($e instanceof QuickAccessNotFoundException) {
+                return $this->redirectToRoute('admin_quick_accesses_index');
+            }
+        }
+
+        return $this->render('@PrestaShop/Admin/Configure/AdvancedParameters/QuickAccess/edit.html.twig', [
+            'quickAccessForm' => $quickAccessForm->createView(),
+            'enableSidebar' => true,
+            'help_link' => $this->generateSidebarLink($request->attributes->get('_legacy_controller')),
+            'layoutTitle' => $this->trans('Editing quick access', [], 'Admin.Navigation.Menu'),
+        ]);
     }
 
     #[DemoRestricted(redirectRoute: 'admin_quick_accesses_index')]
@@ -138,8 +208,8 @@ class QuickAccessController extends PrestaShopAdminController
                 [],
                 'Admin.Notifications.Error'
             ),
-            CannotDeleteQuickAccessException::class => $this->trans(
-                'An error occurred while deleting the object.',
+            CannotAddQuickAccessException::class => $this->trans(
+                'An error occurred while creating the object.',
                 [],
                 'Admin.Notifications.Error'
             ),
@@ -148,6 +218,18 @@ class QuickAccessController extends PrestaShopAdminController
                 [],
                 'Admin.Notifications.Error'
             ),
+            CannotDeleteQuickAccessException::class => $this->trans(
+                'An error occurred while deleting the object.',
+                [],
+                'Admin.Notifications.Error'
+            ),
+            QuickAccessConstraintException::class => [
+                QuickAccessConstraintException::LINK_ALREADY_EXISTS => $this->trans(
+                    'A quick access link to this URL already exists.',
+                    [],
+                    'Admin.Advparameters.Notification'
+                ),
+            ],
         ];
     }
 }
