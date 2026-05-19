@@ -26,6 +26,7 @@ class ShipmentShippingCostUpdater
         private readonly ShipmentRepository $shipmentRepository,
         private readonly OrderRepository $orderRepository,
         private readonly ShippingCostCalculatorInterface $shippingCostCalculator,
+        private readonly OrderShippingTotalUpdater $orderShippingTotalUpdater,
     ) {
     }
 
@@ -38,7 +39,7 @@ class ShipmentShippingCostUpdater
             $this->recalculateShipment($shipment, $order, $productsDetail);
         }
 
-        $this->updateOrderShippingTotal($order);
+        $this->orderShippingTotalUpdater->update($order);
     }
 
     /**
@@ -47,16 +48,22 @@ class ShipmentShippingCostUpdater
     private function recalculateShipment(Shipment $shipment, Order $order, array $productsDetail): void
     {
         $products = [];
+        $shipmentTotalProducts = 0.00;
+
         foreach ($shipment->getProducts() as $shipmentProduct) {
             $product = $this->findOrderProductByDetailId($productsDetail, $shipmentProduct->getOrderDetailId());
             if ($product === null) {
                 continue;
             }
 
+            $quantity = $shipmentProduct->getQuantity();
+            $unitPriceTaxExcl = (float) ($product['unit_price_tax_excl'] ?? 0);
+            $shipmentTotalProducts += $unitPriceTaxExcl * $quantity;
+
             $products[] = [
                 'id_product' => (int) $product['product_id'],
                 'id_product_attribute' => (int) ($product['product_attribute_id'] ?? 0),
-                'quantity' => $shipmentProduct->getQuantity(),
+                'quantity' => $quantity,
                 'weight' => (float) ($product['product_weight'] ?? 0),
                 'weight_attribute' => null,
                 'is_virtual' => (bool) ($product['is_virtual'] ?? false),
@@ -77,7 +84,7 @@ class ShipmentShippingCostUpdater
             countryZoneId: 0,
             currencyId: (int) $order->id_currency,
             customerId: (int) $order->id_customer,
-            orderTotal: (float) $order->total_products,
+            orderTotal: $shipmentTotalProducts,
         );
 
         $context = ShippingCostPrice::createFromRequest($request);
@@ -88,22 +95,6 @@ class ShipmentShippingCostUpdater
             $shipment->setShippingCostTaxIncluded((float) (string) $context->getTaxIncluded());
             $this->shipmentRepository->save($shipment);
         }
-    }
-
-    private function updateOrderShippingTotal(Order $order): void
-    {
-        $totalTaxExcluded = 0.00;
-        $totalTaxIncluded = 0.00;
-
-        foreach ($this->shipmentRepository->findByOrderId((int) $order->id) as $shipment) {
-            $totalTaxExcluded += $shipment->getShippingCostTaxExcluded();
-            $totalTaxIncluded += $shipment->getShippingCostTaxIncluded();
-        }
-
-        $order->total_shipping_tax_excl = $totalTaxExcluded;
-        $order->total_shipping_tax_incl = $totalTaxIncluded;
-        $order->total_shipping = $totalTaxIncluded;
-        $order->update();
     }
 
     /**

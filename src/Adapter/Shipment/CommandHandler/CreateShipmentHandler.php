@@ -11,11 +11,11 @@ namespace PrestaShop\PrestaShop\Adapter\Shipment\CommandHandler;
 use Exception;
 use PrestaShop\PrestaShop\Adapter\Configuration as AdapterConfiguration;
 use PrestaShop\PrestaShop\Adapter\Order\Repository\OrderRepository;
+use PrestaShop\PrestaShop\Adapter\Shipment\OrderShippingTotalUpdater;
 use PrestaShop\PrestaShop\Core\CommandBus\Attributes\AsCommandHandler;
 use PrestaShop\PrestaShop\Core\Domain\Carrier\ShippingCost\Calculator\ShippingCostCalculatorInterface;
 use PrestaShop\PrestaShop\Core\Domain\Carrier\ShippingCost\ShippingCostPrice;
 use PrestaShop\PrestaShop\Core\Domain\Carrier\ValueObject\ShippingCalculationRequest;
-use PrestaShop\PrestaShop\Core\Domain\Order\ValueObject\OrderId;
 use PrestaShop\PrestaShop\Core\Domain\Shipment\Command\CreateShipment;
 use PrestaShop\PrestaShop\Core\Domain\Shipment\CommandHandler\CreateShipmentHandlerInterface;
 use PrestaShop\PrestaShop\Core\Domain\Shipment\Exception\ShipmentException;
@@ -30,6 +30,7 @@ class CreateShipmentHandler implements CreateShipmentHandlerInterface
         private readonly OrderRepository $orderRepository,
         private readonly ShippingCostCalculatorInterface $shippingCostCalculator,
         private readonly AdapterConfiguration $configuration,
+        private readonly OrderShippingTotalUpdater $orderShippingTotalUpdater,
     ) {
     }
 
@@ -92,31 +93,13 @@ class CreateShipmentHandler implements CreateShipmentHandlerInterface
             $shipmentId = $this->shipmentRepository->save($shipment);
 
             if ($this->configuration->get('PS_ORDER_RECALCULATE_SHIPPING')) {
-                $this->updateOrderShippingTotal((int) $order->id);
+                $this->orderShippingTotalUpdater->update($order);
             }
 
             return $shipmentId;
         } catch (Exception $e) {
             throw new ShipmentException('Failed to create shipment', $e->getCode(), $e);
         }
-    }
-
-    private function updateOrderShippingTotal(int $orderId): void
-    {
-        $order = $this->orderRepository->get(new OrderId($orderId));
-
-        $totalTaxExcluded = 0.00;
-        $totalTaxIncluded = 0.00;
-
-        foreach ($this->shipmentRepository->findByOrderId($orderId) as $shipment) {
-            $totalTaxExcluded += $shipment->getShippingCostTaxExcluded();
-            $totalTaxIncluded += $shipment->getShippingCostTaxIncluded();
-        }
-
-        $order->total_shipping_tax_excl = $totalTaxExcluded;
-        $order->total_shipping_tax_incl = $totalTaxIncluded;
-        $order->total_shipping = $totalTaxIncluded;
-        $order->update();
     }
 
     /**
