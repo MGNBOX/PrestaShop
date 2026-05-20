@@ -20,5 +20,7 @@ final class Version
     public const RELEASE_VERSION = 2;
 
     // This class should not be instanciated
-    private function __construct() {}
+    private function __construct()
+    {
+    }
 }
