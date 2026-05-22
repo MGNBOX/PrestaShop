@@ -25,11 +25,11 @@ class HTMLTemplateShipmentDeliverySlipCore extends HTMLTemplate
     public $order_invoice;
 
     /**
-     * @var array{
+     * @param array{
      *     shipment: Shipment,
      *     order: Order,
      *     order_invoice_collection: PrestaShopCollection,
-     * }[] $ranges
+     * } $shipmentData
      *
      * @throws PrestaShopException
      */
@@ -45,7 +45,13 @@ class HTMLTemplateShipmentDeliverySlipCore extends HTMLTemplate
         $orderInvoiceCollection = $shipmentData['order_invoice_collection'];
 
         // Get the first invoice for address information (fallback to order addresses if no invoice)
-        $this->order_invoice = $orderInvoiceCollection->count() > 0 ? $orderInvoiceCollection->getFirst() : null;
+        $first = $orderInvoiceCollection->getFirst();
+
+        if ($first && $first instanceof OrderInvoice) {
+            $this->order_invoice = $first;
+        } else {
+            $this->order_invoice = null;
+        }
 
         $this->smarty = $smarty;
 
