@@ -73,7 +73,7 @@ describe('BO - International - Countries : Help button', async () => {
   it('should close the help side bar', async function () {
     await testContext.addContextItem(this, 'testIdentifier', 'closeHelpSidebar', baseContext);
 
-    const isHelpSidebarVisible = await boCountriesPage.closeHelpSideBar(page);
-    expect(isHelpSidebarVisible).to.eq(true);
+    const isHelpSidebarHidden = await boCountriesPage.closeHelpSideBar(page);
+    expect(isHelpSidebarHidden).to.eq(true);
   });
 });
