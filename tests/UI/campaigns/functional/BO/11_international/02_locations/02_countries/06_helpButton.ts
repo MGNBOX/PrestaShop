@@ -14,7 +14,6 @@ import {
 
 const baseContext: string = 'functional_BO_international_locations_countries_helpButton';
 
-// Check that help card is in english in countries page
 describe('BO - International - Countries : Help button', async () => {
   let browserContext: BrowserContext;
   let page: Page;
