@@ -26,10 +26,6 @@ class DiscountInformationType extends TranslatorAwareType
     {
         $discountType = $options['discount_type'];
         $builder
-            ->add('active', SwitchType::class, [
-                'label' => $this->trans('Status', 'Admin.Global'),
-                'required' => false,
-            ])
             ->add('discount_type', TextPreviewType::class, [
                 'data' => $discountType,
                 'label' => $this->trans('Discount Type', 'Admin.Catalog.Feature'),
@@ -79,6 +75,10 @@ class DiscountInformationType extends TranslatorAwareType
                         ),
                     ]),
                 ],
+            ])
+            ->add('active', SwitchType::class, [
+                'label' => $this->trans('Enable discount', 'Admin.Catalog.Feature'),
+                'required' => false,
             ])
         ;
     }
