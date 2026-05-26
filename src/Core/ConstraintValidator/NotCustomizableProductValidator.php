@@ -27,7 +27,7 @@ class NotCustomizableProductValidator extends ConstraintValidator
         }
 
         foreach ($value as $product) {
-            $dbProduct = $this->productRepository->getProductByDefaultShop(new ProductId($product['product_id']));
+            $dbProduct = $this->productRepository->getProductByDefaultShop(new ProductId($product['product_id'] ?? $product['id']));
             if ($dbProduct->customizable) {
                 $this->context->buildViolation($constraint->message)
                     ->setTranslationDomain('Admin.Notifications.Error')
