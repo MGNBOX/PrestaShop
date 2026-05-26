@@ -32,12 +32,11 @@ class DiscountInformationType extends TranslatorAwareType
                 'label_attr' => [
                     'class' => 'font-weight-bold',
                 ],
-                'help' => $this->trans(
+                'label_subtitle' => $this->trans(
                     'You have selected a discount type to apply. Please remember this choice is final and can not be changed.',
                     'Admin.Catalog.Feature'
                 ),
                 'preview_class' => 'badge badge-info badge-pill',
-                'form_theme' => '@PrestaShop/Admin/Sell/Catalog/Discount/FormTheme/discount_type_form_theme.html.twig',
                 'required' => false,
             ])
             ->add('names', TranslatableType::class, [
