@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 namespace PrestaShop\PrestaShop\Adapter\Product\CommandHandler;
 
+use PrestaShop\PrestaShop\Adapter\CartRule\CartRuleDisablerService;
 use PrestaShop\PrestaShop\Adapter\Product\Repository\ProductRepository;
 use PrestaShop\PrestaShop\Adapter\Product\Update\Filler\ProductFillerInterface;
 use PrestaShop\PrestaShop\Adapter\Product\Update\ProductIndexationUpdater;
@@ -38,18 +39,26 @@ class UpdateProductHandler implements UpdateProductHandlerInterface
     private $productIndexationUpdater;
 
     /**
+     * @var CartRuleDisablerService
+     */
+    private $cartRuleDisablerService;
+
+    /**
      * @param ProductFillerInterface $productUpdatablePropertyFiller
      * @param ProductRepository $productRepository
      * @param ProductIndexationUpdater $productIndexationUpdater
+     * @param CartRuleDisablerService $cartRuleDisablerService
      */
     public function __construct(
         ProductFillerInterface $productUpdatablePropertyFiller,
         ProductRepository $productRepository,
-        ProductIndexationUpdater $productIndexationUpdater
+        ProductIndexationUpdater $productIndexationUpdater,
+        CartRuleDisablerService $cartRuleDisablerService
     ) {
         $this->productUpdatablePropertyFiller = $productUpdatablePropertyFiller;
         $this->productRepository = $productRepository;
         $this->productIndexationUpdater = $productIndexationUpdater;
+        $this->cartRuleDisablerService = $cartRuleDisablerService;
     }
 
     /**
@@ -82,6 +91,14 @@ class UpdateProductHandler implements UpdateProductHandlerInterface
             $shopConstraint,
             CannotUpdateProductException::FAILED_UPDATE_PRODUCT
         );
+
+        if (
+            (int) $product->minimal_quantity > 1
+            || ((int) $product->customizable & 2)
+            || !$product->available_for_order
+        ) {
+            $this->cartRuleDisablerService->disableCartRulesThatUsedProductAsGift((int) $product->id);
+        }
 
         if (
             // Reindexing is costly operation, so we check if properties impacting indexation have changed and then reindex if needed.
