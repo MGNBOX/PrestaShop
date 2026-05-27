@@ -26,10 +26,9 @@ use Tests\Integration\Behaviour\Features\Context\Util\PrimitiveUtils;
 class TaxRuleFeatureContext extends AbstractDomainFeatureContext
 {
     /**
-     * @When I add a tax rule to group :groupReference with the following properties:
-     * @When I add another tax rule to group :groupReference with the following properties:
+     * @When I add a tax rule :taxRuleReference to group :groupReference with the following properties:
      */
-    public function addTaxRule(string $groupReference, TableNode $table): void
+    public function addTaxRule(string $taxRuleReference, string $groupReference, TableNode $table): void
     {
         $data = $table->getRowsHash();
         $groupId = SharedStorage::getStorage()->get($groupReference);
@@ -58,10 +57,7 @@ class TaxRuleFeatureContext extends AbstractDomainFeatureContext
 
         // Find the last created tax rule in this group to store its reference
         $taxRuleId = $this->findLastTaxRuleInGroup($result->getTaxRulesGroupId()->getValue());
-
-        // Determine reference name: first call uses "test-tax-rule", subsequent calls use "test-tax-rule-N"
-        $refName = $this->getNextTaxRuleReference();
-        SharedStorage::getStorage()->set($refName, $taxRuleId);
+        SharedStorage::getStorage()->set($taxRuleReference, $taxRuleId);
     }
 
     /**
@@ -280,25 +276,5 @@ class TaxRuleFeatureContext extends AbstractDomainFeatureContext
         );
 
         return (int) $result;
-    }
-
-    /**
-     * Returns the next available reference name for tax rules.
-     */
-    private function getNextTaxRuleReference(): string
-    {
-        $baseName = 'test-tax-rule';
-        $storage = SharedStorage::getStorage();
-
-        if (!$storage->exists($baseName)) {
-            return $baseName;
-        }
-
-        $counter = 2;
-        while ($storage->exists($baseName . '-' . $counter)) {
-            ++$counter;
-        }
-
-        return $baseName . '-' . $counter;
     }
 }
