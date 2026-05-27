@@ -1,4 +1,5 @@
 <?php
+
 /**
  * For the full copyright and license information, please view the
  * docs/licenses/LICENSE.txt file that was distributed with this source code.
@@ -25,8 +26,7 @@ class SearchProductsForFreeGiftHandler implements SearchProductsForFreeGiftHandl
         private readonly ProductRepository $productRepository,
         private readonly ProductImagePathFactory $productImagePathFactory,
         private readonly TranslatorInterface $translator,
-    ) {
-    }
+    ) {}
 
     /**
      * {@inheritDoc}
@@ -87,7 +87,7 @@ class SearchProductsForFreeGiftHandler implements SearchProductsForFreeGiftHandl
             return [true, $this->translator->trans('This product requires a minimum quantity greater than 1.', [], 'Admin.Catalog.Notification')];
         }
 
-        if ((int) ($product['customizable'] ?? 0) & 2) {
+        if ((int) ($product['customizable'] ?? 0) > 0) {
             return [true, $this->translator->trans('This product has required customization fields.', [], 'Admin.Catalog.Notification')];
         }
 
