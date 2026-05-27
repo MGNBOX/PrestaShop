@@ -21,9 +21,11 @@ use PrestaShop\PrestaShop\Core\Domain\QuickAccess\Exception\CannotUpdateQuickAcc
 use PrestaShop\PrestaShop\Core\Domain\QuickAccess\Exception\QuickAccessConstraintException;
 use PrestaShop\PrestaShop\Core\Domain\QuickAccess\Exception\QuickAccessException;
 use PrestaShop\PrestaShop\Core\Domain\QuickAccess\Exception\QuickAccessNotFoundException;
+use PrestaShop\PrestaShop\Core\Domain\QuickAccess\ValueObject\QuickAccessId;
 use PrestaShop\PrestaShop\Core\Form\IdentifiableObject\Builder\FormBuilderInterface;
 use PrestaShop\PrestaShop\Core\Form\IdentifiableObject\Handler\FormHandlerInterface;
 use PrestaShop\PrestaShop\Core\Grid\GridFactoryInterface;
+use PrestaShop\PrestaShop\Core\QuickAccess\QuickAccessGenerator;
 use PrestaShop\PrestaShop\Core\Search\Filters\QuickAccessFilters;
 use PrestaShopBundle\Controller\Admin\PrestaShopAdminController;
 use PrestaShopBundle\Security\Attribute\AdminSecurity;
@@ -177,9 +179,11 @@ class QuickAccessController extends PrestaShopAdminController
     public function ajaxAddQuickLinkAction(
         Request $request,
         LanguageContext $languageContext,
+        QuickAccessGenerator $quickAccessGenerator,
     ): JsonResponse {
         try {
-            $this->dispatchCommand(new AddQuickAccessCommand(
+            /** @var QuickAccessId $createdId */
+            $createdId = $this->dispatchCommand(new AddQuickAccessCommand(
                 [$languageContext->getId() => $request->request->getString('name')],
                 $request->request->getString('url'),
                 false,
@@ -191,13 +195,20 @@ class QuickAccessController extends PrestaShopAdminController
             ]);
         }
 
-        return new JsonResponse(['success' => true]);
+        $quickAccesses = $quickAccessGenerator->getTokenizedQuickAccesses();
+        foreach ($quickAccesses as &$row) {
+            $row['active'] = ($row['id_quick_access'] === $createdId->getValue());
+        }
+
+        return new JsonResponse($quickAccesses);
     }
 
     #[DemoRestricted(redirectRoute: 'admin_quick_accesses_index')]
     #[AdminSecurity("is_granted('delete', request.get('_legacy_controller'))", redirectRoute: 'admin_quick_accesses_index')]
-    public function ajaxDeleteQuickLinkAction(Request $request): JsonResponse
-    {
+    public function ajaxDeleteQuickLinkAction(
+        Request $request,
+        QuickAccessGenerator $quickAccessGenerator,
+    ): JsonResponse {
         try {
             $this->dispatchCommand(new DeleteQuickAccessCommand($request->request->getInt('id_quick_access')));
         } catch (QuickAccessException $e) {
@@ -207,7 +218,12 @@ class QuickAccessController extends PrestaShopAdminController
             ]);
         }
 
-        return new JsonResponse(['success' => true]);
+        $quickAccesses = $quickAccessGenerator->getTokenizedQuickAccesses();
+        foreach ($quickAccesses as &$row) {
+            $row['active'] = false;
+        }
+
+        return new JsonResponse($quickAccesses);
     }
 
     #[DemoRestricted(redirectRoute: 'admin_quick_accesses_index')]

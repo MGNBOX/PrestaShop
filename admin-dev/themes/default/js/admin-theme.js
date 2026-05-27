@@ -234,9 +234,19 @@ $(() => {
                 $.growl.error({title: '', message: data[index]});
               }
             });
-          } else if (data.success || Array.isArray(data)) {
-            window.showSuccessMessage(window.update_success_msg);
-            setTimeout(() => window.location.reload(), 1500);
+          } else if (Array.isArray(data)) {
+            let quicklinkList = '';
+            $.each(data, (index, item) => {
+              if (typeof item.name !== 'undefined') {
+                quicklinkList += `<li><a href="${item.link}">${item.name}</a></li>`;
+              }
+            });
+            if (quicklinkList) {
+              $('#header_quick ul.dropdown-menu .divider').prevAll().remove();
+              $('#header_quick ul.dropdown-menu').prepend(quicklinkList);
+              $link.closest('li').remove();
+              window.showSuccessMessage(window.update_success_msg);
+            }
           }
         },
         error: (xhr, textStatus) => {

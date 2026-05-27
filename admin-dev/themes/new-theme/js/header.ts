@@ -63,9 +63,19 @@ export default class Header {
                   });
                 }
               });
-            } else if (data.success) {
+            } else if (Array.isArray(data)) {
+              let quicklinkList = '';
+              data.forEach((item) => {
+                const classAttr = item.class ? ` ${item.class}` : '';
+                const activeClass = item.active ? ' active' : '';
+                const target = item.new_window ? ' target="_blank"' : '';
+                quicklinkList += `<a class="dropdown-item quick-row-link${classAttr}${activeClass}" href="${item.link}"${target} data-item="${item.name}">${item.name}</a>`;
+              });
+              const $menu = $('#quick-access-container .dropdown-menu');
+              $menu.find('.dropdown-divider').prevAll('a.quick-row-link').remove();
+              $menu.prepend(quicklinkList);
+              $link.remove();
               window.showSuccessMessage(window.update_success_msg);
-              setTimeout(() => window.location.reload(), 1500);
             }
           },
           error: (xhr, textStatus) => {
