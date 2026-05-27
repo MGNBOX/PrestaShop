@@ -162,15 +162,9 @@ export class Modal implements ModalType {
     this.$modal = $(this.modal.container);
 
     const {id, closable} = params;
-    // Cast to `any` because `@types/bootstrap` (v4) does not expose `show` on Options,
-    // but Bootstrap 3 (used on legacy pages) defaults show:true and lacks an isTransitioning
-    // guard — causing the auto-show here plus the subsequent modal('hide') to queue a stale
-    // hidden.bs.modal that removes the DOM node while the modal is being re-shown later.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (this.$modal as any).modal({
+    this.$modal.modal({
       backdrop: closable ? true : 'static',
       keyboard: closable !== undefined ? closable : true,
-      show: false,
     });
 
     this.$modal.modal('hide');

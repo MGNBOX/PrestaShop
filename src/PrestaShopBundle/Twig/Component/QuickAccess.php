@@ -131,6 +131,14 @@ class QuickAccess
 
     public function getManageUrl(): string
     {
+        if ($this->featureFlagChecker->isEnabled('quick_access')) {
+            return $this->router->generate(
+                'admin_quick_accesses_index',
+                [],
+                UrlGeneratorInterface::ABSOLUTE_URL
+            );
+        }
+
         return $this->legacyContext->getContext()->link->getAdminLink('AdminQuickAccesses');
     }
 

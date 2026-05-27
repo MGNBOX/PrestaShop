@@ -25,11 +25,10 @@ class GetQuickAccessForEditingHandler implements GetQuickAccessForEditingHandler
     {
         $quickAccessId = $query->getQuickAccessId();
         $quickAccess = $this->repository->get($quickAccessId);
-        $localizedNames = $this->repository->getLocalizedNames($quickAccessId);
 
         return new EditableQuickAccess(
             $quickAccessId->getValue(),
-            $localizedNames,
+            $quickAccess->name,
             (string) $quickAccess->link,
             (bool) $quickAccess->new_window,
         );

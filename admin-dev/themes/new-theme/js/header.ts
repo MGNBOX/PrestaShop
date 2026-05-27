@@ -34,7 +34,7 @@ export default class Header {
       }
 
       if (method === 'remove') {
-        new ConfirmModal(
+        const confirmModal = new ConfirmModal(
           {
             id: 'quick-access-remove-confirm-modal',
             confirmTitle: $link.data('confirm-title'),
@@ -45,6 +45,7 @@ export default class Header {
           },
           () => this.doQuickLinkAction($link, method, null),
         );
+        confirmModal.show();
 
         return;
       }

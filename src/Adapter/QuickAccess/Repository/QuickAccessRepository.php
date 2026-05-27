@@ -96,24 +96,4 @@ class QuickAccessRepository extends AbstractObjectModelRepository implements Qui
 
         return (bool) $qb->execute()->fetchOne();
     }
-
-    /** @return array<int, string> Lang-ID-keyed name translations */
-    public function getLocalizedNames(QuickAccessId $quickAccessId): array
-    {
-        $qb = $this->connection->createQueryBuilder();
-        $qb
-            ->select('ql.id_lang, ql.name')
-            ->from($this->dbPrefix . 'quick_access_lang', 'ql')
-            ->where('ql.id_quick_access = :id')
-            ->setParameter('id', $quickAccessId->getValue())
-        ;
-
-        $rows = $qb->execute()->fetchAllAssociative();
-        $names = [];
-        foreach ($rows as $row) {
-            $names[(int) $row['id_lang']] = $row['name'];
-        }
-
-        return $names;
-    }
 }
