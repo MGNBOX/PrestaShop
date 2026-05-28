@@ -1,8 +1,10 @@
 <?php
+
 /**
  * For the full copyright and license information, please view the
  * docs/licenses/LICENSE.txt file that was distributed with this source code.
  */
+
 declare(strict_types=1);
 
 namespace PrestaShop\PrestaShop\Adapter\Product\CommandHandler;
@@ -15,6 +17,7 @@ use PrestaShop\PrestaShop\Core\CommandBus\Attributes\AsCommandHandler;
 use PrestaShop\PrestaShop\Core\Domain\Product\Command\UpdateProductCommand;
 use PrestaShop\PrestaShop\Core\Domain\Product\CommandHandler\UpdateProductHandlerInterface;
 use PrestaShop\PrestaShop\Core\Domain\Product\Exception\CannotUpdateProductException;
+use PrestaShop\PrestaShop\Core\Domain\Product\ProductCustomizabilitySettings;
 use PrestaShop\PrestaShop\Core\Domain\Shop\ValueObject\ShopCollection;
 
 /**
@@ -94,7 +97,7 @@ class UpdateProductHandler implements UpdateProductHandlerInterface
 
         if (
             (int) $product->minimal_quantity > 1
-            || ((int) $product->customizable & 2)
+            || ((int) $product->customizable === ProductCustomizabilitySettings::REQUIRES_CUSTOMIZATION)
             || !$product->available_for_order
         ) {
             $this->cartRuleDisablerService->disableCartRulesThatUsedProductAsGift((int) $product->id);
