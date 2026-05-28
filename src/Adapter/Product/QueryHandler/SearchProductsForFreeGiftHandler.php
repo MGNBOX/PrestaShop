@@ -27,7 +27,8 @@ class SearchProductsForFreeGiftHandler implements SearchProductsForFreeGiftHandl
         private readonly ProductRepository $productRepository,
         private readonly ProductImagePathFactory $productImagePathFactory,
         private readonly TranslatorInterface $translator,
-    ) {}
+    ) {
+    }
 
     /**
      * {@inheritDoc}
