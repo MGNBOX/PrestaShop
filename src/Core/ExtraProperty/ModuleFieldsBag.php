@@ -1,4 +1,5 @@
 <?php
+
 /**
  * For the full copyright and license information, please view the
  * docs/licenses/LICENSE.txt file that was distributed with this source code.
@@ -80,7 +81,7 @@ final class ModuleFieldsBag implements ArrayAccess, IteratorAggregate, JsonSeria
     }
 
     /**
-     * @return array<string, mixed> Flat [storageColumnName => value] map of dirty fields.
+     * @return array<string, mixed> flat [storageColumnName => value] map of dirty fields
      */
     public function getModifiedValues(): array
     {

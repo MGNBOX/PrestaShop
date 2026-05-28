@@ -63,7 +63,6 @@ class FormBuilderTest extends TestCase
         $extraPropertiesModifier->expects($this->once())->method('apply')->with(
             $formBuilderMock,
             'Abcd',
-            1,
             1
         );
 

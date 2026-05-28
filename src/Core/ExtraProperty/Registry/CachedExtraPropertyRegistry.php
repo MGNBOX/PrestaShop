@@ -8,9 +8,9 @@ declare(strict_types=1);
 
 namespace PrestaShop\PrestaShop\Core\ExtraProperty\Registry;
 
+use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\CachedExtraPropertyDefinitionRepository;
 use PrestaShop\PrestaShop\Core\ExtraProperty\ExtraPropertyOptions;
 use PrestaShop\PrestaShop\Core\ExtraProperty\ExtraPropertyScope;
-use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\CachedExtraPropertyDefinitionRepository;
 use Symfony\Contracts\Cache\CacheInterface;
 
 /**
