@@ -27,7 +27,7 @@ class DiscountFreeGiftType extends TranslatorAwareType
                 'required' => true,
                 'constraints' => [
                     new NotBlank(),
-                    new NotCustomizableProduct(['message' => $this->trans('Product with required customization fields cannot be used as a gift.', 'Admin.Catalog.Notification')]),
+                    new NotCustomizableProduct(['message' => $this->trans('Product with required customization fields cannot be used as a gift.', 'Admin.Catalog.Notification'), 'requiredOnly' => true]),
                 ],
             ])
         ;
