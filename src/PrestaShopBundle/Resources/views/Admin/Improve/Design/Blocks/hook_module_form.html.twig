@@ -24,7 +24,7 @@
 
       <div class="form-group row hook-module-exception-list-row">
         <label class="form-control-label col-sm-2"></label>
-        <div class="col-sm-10">
+        <div class="col-sm">
           {# Compute custom exceptions: those present in the form data but absent from the known choice lists. #}
           {% set knownExceptions = exceptionChoices.core|merge(exceptionChoices.admin_modules)|merge(exceptionChoices.front_modules) %}
           {% set customExceptions = selectedExceptions|default([])|filter(value => value not in knownExceptions) %}
