@@ -34,7 +34,6 @@ use PrestaShopBundle\Form\Admin\Improve\International\Locations\ChangeCountriesZ
 use PrestaShopBundle\Security\Attribute\AdminSecurity;
 use PrestaShopBundle\Security\Attribute\DemoRestricted;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
-use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -208,26 +207,19 @@ class CountryController extends PrestaShopAdminController
 
     #[DemoRestricted(redirectRoute: 'admin_countries_index')]
     #[AdminSecurity("is_granted('update', request.get('_legacy_controller'))", redirectRoute: 'admin_countries_index')]
-    public function toggleStatusAction(int $countryId): JsonResponse
+    public function toggleStatusAction(int $countryId): RedirectResponse
     {
         try {
             $this->dispatchCommand(new ToggleCountryStatusCommand($countryId));
-            $response = [
-                'status' => true,
-                'message' => $this->trans(
-                    'The status has been successfully updated.',
-                    [],
-                    'Admin.Notifications.Success'
-                ),
-            ];
+            $this->addFlash(
+                'success',
+                $this->trans('The status has been successfully updated.', [], 'Admin.Notifications.Success')
+            );
         } catch (CountryException $e) {
-            $response = [
-                'status' => false,
-                'message' => $this->getErrorMessageForException($e, $this->getErrorMessages($e)),
-            ];
+            $this->addFlash('error', $this->getErrorMessageForException($e, $this->getErrorMessages($e)));
         }
 
-        return $this->json($response);
+        return $this->redirectToRoute('admin_countries_index');
     }
 
     #[DemoRestricted(redirectRoute: 'admin_countries_index')]
