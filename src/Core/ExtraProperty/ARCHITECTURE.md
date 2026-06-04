@@ -542,7 +542,7 @@ Both factories resolve `ExtraPropertyReaderInterface` and `ExtraPropertyDefiniti
 - Filters the reader result to only fields in the FO whitelist (`display_front = true`)
 - Returns: `['module_key' => ['field_name' => value]]`
 
-**LazyArrays that expose `extraProperties`** (via `$this->extraPropertiesLazyArray` assignment):
+**LazyArrays that expose `extra_properties`** (via `$this->extraPropertiesLazyArray` assignment):
 - `ProductLazyArray`
 - `CategoryLazyArray`, `SupplierLazyArray`, `ManufacturerLazyArray`, `StoreLazyArray`
 - `OrderLazyArray`, `OrderDetailLazyArray`, `OrderReturnLazyArray`
@@ -572,8 +572,8 @@ Persistence via `persistExtraProperties()` (called from `add()`/`update()` after
 **In Smarty templates** (via presenter):
 
 ```smarty
-{$product.extraProperties.ps_extrafield_product.video_link|default:''}
-{$category.extraProperties.ps_extrafield_category.theme_color|default:''}
+{$product.extra_properties.ps_extrafield_product.video_link|default:''}
+{$category.extra_properties.ps_extrafield_category.theme_color|default:''}
 ```
 
 **On ObjectModel directly** (grouped ArrayAccess):
