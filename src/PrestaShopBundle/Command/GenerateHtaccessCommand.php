@@ -8,6 +8,7 @@ namespace PrestaShopBundle\Command;
 
 use Exception;
 use PrestaShop\PrestaShop\Adapter\File\HtaccessFileGenerator;
+use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -26,6 +27,10 @@ use Symfony\Component\Console\Output\OutputInterface;
  *   bin/console prestashop:htaccess:generate
  *   bin/console prestashop:htaccess:generate --force
  */
+#[AsCommand(
+    name: 'prestashop:htaccess:generate',
+    description: 'Generate the .htaccess file'
+)]
 class GenerateHtaccessCommand extends Command
 {
     public function __construct(private HtaccessFileGenerator $htaccessFileGenerator)
@@ -35,10 +40,7 @@ class GenerateHtaccessCommand extends Command
 
     protected function configure()
     {
-        $this
-            ->setName('prestashop:htaccess:generate')
-            ->setDescription('Generate the .htaccess file')
-            ->addOption('force', 'f', InputOption::VALUE_NONE, 'Force overwrite even if file exists');
+        $this->addOption('force', 'f', InputOption::VALUE_NONE, 'Force overwrite even if file exists');
     }
 
     /**
