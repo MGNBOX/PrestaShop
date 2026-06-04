@@ -28,12 +28,9 @@ use Symfony\Component\Console\Output\OutputInterface;
  */
 class GenerateHtaccessCommand extends Command
 {
-    private $htaccessFileGenerator;
-
-    public function __construct(HtaccessFileGenerator $htaccessFileGenerator)
+    public function __construct(private HtaccessFileGenerator $htaccessFileGenerator)
     {
         parent::__construct();
-        $this->htaccessFileGenerator = $htaccessFileGenerator;
     }
 
     protected function configure()
