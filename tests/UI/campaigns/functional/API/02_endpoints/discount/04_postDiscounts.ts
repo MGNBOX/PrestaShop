@@ -291,12 +291,11 @@ describe('API : POST /admin-api/discounts', async () => {
       expect(jsonResponse.code).to.be.equal(value);
     });
 
-    // @todo : https://github.com/PrestaShop/PrestaShop/issues/41189
-    it.skip('should check the JSON Response : `enabled`', async function () {
+    it('should check the JSON Response : `enabled`', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'checkResponseEnabled', baseContext);
 
       const value = await boDiscountsCreatePage.getValue(page, 'enabled');
-      expect(jsonResponse.enabled).to.be.equal(value);
+      expect(jsonResponse.enabled).to.be.equal(value === '1');
     });
 
     it('should check the JSON Response : `totalQuantity`', async function () {
