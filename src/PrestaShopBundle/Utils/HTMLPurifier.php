@@ -9,6 +9,7 @@ declare(strict_types=1);
 namespace PrestaShopBundle\Utils;
 
 use HTMLPurifier_Config;
+use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 
 class HTMLPurifier
 {
@@ -17,12 +18,16 @@ class HTMLPurifier
      */
     private $instance;
 
-    public function __construct()
+    public function __construct(ParameterBagInterface $parameterBag)
     {
         $config = HTMLPurifier_Config::createDefault();
         // We must keep IDs that are by JS used to target element
         $config->set('Attr.EnableID', true);
         $config->set('Attr.AllowedFrameTargets', ['_blank']);
+
+        $legacyCacheDir = $parameterBag->get('prestashop.legacy_cache_dir');
+        $config->set('Cache.SerializerPath', $legacyCacheDir . 'purifier');
+
         $purifier = new \HTMLPurifier($config);
         $this->instance = $purifier;
     }
