@@ -51,7 +51,7 @@ class LocalizedNamesFiller
             return $filledValues;
         }
 
-        foreach ($this->languageDataProvider->getLanguages(true, false, true) as $languageId) {
+        foreach ($this->languageDataProvider->getLanguages(false, false, true) as $languageId) {
             if (empty($filledValues[(int) $languageId])) {
                 $filledValues[(int) $languageId] = $defaultValue;
             }
