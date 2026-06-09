@@ -8,13 +8,13 @@ declare(strict_types=1);
 
 namespace PrestaShop\PrestaShop\Adapter\QuickAccess\CommandHandler;
 
-use PrestaShop\PrestaShop\Adapter\QuickAccess\LocalizedNamesFiller;
 use PrestaShop\PrestaShop\Adapter\QuickAccess\Repository\QuickAccessRepository;
 use PrestaShop\PrestaShop\Core\CommandBus\Attributes\AsCommandHandler;
 use PrestaShop\PrestaShop\Core\Domain\QuickAccess\Command\AddQuickAccessCommand;
 use PrestaShop\PrestaShop\Core\Domain\QuickAccess\CommandHandler\AddQuickAccessHandlerInterface;
 use PrestaShop\PrestaShop\Core\Domain\QuickAccess\Exception\QuickAccessConstraintException;
 use PrestaShop\PrestaShop\Core\Domain\QuickAccess\ValueObject\QuickAccessId;
+use PrestaShop\PrestaShop\Core\Language\LocalizedNamesFiller;
 use QuickAccess;
 
 #[AsCommandHandler]

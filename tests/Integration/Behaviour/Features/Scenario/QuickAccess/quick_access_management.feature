@@ -43,17 +43,17 @@ Feature: Quick access management
       | localizedNames[fr-FR] | Dashboard                      |
       | link                  | index.php?controller=dashboard |
 
-  Scenario: Editing only the default language name fills the other languages
+  Scenario: Editing only one language keeps the other languages untouched
     Given I add a quick access "qa_refill" with the following properties:
       | localizedNames[en-US] | Before                      |
-      | localizedNames[fr-FR] | Avant                       |
+      | localizedNames[fr-FR] | Untouched                   |
       | link                  | index.php?controller=refill |
       | new_window            | false                       |
     When I edit quick access "qa_refill" with the following properties:
       | localizedNames[en-US] | After |
     Then quick access "qa_refill" should have the following properties:
-      | localizedNames[en-US] | After |
-      | localizedNames[fr-FR] | After |
+      | localizedNames[en-US] | After     |
+      | localizedNames[fr-FR] | Untouched |
 
   Scenario: Edit a quick access - change name
     Given I add a quick access "qa_edit" with the following properties:
