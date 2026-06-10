@@ -92,7 +92,7 @@ describe('BO - Community : Wall of Fame - Top Contributors', async () => {
       await boWallOfFamePage.clickContributorActionButton(page, 'Progi1984');
 
       const name = await boWallOfFamePage.getContributorModalName(page);
-      expect(name, 'Modal should display the contributor name').to.not.be.empty;
+      expect(name.length, 'Modal should display the contributor name').to.be.gt(0);
     });
 
     it('should check the GitHub username is displayed in the modal', async function () {
