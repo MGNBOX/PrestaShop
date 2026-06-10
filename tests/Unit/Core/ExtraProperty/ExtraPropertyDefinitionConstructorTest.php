@@ -9,9 +9,9 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Core\ExtraProperty;
 
-use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyDefinition;
+use PrestaShop\PrestaShop\Core\ExtraProperty\Exception\InvalidExtraPropertyDefinitionException;
 
 /**
  * Verifies that ExtraPropertyDefinition constructor rejects invalid inputs.
@@ -30,7 +30,7 @@ class ExtraPropertyDefinitionConstructorTest extends TestCase
      */
     public function testInvalidEntityNameThrows(string $invalidValue): void
     {
-        $this->expectException(InvalidArgumentException::class);
+        $this->expectException(InvalidExtraPropertyDefinitionException::class);
         $this->expectExceptionMessageMatches('/entityName/');
 
         new ExtraPropertyDefinition(entityName: $invalidValue, propertyName: 'video_link');
@@ -45,7 +45,7 @@ class ExtraPropertyDefinitionConstructorTest extends TestCase
      */
     public function testInvalidPropertyNameThrows(string $invalidValue): void
     {
-        $this->expectException(InvalidArgumentException::class);
+        $this->expectException(InvalidExtraPropertyDefinitionException::class);
         $this->expectExceptionMessageMatches('/propertyName/');
 
         new ExtraPropertyDefinition(entityName: 'product', propertyName: $invalidValue);
@@ -72,7 +72,7 @@ class ExtraPropertyDefinitionConstructorTest extends TestCase
 
     public function testAssociatedFormsRequiresLabelWording(): void
     {
-        $this->expectException(InvalidArgumentException::class);
+        $this->expectException(InvalidExtraPropertyDefinitionException::class);
         $this->expectExceptionMessageMatches('/labelWording is required/');
 
         new ExtraPropertyDefinition(
@@ -85,7 +85,7 @@ class ExtraPropertyDefinitionConstructorTest extends TestCase
 
     public function testAssociatedGridsRequiresLabelWording(): void
     {
-        $this->expectException(InvalidArgumentException::class);
+        $this->expectException(InvalidExtraPropertyDefinitionException::class);
         $this->expectExceptionMessageMatches('/labelWording is required/');
 
         new ExtraPropertyDefinition(
@@ -98,7 +98,7 @@ class ExtraPropertyDefinitionConstructorTest extends TestCase
 
     public function testDuplicateFormIdThrows(): void
     {
-        $this->expectException(InvalidArgumentException::class);
+        $this->expectException(InvalidExtraPropertyDefinitionException::class);
         $this->expectExceptionMessageMatches('/duplicate formId/');
 
         new ExtraPropertyDefinition(
@@ -111,7 +111,7 @@ class ExtraPropertyDefinitionConstructorTest extends TestCase
 
     public function testDuplicateGridIdThrows(): void
     {
-        $this->expectException(InvalidArgumentException::class);
+        $this->expectException(InvalidExtraPropertyDefinitionException::class);
         $this->expectExceptionMessageMatches('/duplicate gridId/');
 
         new ExtraPropertyDefinition(

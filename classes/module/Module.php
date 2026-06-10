@@ -15,7 +15,6 @@ use PrestaShop\PrestaShop\Core\Context\LegacyControllerContext;
 use PrestaShop\PrestaShop\Core\Exception\ContainerNotFoundException;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyDefinition;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyRegistryInterface;
-use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyScope;
 use PrestaShop\PrestaShop\Core\Foundation\Filesystem\FileSystem;
 use PrestaShop\PrestaShop\Core\Module\Legacy\ModuleInterface;
 use PrestaShop\PrestaShop\Core\Module\ModuleOverrideChecker;
@@ -1257,21 +1256,24 @@ abstract class ModuleCore implements ModuleInterface
     /**
      * Unregister an extra property definition from the registry table.
      *
-     * @param string $entityName Entity table name (e.g. "product")
-     * @param string $propertyName Property name within the module (without the module prefix)
-     * @param ExtraPropertyScope $fieldScope Scope of the property to unregister
+     * Pass the same ExtraPropertyDefinition used when registering. The module name is injected
+     * automatically when $definition->getModuleName() is null, mirroring registerExtraProperty().
+     *
+     * @param ExtraPropertyDefinition $definition Definition identifying the property to unregister
      * @param bool $dropData If true, also DROP the SQL column and its data from the *_extra table
      *
      * @return bool
      */
-    public function unregisterExtraProperty(string $entityName, string $propertyName, ExtraPropertyScope $fieldScope = ExtraPropertyScope::COMMON, bool $dropData = false): bool
+    public function unregisterExtraProperty(ExtraPropertyDefinition $definition, bool $dropData = false): bool
     {
-        $moduleName = !empty($this->name) ? $this->name : null;
+        if (null === $definition->getModuleName() && !empty($this->name)) {
+            $definition = $definition->withModuleName($this->name);
+        }
 
         /** @var ExtraPropertyRegistryInterface $entityCustomFieldRegistry */
         $entityCustomFieldRegistry = $this->get(ExtraPropertyRegistryInterface::class);
 
-        return $entityCustomFieldRegistry->unregister($entityName, $propertyName, $moduleName, $fieldScope, $dropData);
+        return $entityCustomFieldRegistry->unregister($definition, $dropData);
     }
 
     /**

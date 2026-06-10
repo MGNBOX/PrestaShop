@@ -102,8 +102,8 @@ class ColumnDefinitionMapper
     {
         return match ($type) {
             ExtraPropertyType::INT,
-            ExtraPropertyType::BOOL,
             ExtraPropertyType::FLOAT => (string) $defaultValue,
+            ExtraPropertyType::BOOL => $defaultValue ? '1' : '0',
             ExtraPropertyType::STRING,
             ExtraPropertyType::DATE,
             ExtraPropertyType::HTML,

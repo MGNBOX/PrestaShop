@@ -1,0 +1,73 @@
+services:
+  _defaults:
+    autowire: true
+    public: false
+
+  # ─── Repository write alias (BO override) ────────────────────────────────────
+  # Overrides the common alias so that write operations in the back-office also
+  # invalidate the definition cache.
+  PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyDefinitionWriterInterface:
+    alias: 'PrestaShop\PrestaShop\Core\ExtraProperty\Definition\CachedExtraPropertyDefinitionRepository'
+
+  # ─── Schema manager (raw DDL, no cache) ──────────────────────────────────────
+
+  PrestaShop\PrestaShop\Core\ExtraProperty\Schema\ExtraPropertySchemaManager:
+    arguments:
+      $connection: '@doctrine.dbal.default_connection'
+      $prefix: '%database_prefix%'
+      $logger: '@logger'
+
+  PrestaShop\PrestaShop\Core\ExtraProperty\Schema\ExtraPropertySchemaManagerInterface:
+    alias: 'PrestaShop\PrestaShop\Core\ExtraProperty\Schema\ExtraPropertySchemaManager'
+
+  # ─── Registry ────────────────────────────────────────────────────────────────
+
+  PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyRegistry:
+    arguments:
+      $readRepository: '@PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyDefinitionRepositoryInterface'
+      $writeRepository: '@PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyDefinitionWriterInterface'
+      $schemaManager: '@PrestaShop\PrestaShop\Core\ExtraProperty\Schema\ExtraPropertySchemaManagerInterface'
+      $validator: '@PrestaShop\PrestaShop\Core\ExtraProperty\Validation\ExtraPropertyValidationInterface'
+      $logger: '@logger'
+
+  # Thin pass-through decorator kept for future extensibility.
+  PrestaShop\PrestaShop\Core\ExtraProperty\Definition\CachedExtraPropertyRegistry:
+    arguments:
+      $inner: '@PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyRegistry'
+
+  PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyRegistryInterface:
+    alias: 'PrestaShop\PrestaShop\Core\ExtraProperty\Definition\CachedExtraPropertyRegistry'
+    public: true
+
+  PrestaShop\PrestaShop\Core\ExtraProperty\Value\ExtraPropertyValueCaster: ~
+
+  # ─── Back-office form services ────────────────────────────────────────────────
+
+  PrestaShop\PrestaShop\Core\ExtraProperty\Form\ExtraPropertiesFormBuilderModifier:
+    arguments:
+      $repository: '@PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyDefinitionRepositoryInterface'
+      $reader: '@PrestaShop\PrestaShop\Core\ExtraProperty\Value\ExtraPropertyReaderInterface'
+      $translator: '@translator'
+      $validatorAdapter: '@PrestaShop\PrestaShop\Core\ExtraProperty\Validation\ExtraPropertyValidationInterface'
+      $shopContext: '@PrestaShop\PrestaShop\Core\Context\ShopContext'
+      $formBuilderModifier: '@PrestaShopBundle\Form\FormBuilderModifier'
+
+  PrestaShop\PrestaShop\Core\ExtraProperty\Form\ExtraPropertiesFormDataPersister:
+    arguments:
+      $repository: '@PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyDefinitionRepositoryInterface'
+      $writer: '@PrestaShop\PrestaShop\Core\ExtraProperty\Value\ExtraPropertyWriterInterface'
+      $shopContext: '@PrestaShop\PrestaShop\Core\Context\ShopContext'
+
+  # ─── Admin API extra properties service ──────────────────────────────────────
+
+  PrestaShopBundle\ApiPlatform\ExtraProperties\ExtraPropertiesApiService:
+    arguments:
+      $repository: '@PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyDefinitionRepositoryInterface'
+      $requestStack: '@request_stack'
+      $reader: '@PrestaShop\PrestaShop\Core\ExtraProperty\Value\ExtraPropertyReaderInterface'
+      $writer: '@PrestaShop\PrestaShop\Core\ExtraProperty\Value\ExtraPropertyWriterInterface'
+      $validatorAdapter: '@PrestaShop\PrestaShop\Core\ExtraProperty\Validation\ExtraPropertyValidationInterface'
+      $shopContext: '@PrestaShop\PrestaShop\Core\Context\ShopContext'
+      $langRepository: '@PrestaShopBundle\Entity\Repository\LangRepository'
+      $propertyNameCollectionFactory: '@?api_platform.metadata.property_name_collection_factory'
+      $propertyMetadataFactory: '@?api_platform.metadata.property.metadata_factory'

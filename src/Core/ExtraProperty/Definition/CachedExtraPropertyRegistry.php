@@ -9,21 +9,16 @@ declare(strict_types=1);
 
 namespace PrestaShop\PrestaShop\Core\ExtraProperty\Definition;
 
-use Symfony\Contracts\Cache\CacheInterface;
-
 /**
- * Cache-invalidating decorator for ExtraPropertyRegistryInterface.
+ * Thin pass-through decorator for ExtraPropertyRegistryInterface.
  *
- * Delegates all operations to the inner registry and invalidates the global definition
- * cache after every successful write (register / unregister).
- *
- * This is the single point of cache invalidation for extra property definitions.
+ * Cache invalidation after writes is handled by CachedExtraPropertyDefinitionRepository,
+ * which implements both ExtraPropertyDefinitionRepositoryInterface and ExtraPropertyDefinitionWriterInterface.
  */
 class CachedExtraPropertyRegistry implements ExtraPropertyRegistryInterface
 {
     public function __construct(
         protected readonly ExtraPropertyRegistry $inner,
-        protected readonly CacheInterface $definitionCache,
     ) {
     }
 
@@ -32,32 +27,14 @@ class CachedExtraPropertyRegistry implements ExtraPropertyRegistryInterface
      */
     public function register(ExtraPropertyDefinition $definition): bool
     {
-        $result = $this->inner->register($definition);
-        if ($result) {
-            $this->invalidateCache();
-        }
-
-        return $result;
+        return $this->inner->register($definition);
     }
 
     /**
      * {@inheritdoc}
      */
-    public function unregister(string $entityName, string $propertyName, ?string $moduleName, ExtraPropertyScope $fieldScope = ExtraPropertyScope::COMMON, bool $dropColumn = false): bool
+    public function unregister(ExtraPropertyDefinition $definition, bool $dropColumn = false): bool
     {
-        $result = $this->inner->unregister($entityName, $propertyName, $moduleName, $fieldScope, $dropColumn);
-        if ($result) {
-            $this->invalidateCache();
-        }
-
-        return $result;
-    }
-
-    /**
-     * Removes the global definition cache entry so the next getAllDefinitions() reloads from DB.
-     */
-    protected function invalidateCache(): void
-    {
-        $this->definitionCache->delete(CachedExtraPropertyDefinitionRepository::CACHE_KEY);
+        return $this->inner->unregister($definition, $dropColumn);
     }
 }

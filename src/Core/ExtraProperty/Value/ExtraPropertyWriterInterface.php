@@ -8,7 +8,9 @@ declare(strict_types=1);
 
 namespace PrestaShop\PrestaShop\Core\ExtraProperty\Value;
 
+use InvalidArgumentException;
 use PrestaShop\PrestaShop\Core\Domain\Shop\ValueObject\ShopConstraint;
+use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyDefinition;
 
 /**
  * Writes extra property values for a given entity instance.
@@ -44,6 +46,26 @@ interface ExtraPropertyWriterInterface
         array $langValuesByIdLang,
         array $shopValues,
         ShopConstraint $shopConstraint
+    ): void;
+
+    /**
+     * Toggles a boolean extra property value for one entity instance.
+     *
+     * Performs an UPSERT that flips the stored value
+     * Only BOOL-typed definitions are accepted; a non-BOOL definition throws \InvalidArgumentException.
+     *
+     * @param ExtraPropertyDefinition $definition The boolean property to toggle
+     * @param string $primaryKeyName PK column name (e.g. "id_product")
+     * @param int $entityId
+     * @param int $shopId Required when the definition scope is SHOP; ignored otherwise
+     *
+     * @throws InvalidArgumentException when definition type is not BOOL
+     */
+    public function toggleExtraProperty(
+        ExtraPropertyDefinition $definition,
+        string $primaryKeyName,
+        int $entityId,
+        int $shopId = 0,
     ): void;
 
     /**

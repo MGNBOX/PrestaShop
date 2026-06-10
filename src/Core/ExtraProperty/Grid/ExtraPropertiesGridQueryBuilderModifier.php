@@ -9,6 +9,7 @@ declare(strict_types=1);
 namespace PrestaShop\PrestaShop\Core\ExtraProperty\Grid;
 
 use Doctrine\DBAL\Query\QueryBuilder;
+use PrestaShop\PrestaShop\Core\Context\LanguageContext;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyDefinitionCollection;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyDefinitionRepositoryInterface;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyScope;
@@ -31,7 +32,7 @@ class ExtraPropertiesGridQueryBuilderModifier
     public function __construct(
         protected readonly ExtraPropertyDefinitionRepositoryInterface $repository,
         protected readonly string $dbPrefix,
-        protected readonly int $contextLangId,
+        protected readonly LanguageContext $languageContext,
     ) {
     }
 
@@ -128,8 +129,8 @@ class ExtraPropertiesGridQueryBuilderModifier
                 $primaryKey,
                 self::EXTRA_LANG_ALIAS
             ));
-            $searchQb->setParameter('extraLangId', $this->contextLangId);
-            $countQb->setParameter('extraLangId', $this->contextLangId);
+            $searchQb->setParameter('extraLangId', $this->languageContext->getId());
+            $countQb->setParameter('extraLangId', $this->languageContext->getId());
         }
 
         $this->applySelectsAndFilters($searchQb, $countQb, $criteria, self::EXTRA_LANG_ALIAS, $definitions);

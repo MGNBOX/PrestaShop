@@ -10,12 +10,9 @@ declare(strict_types=1);
 namespace PrestaShop\PrestaShop\Core\ExtraProperty\Schema;
 
 use Doctrine\DBAL\Connection;
-use Doctrine\DBAL\Schema\Table;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyDefinition;
-use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyScope;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertySqlIndex;
 use Psr\Log\LoggerInterface;
-use Psr\Log\NullLogger;
 use RuntimeException;
 
 /**
@@ -25,32 +22,29 @@ use RuntimeException;
  *   entity scope → {entity}_extra          (e.g. product_extra)
  *   lang scope   → {entity}_extra_lang     (e.g. product_extra_lang)
  *   shop scope   → {entity}_extra_shop     (e.g. product_extra_shop)
+ *
+ * This service is BO-only: it is used exclusively during module install/uninstall flows,
+ * which are back-office operations. The Symfony logger is therefore always available.
  */
 class ExtraPropertySchemaManager implements ExtraPropertySchemaManagerInterface
 {
-    /** @var array<string, bool> */
-    protected array $tableExistenceCache = [];
-
-    /** @var array<string, Table> */
-    protected array $tableDetailsCache = [];
-
-    protected readonly LoggerInterface $logger;
-
     public function __construct(
         protected readonly Connection $connection,
         protected readonly string $prefix,
-        ?LoggerInterface $logger = null,
+        protected readonly LoggerInterface $logger,
     ) {
-        $this->logger = $logger ?? new NullLogger();
     }
 
     /**
      * {@inheritdoc}
      */
-    public function ensureExtraTableAndColumn(string $entityName, ExtraPropertyScope $fieldScope, string $columnName, string $sqlColumnDefinition, ExtraPropertySqlIndex $sqlIndex): void
+    public function ensureExtraTableAndColumn(ExtraPropertyDefinition $definition): void
     {
-        $baseTableName = $this->prefix . $this->buildBaseEntityTableName($entityName, $fieldScope);
-        $extraTableName = $this->prefix . $this->buildExtraEntityTableName($entityName, $fieldScope);
+        $baseTableName = $this->prefix . $definition->getBaseTableName();
+        $extraTableName = $this->prefix . $definition->getExtraTableName();
+        $columnName = $definition->getStorageColumnName();
+        $sqlColumnDefinition = ColumnDefinitionMapper::getSqlDefinition($definition);
+        $sqlIndex = $definition->getSqlIndex();
 
         if (!$this->tableExists($baseTableName)) {
             throw new RuntimeException(sprintf('The base table "%s" does not exist.', $baseTableName));
@@ -66,14 +60,7 @@ class ExtraPropertySchemaManager implements ExtraPropertySchemaManagerInterface
                 throw new RuntimeException(sprintf('Invalid extra column name "%s".', $columnName));
             }
 
-            $sql = sprintf(
-                'ALTER TABLE %s ADD COLUMN %s %s',
-                $this->connection->quoteIdentifier($extraTableName),
-                $this->connection->quoteIdentifier($columnName),
-                $sqlColumnDefinition
-            );
-            $this->connection->executeStatement($sql);
-            $this->invalidateTableCache($extraTableName);
+            $this->createExtraColumn($extraTableName, $columnName, $sqlColumnDefinition);
             $this->logger->info('Extra column created: {table}.{column}', ['table' => $extraTableName, 'column' => $columnName]);
         }
 
@@ -83,9 +70,11 @@ class ExtraPropertySchemaManager implements ExtraPropertySchemaManagerInterface
     /**
      * {@inheritdoc}
      */
-    public function dropExtraColumnIfExists(string $entityName, ExtraPropertyScope $fieldScope, string $columnName): void
+    public function dropExtraColumnIfExists(ExtraPropertyDefinition $definition): void
     {
-        $extraTableName = $this->prefix . $this->buildExtraEntityTableName($entityName, $fieldScope);
+        $extraTableName = $this->prefix . $definition->getExtraTableName();
+        $columnName = $definition->getStorageColumnName();
+
         if (!$this->tableExists($extraTableName) || !$this->columnExists($extraTableName, $columnName)) {
             return;
         }
@@ -100,43 +89,27 @@ class ExtraPropertySchemaManager implements ExtraPropertySchemaManagerInterface
             $this->connection->quoteIdentifier($columnName)
         );
         $this->connection->executeStatement($sql);
-        $this->invalidateTableCache($extraTableName);
         $this->logger->info('Extra column dropped: {table}.{column}', ['table' => $extraTableName, 'column' => $columnName]);
 
         $this->dropExtraTableIfEmpty($extraTableName);
     }
 
     /**
-     * Returns the base (non-extra) entity table name for a given scope.
+     * Adds a new column to the extra table.
      *
-     * @param string $entityName
-     * @param ExtraPropertyScope $fieldScope
-     *
-     * @return string
+     * @param string $extraTableName Full table name (with prefix)
+     * @param string $columnName Column to add
+     * @param string $sqlColumnDefinition SQL column definition fragment (from ColumnDefinitionMapper)
      */
-    protected function buildBaseEntityTableName(string $entityName, ExtraPropertyScope $fieldScope): string
+    protected function createExtraColumn(string $extraTableName, string $columnName, string $sqlColumnDefinition): void
     {
-        if (ExtraPropertyScope::LANG === $fieldScope) {
-            return $entityName . '_lang';
-        }
-        if (ExtraPropertyScope::SHOP === $fieldScope) {
-            return $entityName . '_shop';
-        }
-
-        return $entityName;
-    }
-
-    /**
-     * Returns the extra storage table name (without prefix) for a given entity and scope.
-     *
-     * @param string $entityName
-     * @param ExtraPropertyScope $fieldScope
-     *
-     * @return string
-     */
-    protected function buildExtraEntityTableName(string $entityName, ExtraPropertyScope $fieldScope): string
-    {
-        return ExtraPropertyDefinition::buildExtraTableName($entityName, $fieldScope);
+        $sql = sprintf(
+            'ALTER TABLE %s ADD COLUMN %s %s',
+            $this->connection->quoteIdentifier($extraTableName),
+            $this->connection->quoteIdentifier($columnName),
+            $sqlColumnDefinition
+        );
+        $this->connection->executeStatement($sql);
     }
 
     /**
@@ -177,7 +150,6 @@ class ExtraPropertySchemaManager implements ExtraPropertySchemaManagerInterface
             $this->connection->quoteIdentifier($columnName)
         );
         $this->connection->executeStatement($sql);
-        $this->invalidateTableCache($extraTableName);
     }
 
     /**
@@ -187,11 +159,7 @@ class ExtraPropertySchemaManager implements ExtraPropertySchemaManagerInterface
      */
     protected function dropExtraTableIfEmpty(string $extraTableName): void
     {
-        $tableDetails = $this->getTableDetails($extraTableName);
-        if (null === $tableDetails) {
-            return;
-        }
-
+        $tableDetails = $this->connection->createSchemaManager()->introspectTable($extraTableName);
         $primaryKey = $tableDetails->getPrimaryKey();
         if (null === $primaryKey) {
             return;
@@ -206,7 +174,6 @@ class ExtraPropertySchemaManager implements ExtraPropertySchemaManagerInterface
 
         $sql = sprintf('DROP TABLE %s', $this->connection->quoteIdentifier($extraTableName));
         $this->connection->executeStatement($sql);
-        $this->invalidateTableCache($extraTableName);
         $this->logger->info('Extra table dropped (empty): {table}', ['table' => $extraTableName]);
     }
 
@@ -220,11 +187,7 @@ class ExtraPropertySchemaManager implements ExtraPropertySchemaManagerInterface
      */
     protected function createExtraTableFromBaseTable(string $baseTableName, string $extraTableName): void
     {
-        $baseTableDetails = $this->getTableDetails($baseTableName);
-        if (null === $baseTableDetails) {
-            throw new RuntimeException(sprintf('The schema for base table "%s" cannot be loaded.', $baseTableName));
-        }
-
+        $baseTableDetails = $this->connection->createSchemaManager()->introspectTable($baseTableName);
         $primaryKey = $baseTableDetails->getPrimaryKey();
         if (null === $primaryKey) {
             throw new RuntimeException(sprintf('The base table "%s" has no primary key.', $baseTableName));
@@ -251,7 +214,6 @@ class ExtraPropertySchemaManager implements ExtraPropertySchemaManagerInterface
             implode(', ', $primaryKeyColumns)
         );
         $this->connection->executeStatement($sql);
-        $this->invalidateTableCache($extraTableName);
     }
 
     /**
@@ -296,13 +258,7 @@ class ExtraPropertySchemaManager implements ExtraPropertySchemaManagerInterface
      */
     protected function tableExists(string $tableName): bool
     {
-        if (array_key_exists($tableName, $this->tableExistenceCache)) {
-            return $this->tableExistenceCache[$tableName];
-        }
-        $exists = $this->connection->createSchemaManager()->tablesExist([$tableName]);
-        $this->tableExistenceCache[$tableName] = $exists;
-
-        return $exists;
+        return $this->connection->createSchemaManager()->tablesExist([$tableName]);
     }
 
     /**
@@ -313,12 +269,11 @@ class ExtraPropertySchemaManager implements ExtraPropertySchemaManagerInterface
      */
     protected function columnExists(string $tableName, string $columnName): bool
     {
-        $tableDetails = $this->getTableDetails($tableName);
-        if (null === $tableDetails) {
+        if (!$this->tableExists($tableName)) {
             return false;
         }
 
-        return $tableDetails->hasColumn($columnName);
+        return $this->connection->createSchemaManager()->introspectTable($tableName)->hasColumn($columnName);
     }
 
     /**
@@ -329,12 +284,11 @@ class ExtraPropertySchemaManager implements ExtraPropertySchemaManagerInterface
      */
     protected function indexExists(string $tableName, string $indexName): bool
     {
-        $tableDetails = $this->getTableDetails($tableName);
-        if (null === $tableDetails) {
+        if (!$this->tableExists($tableName)) {
             return false;
         }
 
-        return $tableDetails->hasIndex($indexName);
+        return $this->connection->createSchemaManager()->introspectTable($tableName)->hasIndex($indexName);
     }
 
     /**
@@ -353,37 +307,6 @@ class ExtraPropertySchemaManager implements ExtraPropertySchemaManagerInterface
             $this->connection->quoteIdentifier($indexName)
         );
         $this->connection->executeStatement($sql);
-        $this->invalidateTableCache($tableName);
-    }
-
-    /**
-     * @param string $tableName Full table name (with prefix)
-     *
-     * @return Table|null
-     */
-    protected function getTableDetails(string $tableName): ?Table
-    {
-        if (array_key_exists($tableName, $this->tableDetailsCache)) {
-            return $this->tableDetailsCache[$tableName];
-        }
-        if (!$this->tableExists($tableName)) {
-            return null;
-        }
-
-        $tableDetails = $this->connection->createSchemaManager()->introspectTable($tableName);
-        $this->tableDetailsCache[$tableName] = $tableDetails;
-
-        return $tableDetails;
-    }
-
-    /**
-     * Invalidates the in-memory schema cache for a specific table.
-     *
-     * @param string $tableName Full table name (with prefix)
-     */
-    protected function invalidateTableCache(string $tableName): void
-    {
-        unset($this->tableExistenceCache[$tableName], $this->tableDetailsCache[$tableName]);
     }
 
     /**

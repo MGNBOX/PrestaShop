@@ -48,7 +48,7 @@ class ExtraPropertyValueCaster
      *
      * @return mixed Typed value suitable for Symfony form widget data option
      */
-    public function castFromDb(ExtraPropertyDefinition $definition, mixed $rawValue): mixed
+    public static function castFromDb(ExtraPropertyDefinition $definition, mixed $rawValue): mixed
     {
         if (ExtraPropertyScope::LANG === $definition->getScope()) {
             if (!is_array($rawValue)) {
@@ -57,13 +57,13 @@ class ExtraPropertyValueCaster
 
             $cast = [];
             foreach ($rawValue as $idLang => $langVal) {
-                $cast[$idLang] = $this->castScalarFromDb($definition->getType(), $langVal);
+                $cast[$idLang] = static::castScalarFromDb($definition->getType(), $langVal);
             }
 
             return $cast;
         }
 
-        return $this->castScalarFromDb($definition->getType(), $rawValue);
+        return static::castScalarFromDb($definition->getType(), $rawValue);
     }
 
     /**
@@ -77,7 +77,7 @@ class ExtraPropertyValueCaster
      *
      * @return mixed DB-compatible scalar or array
      */
-    public function castForDb(ExtraPropertyDefinition $definition, mixed $value): mixed
+    public static function castForDb(ExtraPropertyDefinition $definition, mixed $value): mixed
     {
         if (ExtraPropertyScope::LANG === $definition->getScope()) {
             if (!is_array($value)) {
@@ -86,28 +86,31 @@ class ExtraPropertyValueCaster
 
             $cast = [];
             foreach ($value as $idLang => $langVal) {
-                $cast[$idLang] = $this->castScalarForDb($definition->getType(), $langVal);
+                $cast[$idLang] = static::castScalarForDb($definition->getType(), $langVal);
             }
 
             return $cast;
         }
 
-        return $this->castScalarForDb($definition->getType(), $value);
+        return static::castScalarForDb($definition->getType(), $value);
     }
 
     /**
      * Casts a single scalar value from DB format to PHP type.
      *
+     * DATE fields are returned as formatted strings ('Y-m-d H:i:s') rather than DateTimeImmutable
+     * objects because BO form widgets default to TextType which expects a string. Modules using
+     * a DateTimeType widget should configure it with input: 'string'.
+     *
      * @param mixed $rawValue
      *
      * @return mixed
      */
-    protected function castScalarFromDb(ExtraPropertyType $type, mixed $rawValue): mixed
+    public static function castScalarFromDb(ExtraPropertyType $type, mixed $rawValue): mixed
     {
         if (null === $rawValue) {
             return match ($type) {
                 ExtraPropertyType::BOOL => false,
-                ExtraPropertyType::DATE => null,
                 default => null,
             };
         }
@@ -116,9 +119,21 @@ class ExtraPropertyValueCaster
             ExtraPropertyType::BOOL => (bool) (int) $rawValue,
             ExtraPropertyType::INT => (int) $rawValue,
             ExtraPropertyType::FLOAT => (float) $rawValue,
-            ExtraPropertyType::DATE => $this->toDateTimeOrNull($rawValue),
+            ExtraPropertyType::DATE => static::toFormattedDateOrNull($rawValue),
             default => $rawValue,
         };
+    }
+
+    /**
+     * Parses a raw date value and returns it as a formatted string, or null when empty/invalid.
+     *
+     * @param mixed $value
+     */
+    protected static function toFormattedDateOrNull(mixed $value): ?string
+    {
+        $dt = static::toDateTimeOrNull($value);
+
+        return null !== $dt ? $dt->format('Y-m-d H:i:s') : null;
     }
 
     /**
@@ -128,7 +143,7 @@ class ExtraPropertyValueCaster
      *
      * @return mixed
      */
-    protected function castScalarForDb(ExtraPropertyType $type, mixed $value): mixed
+    protected static function castScalarForDb(ExtraPropertyType $type, mixed $value): mixed
     {
         return match ($type) {
             ExtraPropertyType::BOOL => (int) (bool) $value,
@@ -144,7 +159,7 @@ class ExtraPropertyValueCaster
      *
      * @param mixed $value
      */
-    protected function toDateTimeOrNull(mixed $value): ?DateTimeImmutable
+    protected static function toDateTimeOrNull(mixed $value): ?DateTimeImmutable
     {
         if ($value instanceof DateTimeImmutable) {
             return $value;

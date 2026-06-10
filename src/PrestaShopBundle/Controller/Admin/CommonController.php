@@ -7,7 +7,6 @@
 
 namespace PrestaShopBundle\Controller\Admin;
 
-use Doctrine\DBAL\Connection;
 use PrestaShop\PrestaShop\Adapter\Tools;
 use PrestaShop\PrestaShop\Core\Domain\Notification\Command\UpdateEmployeeNotificationLastElementCommand;
 use PrestaShop\PrestaShop\Core\Domain\Notification\Query\GetNotificationLastElements;
@@ -15,6 +14,7 @@ use PrestaShop\PrestaShop\Core\Domain\Notification\QueryResult\NotificationsResu
 use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyDefinition;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyDefinitionRepositoryInterface;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyScope;
+use PrestaShop\PrestaShop\Core\ExtraProperty\Value\ExtraPropertyWriterInterface;
 use PrestaShop\PrestaShop\Core\Grid\Definition\Factory\AbstractGridDefinitionFactory;
 use PrestaShop\PrestaShop\Core\Grid\Definition\Factory\FilterableGridDefinitionFactoryInterface;
 use PrestaShop\PrestaShop\Core\Grid\Definition\Factory\GridDefinitionFactoryProvider;
@@ -26,12 +26,10 @@ use PrestaShopBundle\Entity\Repository\AdminFilterRepository;
 use PrestaShopBundle\Security\Attribute\AdminSecurity;
 use PrestaShopBundle\Service\Grid\ControllerResponseBuilder;
 use ReflectionClass;
-use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Contracts\Translation\TranslatorInterface;
 use Throwable;
 
 /**
@@ -43,8 +41,8 @@ class CommonController extends PrestaShopAdminController
     {
         return parent::getSubscribedServices() + [
             ControllerResponseBuilder::class => ControllerResponseBuilder::class,
-            Connection::class => Connection::class,
             ExtraPropertyDefinitionRepositoryInterface::class => ExtraPropertyDefinitionRepositoryInterface::class,
+            ExtraPropertyWriterInterface::class => ExtraPropertyWriterInterface::class,
         ];
     }
 
@@ -104,7 +102,6 @@ class CommonController extends PrestaShopAdminController
         string $moduleName,
         string $propertyName,
         string $scope,
-        ParameterBagInterface $parameterBag,
         int $shopId = 0,
     ): JsonResponse {
         // Derive the legacy controller from the entityName URL path param (trusted, non-forgeable).
@@ -117,78 +114,43 @@ class CommonController extends PrestaShopAdminController
             ], 403);
         }
 
+        $scopeEnum = ExtraPropertyScope::tryFrom($scope);
+        if (null === $scopeEnum) {
+            return new JsonResponse([
+                'status' => false,
+                'message' => $this->trans('Field not found.', [], 'Admin.Notifications.Error'),
+            ], 404);
+        }
+
         /** @var ExtraPropertyDefinitionRepositoryInterface $repository */
         $repository = $this->container->get(ExtraPropertyDefinitionRepositoryInterface::class);
-        /** @var Connection $connection */
-        $connection = $this->container->get(Connection::class);
-        /** @var TranslatorInterface $translator */
-        $translator = $this->container->get(TranslatorInterface::class);
 
         // '_core' is the display sentinel for core properties; the DB stores null.
         $resolvedModuleName = ExtraPropertyDefinition::CORE_MODULE_KEY === $moduleName ? null : $moduleName;
 
-        $matched = $repository->getAllDefinitions()
-            ->filterByEntity($entityName)
-            ->filterByModuleName($resolvedModuleName)
-            ->filterByScope(ExtraPropertyScope::from($scope))
-            ->filterByPropertyName($propertyName)
-            ->first();
+        $matched = $repository->findDefinitionByModuleAndField($entityName, $resolvedModuleName, $propertyName, $scopeEnum->value);
         if (null === $matched) {
             return new JsonResponse([
                 'status' => false,
-                'message' => $translator->trans('Field not found.', [], 'Admin.Notifications.Error'),
+                'message' => $this->trans('Field not found.', [], 'Admin.Notifications.Error'),
             ], 404);
         }
 
-        $storageColumn = $matched->getStorageColumnName();
-        $databasePrefix = (string) $parameterBag->get('database_prefix');
-
-        $primaryKey = 'id_' . $entityName;
-        $tableName = match ($scope) {
-            'shop' => $databasePrefix . $entityName . '_extra_shop',
-            default => $databasePrefix . $entityName . '_extra',
-        };
+        /** @var ExtraPropertyWriterInterface $writer */
+        $writer = $this->container->get(ExtraPropertyWriterInterface::class);
 
         try {
-            if ('shop' === $scope) {
-                $sql = sprintf(
-                    'INSERT INTO %s (%s, %s, %s) VALUES (:entityId, :shopId, 1)
-                    ON DUPLICATE KEY UPDATE %s = 1 - IFNULL(%s, 0)',
-                    $connection->quoteIdentifier($tableName),
-                    $connection->quoteIdentifier($primaryKey),
-                    $connection->quoteIdentifier('id_shop'),
-                    $connection->quoteIdentifier($storageColumn),
-                    $connection->quoteIdentifier($storageColumn),
-                    $connection->quoteIdentifier($storageColumn),
-                );
-                $connection->executeStatement($sql, [
-                    'entityId' => $entityId,
-                    'shopId' => $shopId,
-                ]);
-            } else {
-                $sql = sprintf(
-                    'INSERT INTO %s (%s, %s) VALUES (:entityId, 1)
-                    ON DUPLICATE KEY UPDATE %s = 1 - IFNULL(%s, 0)',
-                    $connection->quoteIdentifier($tableName),
-                    $connection->quoteIdentifier($primaryKey),
-                    $connection->quoteIdentifier($storageColumn),
-                    $connection->quoteIdentifier($storageColumn),
-                    $connection->quoteIdentifier($storageColumn),
-                );
-                $connection->executeStatement($sql, [
-                    'entityId' => $entityId,
-                ]);
-            }
-        } catch (Throwable $e) {
+            $writer->toggleExtraProperty($matched, 'id_' . $entityName, $entityId, $shopId);
+        } catch (Throwable) {
             return new JsonResponse([
                 'status' => false,
-                'message' => $translator->trans('An error occurred while saving.', [], 'Admin.Notifications.Error'),
+                'message' => $this->trans('An error occurred while saving.', [], 'Admin.Notifications.Error'),
             ], 500);
         }
 
         return new JsonResponse([
             'status' => true,
-            'message' => $translator->trans('Update successful.', [], 'Admin.Notifications.Success'),
+            'message' => $this->trans('Update successful.', [], 'Admin.Notifications.Success'),
         ]);
     }
 

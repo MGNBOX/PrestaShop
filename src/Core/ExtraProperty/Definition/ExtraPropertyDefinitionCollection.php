@@ -89,23 +89,6 @@ final class ExtraPropertyDefinitionCollection implements Countable, IteratorAggr
         return $this->definitions[0] ?? null;
     }
 
-    /**
-     * Returns unique module names present in this collection.
-     * Core fields (module_name = NULL) are represented by the '_core' key.
-     *
-     * @return list<string>
-     */
-    public function getModuleNames(): array
-    {
-        $seen = [];
-        foreach ($this->definitions as $definition) {
-            $name = null !== $definition->getModuleName() ? $definition->getModuleName() : '_core';
-            $seen[$name] = true;
-        }
-
-        return array_keys($seen);
-    }
-
     // -------------------------------------------------------------------------
     // Filtering (return new immutable instances)
     // -------------------------------------------------------------------------

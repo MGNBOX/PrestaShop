@@ -38,16 +38,13 @@ interface ExtraPropertyRegistryInterface
     public function register(ExtraPropertyDefinition $definition): bool;
 
     /**
-     * Unregister an extra property definition by entity, property name and scope.
+     * Unregister an extra property definition.
      * When $dropColumn is true, the physical SQL column is also dropped.
      *
-     * @param string $entityName
-     * @param string $propertyName
-     * @param string|null $moduleName Module that owns the property (null = core property)
-     * @param ExtraPropertyScope $fieldScope
+     * @param ExtraPropertyDefinition $definition Definition identifying the property to unregister (entityName, propertyName, moduleName and scope are used as the lookup key)
      * @param bool $dropColumn
      *
      * @return bool
      */
-    public function unregister(string $entityName, string $propertyName, ?string $moduleName, ExtraPropertyScope $fieldScope = ExtraPropertyScope::COMMON, bool $dropColumn = false): bool;
+    public function unregister(ExtraPropertyDefinition $definition, bool $dropColumn = false): bool;
 }

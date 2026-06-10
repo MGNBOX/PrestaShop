@@ -10,7 +10,6 @@ declare(strict_types=1);
 namespace PrestaShop\PrestaShop\Core\ExtraProperty\Form;
 
 use PrestaShop\PrestaShop\Core\Context\ShopContext;
-use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyDefinition;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyDefinitionRepositoryInterface;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyScope;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Value\ExtraPropertyValueCaster;
@@ -33,7 +32,6 @@ class ExtraPropertiesFormDataPersister
         protected readonly ExtraPropertyDefinitionRepositoryInterface $repository,
         protected readonly ExtraPropertyWriterInterface $writer,
         protected readonly ShopContext $shopContext,
-        protected readonly ExtraPropertyValueCaster $caster,
     ) {
     }
 
@@ -51,7 +49,7 @@ class ExtraPropertiesFormDataPersister
         $shopConstraint = $this->shopContext->getShopConstraint();
         $hasShop = $shopConstraint->isSingleShopContext();
 
-        $storageEntityName = $this->resolveStorageEntityName($entityName, $definitions->first());
+        $storageEntityName = $definitions->first()->getEntityName();
 
         $entityValues = [];
         $langValuesByIdLang = [];
@@ -77,7 +75,7 @@ class ExtraPropertiesFormDataPersister
             }
 
             $submittedValue = $targetForm->get($formFieldName)->getData();
-            $submittedValue = $this->caster->castForDb($definition, $submittedValue);
+            $submittedValue = ExtraPropertyValueCaster::castForDb($definition, $submittedValue);
 
             $scope = $definition->getScope();
             if (ExtraPropertyScope::LANG === $scope) {
@@ -110,11 +108,6 @@ class ExtraPropertiesFormDataPersister
             $shopValues,
             $shopConstraint
         );
-    }
-
-    protected function resolveStorageEntityName(string $fallbackEntityName, ?ExtraPropertyDefinition $firstDefinition): string
-    {
-        return null !== $firstDefinition ? $firstDefinition->getEntityName() : $fallbackEntityName;
     }
 
     /**
@@ -164,7 +157,21 @@ class ExtraPropertiesFormDataPersister
 
     protected function isNavigationTabForm(FormInterface $form): bool
     {
-        return $this->hasNavigationTabTypeInHierarchy($form->getConfig()->getType());
+        // Climb to root form, then check its type and direct children (tabs live as direct children).
+        $root = $form;
+        while (null !== $root->getParent()) {
+            $root = $root->getParent();
+        }
+        if ($this->hasNavigationTabTypeInHierarchy($root->getConfig()->getType())) {
+            return true;
+        }
+        foreach ($root->all() as $child) {
+            if ($this->hasNavigationTabTypeInHierarchy($child->getConfig()->getType())) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     protected function hasNavigationTabTypeInHierarchy(ResolvedFormTypeInterface $resolvedType): bool

@@ -10,6 +10,7 @@ declare(strict_types=1);
 namespace PrestaShop\PrestaShop\Core\ExtraProperty\Definition;
 
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Query\QueryBuilder;
 
 /**
  * Reads and writes extra property definitions in the extra_property_definition registry table.
@@ -64,11 +65,7 @@ class ExtraPropertyDefinitionRepository implements ExtraPropertyDefinitionReposi
             ->setParameter('fieldName', $fieldName)
             ->setParameter('fieldScope', $fieldScope);
 
-        if (null !== $moduleName && '' !== $moduleName) {
-            $qb->andWhere('eef.module_name = :moduleName')->setParameter('moduleName', $moduleName);
-        } else {
-            $qb->andWhere('eef.module_name IS NULL');
-        }
+        $this->applyModuleNameFilter($qb, $moduleName, 'eef');
 
         $row = $qb->executeQuery()->fetchAssociative();
 
@@ -143,31 +140,17 @@ class ExtraPropertyDefinitionRepository implements ExtraPropertyDefinitionReposi
      */
     public function deleteByDefinition(ExtraPropertyDefinition $definition): bool
     {
-        $table = $this->prefix . 'extra_property_definition';
+        $entityName = $definition->getEntityName();
+        $propertyName = $definition->getPropertyName();
+        $moduleName = $definition->getModuleName();
+        $scope = $definition->getScope()->value;
 
-        $criteria = [
-            'entity_name' => $definition->getEntityName(),
-            'property_name' => $definition->getPropertyName(),
-            'scope' => $definition->getScope()->value,
-        ];
-        if (null !== $definition->getModuleName()) {
-            $criteria['module_name'] = $definition->getModuleName();
-        } else {
-            // Core fields have NULL module_name — DBAL delete() cannot match NULL with =, use raw SQL.
-            $qb = $this->connection->createQueryBuilder();
-            $qb->delete($table)
-                ->where('entity_name = :entityName')
-                ->andWhere('property_name = :propertyName')
-                ->andWhere('scope = :scope')
-                ->andWhere('module_name IS NULL')
-                ->setParameter('entityName', $criteria['entity_name'])
-                ->setParameter('propertyName', $criteria['property_name'])
-                ->setParameter('scope', $criteria['scope']);
-
-            return (bool) $qb->executeStatement();
+        $id = $this->findIdByUniqueKey($entityName, $moduleName, $propertyName, $scope);
+        if (null === $id) {
+            return true;
         }
 
-        return (bool) $this->connection->delete($table, $criteria);
+        return $this->delete($id);
     }
 
     /**
@@ -188,14 +171,30 @@ class ExtraPropertyDefinitionRepository implements ExtraPropertyDefinitionReposi
             ->setParameter('propertyName', $propertyName)
             ->setParameter('scope', $scope);
 
-        if (null !== $moduleName) {
-            $qb->andWhere('module_name = :moduleName')->setParameter('moduleName', $moduleName);
-        } else {
-            $qb->andWhere('module_name IS NULL');
-        }
+        $this->applyModuleNameFilter($qb, $moduleName);
 
         $id = $qb->executeQuery()->fetchOne();
 
         return false !== $id && null !== $id ? (int) $id : null;
+    }
+
+    /**
+     * Applies a WHERE clause for module_name on a query builder.
+     *
+     * Uses `module_name IS NULL` for core fields (null/empty) since SQL `= NULL` never matches.
+     *
+     * @param QueryBuilder $qb Query builder to modify in place
+     * @param string|null $moduleName Module name, or null/'' for core fields
+     * @param string $alias Optional table alias prefix (e.g. 'eef' → 'eef.module_name')
+     */
+    protected function applyModuleNameFilter(QueryBuilder $qb, ?string $moduleName, string $alias = ''): void
+    {
+        $column = ('' !== $alias) ? $alias . '.module_name' : 'module_name';
+
+        if (null !== $moduleName && '' !== $moduleName) {
+            $qb->andWhere($column . ' = :moduleName')->setParameter('moduleName', $moduleName);
+        } else {
+            $qb->andWhere($column . ' IS NULL');
+        }
     }
 }

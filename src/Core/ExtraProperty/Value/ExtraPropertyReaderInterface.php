@@ -1,4 +1,5 @@
 <?php
+
 /**
  * For the full copyright and license information, please view the
  * docs/licenses/LICENSE.txt file that was distributed with this source code.
@@ -9,6 +10,7 @@ declare(strict_types=1);
 namespace PrestaShop\PrestaShop\Core\ExtraProperty\Value;
 
 use PrestaShop\PrestaShop\Core\Domain\Shop\ValueObject\ShopConstraint;
+use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyDefinitionCollection;
 
 /**
  * Reads extra property values for a given entity instance.
@@ -24,24 +26,23 @@ interface ExtraPropertyReaderInterface
      * Format:
      * [
      *     'module_technical_name' => [
-     *         'property_name' => 'value_or_array',
+     *         'property_name' => 'value_or_lang_array',
      *     ],
      * ]
      *
      * Lang-scope fields:
      *   - $langId given  → one scalar value per field
-     *   - $langId null   → array keyed by id_lang (BO forms, Admin API)
+     *   - $langId null   → array keyed by id_lang: ['property' => [1 => 'en', 2 => 'fr']]
      *
-     * Shop-scope fields:
-     *   - ShopConstraint::shop($id) → one scalar value for that shop
-     *   - ShopConstraint::allShops() → array keyed by id_shop (Admin API)
+     * Shop-scope fields always return a single scalar for the given ShopConstraint.
      *
      * @param string $entityName Entity table name (e.g. "product")
      * @param string $primaryKeyName PK column name (e.g. "id_product")
      * @param int $entityId
-     * @param int|null $langId Null fetches all languages
-     * @param ShopConstraint $shopConstraint Specific shop or allShops() to fetch all
+     * @param int|null $langId Null fetches all languages (returns array keyed by id_lang)
+     * @param ShopConstraint $shopConstraint Shop context — determines which row to read
      * @param bool $isLangMultishop Whether lang scope is shop-aware
+     * @param ExtraPropertyDefinitionCollection|null $definitions Pre-filtered definitions; when null, all definitions for $entityName are loaded from the repository
      *
      * @return array<string, array<string, mixed>>
      */
@@ -51,6 +52,7 @@ interface ExtraPropertyReaderInterface
         int $entityId,
         ?int $langId,
         ShopConstraint $shopConstraint,
-        bool $isLangMultishop = false
+        bool $isLangMultishop = false,
+        ?ExtraPropertyDefinitionCollection $definitions = null,
     ): array;
 }

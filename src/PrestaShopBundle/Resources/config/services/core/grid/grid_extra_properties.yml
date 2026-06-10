@@ -13,4 +13,4 @@ services:
     arguments:
       $repository: '@PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyDefinitionRepositoryInterface'
       $dbPrefix: '%database_prefix%'
-      $contextLangId: '@=service("prestashop.adapter.legacy.context").getContext().language.id'
+      $languageContext: '@PrestaShop\PrestaShop\Core\Context\LanguageContext'

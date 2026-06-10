@@ -25,19 +25,4 @@ enum ExtraPropertyType: string
     case HTML = 'html';
     case JSON = 'json';
     case CHOICE = 'choice';
-
-    /**
-     * Returns all enum raw values (MySQL ENUM literals).
-     *
-     * @return string[]
-     */
-    public static function values(): array
-    {
-        static $values = null;
-        if (null === $values) {
-            $values = array_column(self::cases(), 'value');
-        }
-
-        return $values;
-    }
 }

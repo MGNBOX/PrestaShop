@@ -24,19 +24,4 @@ enum ExtraPropertyScope: string
 
     /** Stored in {entity}_extra_shop — one row per entity × shop */
     case SHOP = 'shop';
-
-    /**
-     * Returns all enum raw values.
-     *
-     * @return string[]
-     */
-    public static function values(): array
-    {
-        static $values = null;
-        if (null === $values) {
-            $values = array_column(self::cases(), 'value');
-        }
-
-        return $values;
-    }
 }

@@ -9,7 +9,6 @@ declare(strict_types=1);
 
 namespace PrestaShop\PrestaShop\Core\ExtraProperty\Definition;
 
-use PrestaShop\PrestaShop\Core\ExtraProperty\Schema\ColumnDefinitionMapper;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Schema\ExtraPropertySchemaManagerInterface;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Validation\ExtraPropertyValidationInterface;
 use Psr\Log\LoggerInterface;
@@ -40,12 +39,15 @@ class ExtraPropertyRegistry implements ExtraPropertyRegistryInterface
      * {@inheritdoc}
      *
      * Constructor-level validations (entityName, propertyName, associatedForms/Grids format,
-     * labelWording) are already enforced by ExtraPropertyDefinition itself.
+     * labelWording, moduleName format, storageColumnName length) are enforced by ExtraPropertyDefinition itself.
      *
      * The registry additionally validates:
-     * - module name format (regex)
-     * - storage column name length (≤ 64 chars)
+     * - scope-uniqueness: a module cannot register the same propertyName in two different scopes for the same entity
      * - immutability of storage-critical fields on already-registered definitions
+     *
+     * Operation order: validate immutability → persist to DB → create DDL.
+     * Note: if DDL creation fails after DB persistence, a retry of register() will be a no-op (column already exists).
+     * Changing a field's type requires unregister() + register() — automatic column migration is not supported.
      */
     public function register(ExtraPropertyDefinition $definition): bool
     {
@@ -57,41 +59,29 @@ class ExtraPropertyRegistry implements ExtraPropertyRegistryInterface
         $moduleName = (null !== $rawModuleName && '' !== $rawModuleName && ExtraPropertyDefinition::CORE_MODULE_KEY !== $rawModuleName)
             ? $rawModuleName
             : null;
-        if (null !== $moduleName && !$this->validator::isModuleName($moduleName)) {
-            return false;
-        }
 
         $scope = $definition->getScope();
         $normalizedScope = $scope->value;
 
-        // Inject the resolved module name into a working copy so that getStorageColumnName() is correct.
-        $workingDefinition = null !== $moduleName
-            ? $definition->withModuleName($moduleName)
-            : $definition;
-
-        $storageColumnName = $workingDefinition->getStorageColumnName();
-        if (!$this->isValidSqlIdentifier($storageColumnName)) {
-            return false;
-        }
-
-        $sqlColumnDefinition = ColumnDefinitionMapper::getSqlDefinition($workingDefinition);
-
-        // 1. Ensure the *_extra table and column exist.
-        try {
-            $this->schemaManager->ensureExtraTableAndColumn(
+        // 1. Validate scope-uniqueness: same entity + module + propertyName must not exist with a different scope.
+        foreach (ExtraPropertyScope::cases() as $otherScope) {
+            if ($otherScope === $scope) {
+                continue;
+            }
+            $conflict = $this->readRepository->findDefinitionByModuleAndField(
                 $entityName,
-                $scope,
-                $storageColumnName,
-                $sqlColumnDefinition,
-                $workingDefinition->getSqlIndex()
+                $moduleName,
+                $propertyName,
+                $otherScope->value
             );
-        } catch (Throwable $exception) {
-            $this->logger->error(
-                'Failed to create extra table/column: {message}',
-                ['message' => $exception->getMessage(), 'exception' => $exception]
-            );
+            if (null !== $conflict) {
+                $this->logger->error(
+                    'Cannot register extra property {entity}.{field}: already registered with scope "{existing_scope}", cannot also register with scope "{new_scope}".',
+                    ['entity' => $entityName, 'field' => $propertyName, 'existing_scope' => $otherScope->value, 'new_scope' => $normalizedScope]
+                );
 
-            return false;
+                return false;
+            }
         }
 
         // 2. Check for immutable storage-critical changes on an existing definition.
@@ -102,7 +92,7 @@ class ExtraPropertyRegistry implements ExtraPropertyRegistryInterface
             $normalizedScope
         );
 
-        if (null !== $existingDefinition && $this->hasStorageChanges($workingDefinition, $existingDefinition)) {
+        if (null !== $existingDefinition && $this->hasStorageChanges($definition, $existingDefinition)) {
             $this->logger->error(
                 'Refusing to modify storage-critical fields (type/size/scope/defaultValue) for existing extra property {entity}.{field}.',
                 ['entity' => $entityName, 'field' => $propertyName]
@@ -113,54 +103,40 @@ class ExtraPropertyRegistry implements ExtraPropertyRegistryInterface
 
         // 3. Insert or update the registry row.
         $savedId = $this->writeRepository->save(
-            $workingDefinition,
+            $definition,
             $entityName,
             $propertyName,
             $moduleName,
             $normalizedScope
         );
 
-        return false !== $savedId;
+        if (false === $savedId) {
+            return false;
+        }
+
+        // 4. Ensure the *_extra table and column exist (DDL after DB write).
+        try {
+            $this->schemaManager->ensureExtraTableAndColumn($definition);
+        } catch (Throwable $exception) {
+            $this->logger->error(
+                'Failed to create extra table/column: {message}',
+                ['message' => $exception->getMessage(), 'exception' => $exception]
+            );
+
+            return false;
+        }
+
+        return true;
     }
 
     /**
      * {@inheritdoc}
      */
-    public function unregister(string $entityName, string $propertyName, ?string $moduleName, ExtraPropertyScope $fieldScope = ExtraPropertyScope::COMMON, bool $dropColumn = false): bool
-    {
-        if (!$this->validator::isTableOrIdentifier($propertyName)) {
-            return false;
-        }
-
-        if (!$this->validator::isTableOrIdentifier($entityName)) {
-            return false;
-        }
-
-        $existingDefinition = $this->readRepository->findDefinitionByModuleAndField(
-            $entityName,
-            $moduleName,
-            $propertyName,
-            $fieldScope->value
-        );
-        if (null === $existingDefinition) {
-            return true;
-        }
-
-        return $this->unregisterByDefinition($existingDefinition, $dropColumn);
-    }
-
-    /**
-     * Unregisters one definition using its already-loaded value object.
-     */
-    protected function unregisterByDefinition(ExtraPropertyDefinition $definition, bool $dropColumn = false): bool
+    public function unregister(ExtraPropertyDefinition $definition, bool $dropColumn = false): bool
     {
         if ($dropColumn) {
             try {
-                $this->schemaManager->dropExtraColumnIfExists(
-                    $definition->getEntityName(),
-                    $definition->getScope(),
-                    $definition->getStorageColumnName()
-                );
+                $this->schemaManager->dropExtraColumnIfExists($definition);
             } catch (Throwable $exception) {
                 $this->logger->error(
                     'Failed to drop extra column: {message}',
@@ -189,15 +165,5 @@ class ExtraPropertyRegistry implements ExtraPropertyRegistryInterface
             || $incoming->getScope() !== $existing->getScope()
             || $incoming->getSize() !== $existing->getSize()
             || $incoming->getDefaultValue() !== $existing->getDefaultValue();
-    }
-
-    /**
-     * @param string $identifier
-     *
-     * @return bool
-     */
-    protected function isValidSqlIdentifier(string $identifier): bool
-    {
-        return (bool) preg_match('/^[A-Za-z0-9_]{1,64}$/', $identifier);
     }
 }

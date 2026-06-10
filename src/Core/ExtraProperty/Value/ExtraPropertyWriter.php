@@ -10,9 +10,11 @@ declare(strict_types=1);
 namespace PrestaShop\PrestaShop\Core\ExtraProperty\Value;
 
 use Doctrine\DBAL\Connection;
+use InvalidArgumentException;
 use PrestaShop\PrestaShop\Core\Domain\Shop\ValueObject\ShopConstraint;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyDefinition;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyScope;
+use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyType;
 use Throwable;
 
 /**
@@ -59,6 +61,50 @@ class ExtraPropertyWriter implements ExtraPropertyWriterInterface
     /**
      * {@inheritdoc}
      */
+    public function toggleExtraProperty(
+        ExtraPropertyDefinition $definition,
+        string $primaryKeyName,
+        int $entityId,
+        int $shopId = 0,
+    ): void {
+        if (ExtraPropertyType::BOOL !== $definition->getType()) {
+            throw new InvalidArgumentException(sprintf(
+                'Extra property "%s" is not of type BOOL and cannot be toggled.',
+                $definition->getPropertyName()
+            ));
+        }
+
+        $fullTableName = $this->connection->quoteIdentifier($this->prefix . $definition->getExtraTableName());
+        $quotedPk = $this->connection->quoteIdentifier($primaryKeyName);
+        $quotedCol = $this->connection->quoteIdentifier($definition->getStorageColumnName());
+
+        if (ExtraPropertyScope::SHOP === $definition->getScope()) {
+            $sql = sprintf(
+                'INSERT INTO %s (%s, %s, %s) VALUES (?, ?, 1) ON DUPLICATE KEY UPDATE %s = 1 - IFNULL(%s, 0)',
+                $fullTableName,
+                $quotedPk,
+                $this->connection->quoteIdentifier('id_shop'),
+                $quotedCol,
+                $quotedCol,
+                $quotedCol,
+            );
+            $this->connection->executeStatement($sql, [$entityId, $shopId]);
+        } else {
+            $sql = sprintf(
+                'INSERT INTO %s (%s, %s) VALUES (?, 1) ON DUPLICATE KEY UPDATE %s = 1 - IFNULL(%s, 0)',
+                $fullTableName,
+                $quotedPk,
+                $quotedCol,
+                $quotedCol,
+                $quotedCol,
+            );
+            $this->connection->executeStatement($sql, [$entityId]);
+        }
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     public function deleteAll(string $entityName, string $primaryKeyName, int $entityId): void
     {
         if ($entityId <= 0) {
@@ -67,9 +113,9 @@ class ExtraPropertyWriter implements ExtraPropertyWriterInterface
 
         $quotedPk = $this->connection->quoteIdentifier($primaryKeyName);
 
-        foreach (ExtraPropertyScope::values() as $scope) {
+        foreach (ExtraPropertyScope::cases() as $scope) {
             $fullTable = $this->connection->quoteIdentifier(
-                $this->prefix . ExtraPropertyDefinition::buildExtraTableName($entityName, ExtraPropertyScope::from($scope))
+                $this->prefix . ExtraPropertyDefinition::buildExtraTableName($entityName, $scope)
             );
 
             try {

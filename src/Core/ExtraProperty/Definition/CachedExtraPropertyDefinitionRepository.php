@@ -14,16 +14,18 @@ use Symfony\Contracts\Cache\CacheInterface;
 use Symfony\Contracts\Cache\ItemInterface;
 
 /**
- * Cache-decorating read-only repository.
+ * Cache-decorating repository: wraps ExtraPropertyDefinitionRepository for both reads and writes.
  *
- * Wraps ExtraPropertyDefinitionRepository and caches getAllDefinitions() results under a single
- * global key. Cache invalidation after writes is performed by CachedExtraPropertyRegistry
- * (the single point of invalidation).
+ * Read: caches getAllDefinitions() under a single global key; findDefinitionByModuleAndField()
+ * is never cached (write-path lookup that must always reflect current DB state).
+ *
+ * Write: delegates to the inner repository and invalidates the cache after each successful write.
+ * This is the single point of cache invalidation for extra property definitions.
  *
  * Cache key scheme: "extra_property_definition_all" (one entry for all definitions).
  * Cache tags: ["extra_property_definition"] (when tag-aware).
  */
-class CachedExtraPropertyDefinitionRepository implements ExtraPropertyDefinitionRepositoryInterface
+class CachedExtraPropertyDefinitionRepository implements ExtraPropertyDefinitionRepositoryInterface, ExtraPropertyDefinitionWriterInterface
 {
     public const CACHE_KEY = 'extra_property_definition_all';
 
@@ -32,6 +34,10 @@ class CachedExtraPropertyDefinitionRepository implements ExtraPropertyDefinition
         protected readonly CacheInterface $definitionCache,
     ) {
     }
+
+    // -------------------------------------------------------------------------
+    // Read — ExtraPropertyDefinitionRepositoryInterface
+    // -------------------------------------------------------------------------
 
     /**
      * {@inheritdoc}
@@ -60,5 +66,65 @@ class CachedExtraPropertyDefinitionRepository implements ExtraPropertyDefinition
     public function findDefinitionByModuleAndField(string $entityName, ?string $moduleName, string $fieldName, string $fieldScope): ?ExtraPropertyDefinition
     {
         return $this->repository->findDefinitionByModuleAndField($entityName, $moduleName, $fieldName, $fieldScope);
+    }
+
+    // -------------------------------------------------------------------------
+    // Write — ExtraPropertyDefinitionWriterInterface
+    // -------------------------------------------------------------------------
+
+    /**
+     * {@inheritdoc}
+     */
+    public function save(
+        ExtraPropertyDefinition $options,
+        string $entityName,
+        string $propertyName,
+        ?string $normalizedModuleName,
+        string $normalizedScope,
+    ): int|false {
+        $result = $this->repository->save($options, $entityName, $propertyName, $normalizedModuleName, $normalizedScope);
+        if (false !== $result) {
+            $this->invalidateCache();
+        }
+
+        return $result;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function delete(int $id): bool
+    {
+        $result = $this->repository->delete($id);
+        if ($result) {
+            $this->invalidateCache();
+        }
+
+        return $result;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function deleteByDefinition(ExtraPropertyDefinition $definition): bool
+    {
+        $result = $this->repository->deleteByDefinition($definition);
+        if ($result) {
+            $this->invalidateCache();
+        }
+
+        return $result;
+    }
+
+    // -------------------------------------------------------------------------
+    // Cache management
+    // -------------------------------------------------------------------------
+
+    /**
+     * Removes the global definition cache entry so the next getAllDefinitions() reloads from DB.
+     */
+    protected function invalidateCache(): void
+    {
+        $this->definitionCache->delete(self::CACHE_KEY);
     }
 }

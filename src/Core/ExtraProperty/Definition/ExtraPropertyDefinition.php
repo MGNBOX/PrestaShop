@@ -9,8 +9,9 @@ declare(strict_types=1);
 
 namespace PrestaShop\PrestaShop\Core\ExtraProperty\Definition;
 
-use InvalidArgumentException;
+use PrestaShop\PrestaShop\Core\ExtraProperty\Exception\InvalidExtraPropertyDefinitionException;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Validation\ExtraPropertyValueValidator;
+use PrestaShop\PrestaShop\Core\ExtraProperty\Value\ExtraPropertyValueCaster;
 
 /**
  * Immutable value object representing an extra property definition.
@@ -66,7 +67,7 @@ final class ExtraPropertyDefinition
      * @param string|null $descriptionWording translation wording key shown as BO help text
      * @param string|null $descriptionDomain translation domain for description wording
      *
-     * @throws InvalidArgumentException when entityName or propertyName is empty or not a valid SQL identifier ([a-zA-Z0-9_-]+), or when associatedForms/associatedGrids have invalid format or duplicates, or when labelWording is missing despite being required
+     * @throws InvalidExtraPropertyDefinitionException when entityName or propertyName is empty or not a valid SQL identifier, when associatedForms/associatedGrids have invalid format or duplicates, when labelWording is missing despite being required, or when the computed storage column name exceeds 64 characters
      */
     public function __construct(
         protected readonly string $entityName,
@@ -93,15 +94,35 @@ final class ExtraPropertyDefinition
         protected readonly ?string $descriptionDomain = null,
     ) {
         if (!ExtraPropertyValueValidator::isTableOrIdentifier($entityName)) {
-            throw new InvalidArgumentException(sprintf(
+            throw new InvalidExtraPropertyDefinitionException(sprintf(
                 'ExtraPropertyDefinition: entityName "%s" must be a valid SQL identifier ([a-zA-Z0-9_-]+).',
                 $entityName
             ));
         }
         if (!ExtraPropertyValueValidator::isTableOrIdentifier($propertyName)) {
-            throw new InvalidArgumentException(sprintf(
+            throw new InvalidExtraPropertyDefinitionException(sprintf(
                 'ExtraPropertyDefinition: propertyName "%s" must be a valid SQL identifier ([a-zA-Z0-9_-]+).',
                 $propertyName
+            ));
+        }
+
+        // Non-empty, non-sentinel module names must match PrestaShop module naming rules.
+        $resolvedModuleName = (null === $moduleName || '' === $moduleName || self::CORE_MODULE_KEY === $moduleName)
+            ? null
+            : $moduleName;
+        if (null !== $resolvedModuleName && !ExtraPropertyValueValidator::isModuleName($resolvedModuleName)) {
+            throw new InvalidExtraPropertyDefinitionException(sprintf(
+                'ExtraPropertyDefinition: moduleName "%s" is not a valid PrestaShop module name.',
+                $moduleName
+            ));
+        }
+
+        // Storage column names must be valid SQL identifiers: 1–64 chars, [A-Za-z0-9_] only.
+        $storageColumn = self::buildStorageColumnName($resolvedModuleName, $propertyName);
+        if (!preg_match('/^[A-Za-z0-9_]{1,64}$/', $storageColumn)) {
+            throw new InvalidExtraPropertyDefinitionException(sprintf(
+                'ExtraPropertyDefinition: computed storage column name "%s" must be 1–64 characters and match [A-Za-z0-9_].',
+                $storageColumn
             ));
         }
 
@@ -110,13 +131,13 @@ final class ExtraPropertyDefinition
             foreach ($associatedForms as $entry) {
                 $parsed = self::parseFormEntry((string) $entry);
                 if ('' === $parsed['formId']) {
-                    throw new InvalidArgumentException(sprintf(
+                    throw new InvalidExtraPropertyDefinitionException(sprintf(
                         'ExtraPropertyDefinition: invalid associatedForms entry "%s" — formId must not be empty.',
                         $entry
                     ));
                 }
                 if (isset($seenFormIds[$parsed['formId']])) {
-                    throw new InvalidArgumentException(sprintf(
+                    throw new InvalidExtraPropertyDefinitionException(sprintf(
                         'ExtraPropertyDefinition: duplicate formId "%s" in associatedForms.',
                         $parsed['formId']
                     ));
@@ -130,13 +151,13 @@ final class ExtraPropertyDefinition
             foreach ($associatedGrids as $entry) {
                 $parsed = self::parseGridEntry((string) $entry);
                 if ('' === $parsed['gridId']) {
-                    throw new InvalidArgumentException(sprintf(
+                    throw new InvalidExtraPropertyDefinitionException(sprintf(
                         'ExtraPropertyDefinition: invalid associatedGrids entry "%s" — gridId must not be empty.',
                         $entry
                     ));
                 }
                 if (isset($seenGridIds[$parsed['gridId']])) {
-                    throw new InvalidArgumentException(sprintf(
+                    throw new InvalidExtraPropertyDefinitionException(sprintf(
                         'ExtraPropertyDefinition: duplicate gridId "%s" in associatedGrids.',
                         $parsed['gridId']
                     ));
@@ -146,7 +167,7 @@ final class ExtraPropertyDefinition
         }
 
         if ((!empty($associatedForms) || !empty($associatedGrids)) && (null === $labelWording || '' === trim($labelWording))) {
-            throw new InvalidArgumentException(sprintf(
+            throw new InvalidExtraPropertyDefinitionException(sprintf(
                 'ExtraPropertyDefinition: labelWording is required when associatedForms or associatedGrids is set (entity "%s", property "%s").',
                 $entityName,
                 $propertyName
@@ -165,7 +186,7 @@ final class ExtraPropertyDefinition
      *
      * @param array<string, mixed> $row
      *
-     * @throws InvalidArgumentException when entityName or propertyName is empty in the row
+     * @throws InvalidExtraPropertyDefinitionException when entityName or propertyName is empty in the row
      */
     public static function fromRow(array $row): self
     {
@@ -183,14 +204,17 @@ final class ExtraPropertyDefinition
             static fn (mixed $v): bool => is_string($v) && '' !== $v
         )) ?: null;
 
+        $type = ExtraPropertyType::from((string) ($row['type'] ?? ExtraPropertyType::STRING->value));
+        $rawDefaultValue = isset($row['default_value']) && '' !== $row['default_value'] ? $row['default_value'] : null;
+
         return new self(
             entityName: (string) ($row['entity_name'] ?? ''),
             propertyName: (string) ($row['property_name'] ?? ''),
-            type: ExtraPropertyType::from((string) ($row['type'] ?? ExtraPropertyType::STRING->value)),
+            type: $type,
             scope: ExtraPropertyScope::from((string) ($row['scope'] ?? ExtraPropertyScope::COMMON->value)),
             moduleName: isset($row['module_name']) && '' !== $row['module_name'] ? (string) $row['module_name'] : null,
             enumValues: null,
-            defaultValue: isset($row['default_value']) && '' !== $row['default_value'] ? (string) $row['default_value'] : null,
+            defaultValue: null !== $rawDefaultValue ? ExtraPropertyValueCaster::castScalarFromDb($type, $rawDefaultValue) : null,
             nullable: true,
             formRequired: !empty($row['form_required']),
             size: isset($row['size']) && '' !== $row['size'] ? (int) $row['size'] : null,
@@ -332,9 +356,9 @@ final class ExtraPropertyDefinition
         return $this->enumValues;
     }
 
-    public function getDefaultValue(): ?string
+    public function getDefaultValue(): int|float|string|bool|null
     {
-        return null !== $this->defaultValue ? (string) $this->defaultValue : null;
+        return $this->defaultValue;
     }
 
     public function getLabelWording(): ?string
@@ -386,20 +410,6 @@ final class ExtraPropertyDefinition
     }
 
     /**
-     * Returns all associatedForms entries parsed into their components.
-     *
-     * @return list<array{formId: string, path: string|null, mode: 'before'|'after'|null}>
-     */
-    public function getParsedAssociatedForms(): array
-    {
-        if (null === $this->associatedForms) {
-            return [];
-        }
-
-        return array_map(static fn (string $e): array => self::parseFormEntry($e), $this->associatedForms);
-    }
-
-    /**
      * @return list<string>|null
      */
     public function getAssociatedGrids(): ?array
@@ -425,20 +435,6 @@ final class ExtraPropertyDefinition
         }
 
         return null;
-    }
-
-    /**
-     * Returns all associatedGrids entries parsed into their components.
-     *
-     * @return list<array{gridId: string, columnId: string|null, mode: 'before'|'after'|null}>
-     */
-    public function getParsedAssociatedGrids(): array
-    {
-        if (null === $this->associatedGrids) {
-            return [];
-        }
-
-        return array_map(static fn (string $e): array => self::parseGridEntry($e), $this->associatedGrids);
     }
 
     // -------------------------------------------------------------------------
@@ -482,6 +478,21 @@ final class ExtraPropertyDefinition
     }
 
     /**
+     * Returns the name of the base entity table (without DB prefix) for this definition's scope.
+     *
+     * Used by SchemaManager to verify the base table exists before creating the extra table.
+     * LANG scope → {entity}_lang, SHOP scope → {entity}_shop, COMMON → {entity}.
+     */
+    public function getBaseTableName(): string
+    {
+        return match ($this->scope) {
+            ExtraPropertyScope::LANG => $this->entityName . '_lang',
+            ExtraPropertyScope::SHOP => $this->entityName . '_shop',
+            default => $this->entityName,
+        };
+    }
+
+    /**
      * Returns the extra value table name for a given entity and scope.
      *
      * Use this static version only when no ExtraPropertyDefinition instance is available
@@ -506,11 +517,15 @@ final class ExtraPropertyDefinition
      */
     public static function buildStorageColumnName(?string $moduleName, string $propertyName): string
     {
+        // Hyphens are valid in property/entity names but not in unquoted SQL identifiers — normalize them.
+        $normalizedProperty = str_replace('-', '_', $propertyName);
         if (null === $moduleName || '' === $moduleName || self::CORE_MODULE_KEY === $moduleName) {
-            return $propertyName;
+            return $normalizedProperty;
         }
 
-        return $moduleName . '_' . $propertyName;
+        $normalizedModule = str_replace('-', '_', $moduleName);
+
+        return $normalizedModule . '_' . $normalizedProperty;
     }
 
     /**

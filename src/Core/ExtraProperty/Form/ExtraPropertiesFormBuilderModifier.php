@@ -56,7 +56,6 @@ class ExtraPropertiesFormBuilderModifier
         protected readonly ExtraPropertyValidationInterface $validatorAdapter,
         protected readonly ShopContext $shopContext,
         protected readonly FormBuilderModifier $formBuilderModifier,
-        protected readonly ExtraPropertyValueCaster $caster,
     ) {
     }
 
@@ -87,12 +86,9 @@ class ExtraPropertiesFormBuilderModifier
         foreach ($definitions as $definition) {
             $fieldName = $definition->getPropertyName();
 
-            // getFormEntry() returns the already-parsed array — no need to re-parse.
             $parsed = $definition->getFormEntry($formId);
-            $moduleFormPosition = '';
-            if (null !== $parsed && null !== $parsed['path']) {
-                $moduleFormPosition = $parsed['path'] . (null !== $parsed['mode'] ? ':' . $parsed['mode'] : '');
-            }
+            $formEntryPath = null !== $parsed ? $parsed['path'] : null;
+            $formEntryMode = null !== $parsed ? $parsed['mode'] : null;
 
             $formFieldName = $definition->getFormFieldName();
 
@@ -100,16 +96,16 @@ class ExtraPropertiesFormBuilderModifier
 
             if (null !== $existingValues) {
                 $rawValue = $this->resolveExistingValue($existingValues, $definition->getDisplayModuleKey(), $fieldName, $definition->getScope());
-                $typeOptions['data'] = $this->caster->castFromDb($definition, $rawValue);
+                $typeOptions['data'] = ExtraPropertyValueCaster::castFromDb($definition, $rawValue);
             }
 
-            if ('' === $moduleFormPosition) {
+            if (null === $formEntryPath) {
                 $targetBuilder = $this->resolveOrCreateFallbackPath($formBuilder);
                 if (!$targetBuilder->has($formFieldName)) {
                     $targetBuilder->add($formFieldName, $type, $typeOptions);
                 }
             } else {
-                $this->addAtPosition($formBuilder, $moduleFormPosition, $formFieldName, $type, $typeOptions);
+                $this->addAtPosition($formBuilder, $formEntryPath, $formEntryMode, $formFieldName, $type, $typeOptions);
             }
         }
     }
@@ -143,8 +139,8 @@ class ExtraPropertiesFormBuilderModifier
             );
         }
 
-        $label = $this->translateLabel($definition->getLabelWording(), $definition->getLabelDomain(), null);
-        $help = $this->translateLabel($definition->getDescriptionWording(), $definition->getDescriptionDomain(), null);
+        $label = $this->translateLabel($definition->getLabelWording(), $definition->getLabelDomain());
+        $help = $this->translateLabel($definition->getDescriptionWording(), $definition->getDescriptionDomain());
 
         if (ExtraPropertyScope::LANG === $definition->getScope()) {
             // In BO, use TranslatableType (keys are id_lang) for lang-scoped fields.
@@ -196,13 +192,10 @@ class ExtraPropertiesFormBuilderModifier
     }
 
     /**
-     * Adds a field at the position described by $position (a dot-path with optional :before/:after suffix).
+     * Adds a field at the position described by $path and $mode (from ExtraPropertyDefinition::getFormEntry()).
      *
-     * - "a.b"        → navigate to builder a; add field AFTER b (default behaviour)
-     * - "a.b:before" → navigate to builder at a, call FormBuilderModifier::addBefore(builder, 'b', field)
-     * - "a.b:after"  → navigate to builder at a, call FormBuilderModifier::addAfter(builder, 'b', field)
-     *
-     * When no :before/:after suffix is given, the mode defaults to 'after'.
+     * $path is the dot-separated path to the anchor field (e.g. "tab.fieldName").
+     * $mode is 'before', 'after', or null (defaults to 'after').
      *
      * @param class-string<FormTypeInterface> $type
      * @param array<string, mixed> $typeOptions
@@ -211,15 +204,12 @@ class ExtraPropertiesFormBuilderModifier
      */
     protected function addAtPosition(
         FormBuilderInterface $rootBuilder,
-        string $position,
+        string $path,
+        ?string $mode,
         string $formFieldName,
         string $type,
         array $typeOptions,
     ): void {
-        [$path, $mode] = $this->parsePosition($position);
-        // Default mode is 'after' when not specified.
-        $mode ??= 'after';
-
         // Split path into parent path + anchor field name.
         $lastDot = strrpos($path, '.');
         if (false === $lastDot) {
@@ -234,30 +224,19 @@ class ExtraPropertiesFormBuilderModifier
             return;
         }
 
-        if ('before' === $mode) {
+        // No explicit :before/:after mode and anchor doesn't exist: append to the parent directly.
+        if (null === $mode && !$parentBuilder->has($anchorField)) {
+            $parentBuilder->add($formFieldName, $type, $typeOptions);
+
+            return;
+        }
+
+        $effectiveMode = $mode ?? 'after';
+        if ('before' === $effectiveMode) {
             $this->formBuilderModifier->addBefore($parentBuilder, $anchorField, $formFieldName, $type, $typeOptions);
         } else {
             $this->formBuilderModifier->addAfter($parentBuilder, $anchorField, $formFieldName, $type, $typeOptions);
         }
-    }
-
-    /**
-     * Parses a position string into a [path, mode] pair.
-     *
-     * Mode is 'before', 'after', or null (no suffix — caller should default to 'after').
-     *
-     * @return array{0: string, 1: 'before'|'after'|null}
-     */
-    protected function parsePosition(string $position): array
-    {
-        if (str_ends_with($position, ':before')) {
-            return [substr($position, 0, -7), 'before'];
-        }
-        if (str_ends_with($position, ':after')) {
-            return [substr($position, 0, -6), 'after'];
-        }
-
-        return [$position, null];
     }
 
     /**
@@ -329,7 +308,18 @@ class ExtraPropertiesFormBuilderModifier
 
     protected function isNavigationTabForm(FormBuilderInterface $formBuilder): bool
     {
-        return $this->hasNavigationTabTypeInHierarchy($formBuilder->getType());
+        if ($this->hasNavigationTabTypeInHierarchy($formBuilder->getType())) {
+            return true;
+        }
+        // Also check direct children: the root form is often a compound form
+        // whose tabs are NavigationTabType children, not its own type.
+        foreach ($formBuilder->all() as $childBuilder) {
+            if ($this->hasNavigationTabTypeInHierarchy($childBuilder->getType())) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     protected function hasNavigationTabTypeInHierarchy(ResolvedFormTypeInterface $resolvedType): bool
@@ -348,7 +338,7 @@ class ExtraPropertiesFormBuilderModifier
     /**
      * Translates a wording/domain pair from a definition, falling back to $default.
      */
-    protected function translateLabel(?string $wording, ?string $domain, ?string $default): ?string
+    protected function translateLabel(?string $wording, ?string $domain, ?string $default = null): ?string
     {
         if (null === $wording || '' === trim($wording)) {
             return $default;
