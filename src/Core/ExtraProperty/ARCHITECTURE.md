@@ -453,17 +453,19 @@ public function deleteAll(string $entityName, string $primaryKeyName, int $entit
 Located in `src/Core/ExtraProperty/Value/`. All methods are **static**. Converts values between DB storage format (raw PDO strings) and typed PHP values.
 
 ```php
-// DB → PHP (for form widgets, default value hydration)
+// DB → PHP (canonical cast point: ExtraPropertyReader; also default value hydration, grid records)
 public static function castFromDb(ExtraPropertyDefinition $definition, mixed $rawValue): mixed;
-public static function castScalarFromDb(ExtraPropertyType $type, mixed $rawValue): mixed;
+public static function castScalarFromDb(ExtraPropertyType $type, mixed $rawValue, bool $nullable = false): mixed;
 
 // PHP → DB (for form submission, ObjectModel persistence)
 public static function castForDb(ExtraPropertyDefinition $definition, mixed $value): mixed;
 ```
 
-`castScalarFromDb` is public so `ExtraPropertyDefinition::fromRow()` can cast the `defaultValue` field without depending on the full `ExtraPropertyDefinition` object (avoiding a circular dependency on itself). `castFromDb` handles LANG-scoped fields by iterating the `[id_lang => scalar]` array and delegating each entry to `castScalarFromDb`.
+`castScalarFromDb` is public so `ExtraPropertyDefinition::fromRow()` can cast the `defaultValue` field without depending on the full `ExtraPropertyDefinition` object (avoiding a circular dependency on itself). `castFromDb` handles LANG-scoped fields by iterating the `[id_lang => scalar]` array and delegating each entry to `castScalarFromDb`, propagating the definition's nullable flag.
 
-Note: `ExtraPropertyReader` intentionally does **not** use this caster — the reader returns raw strings from PDO to preserve FO template conventions and the Admin API contract.
+NULL handling is **nullable-aware** (`nullable` is deduced from the live column schema): a NULL on a nullable column is preserved for every type; on NOT NULL columns (only possible when the row is missing) BOOL coerces to `false`, other types stay NULL.
+
+`ExtraPropertyReader` applies the caster to every value it returns, so all its consumers receive typed values: ObjectModel bags, FO presenter lazy arrays, the BO form modifier (no second cast needed) and the Admin API service. Grid records do not flow through the reader: `ExtraPropertiesGridQueryBuilderModifier::castExtraProperties()` casts the fetched rows in `DoctrineGridDataFactory` right after the query runs, before `GridData` is built.
 
 ### 3.12. Service Configuration
 
@@ -783,7 +785,7 @@ SELECT aliases follow `ExtraPropertyDefinition::getFormFieldName()`: `extra_{sco
 2. **Lazy loading in ObjectModel**: Extra properties are NOT loaded on object construction. They are loaded on first `extra_properties` access.
 3. **No-op when unused**: Reader checks definitions first; returns `[]` immediately without DB query when none exist.
 4. **FO whitelist pre-check**: `ExtraPropertiesBag::createForEntity(..., forFrontOffice: true)` chains `filterForFrontOffice()` before querying values — skips the reader entirely when no FO fields are registered. The pre-filtered collection is passed directly to the reader, avoiding a redundant fetch inside it.
-5. **Bulk reading in grids**: `ExtraPropertiesGridQueryBuilderModifier` adds LEFT JOINs to existing grid queries — no N+1 problem.
+5. **Bulk reading in grids**: `ExtraPropertiesGridQueryBuilderModifier` adds LEFT JOINs to existing grid queries — no N+1 problem. The post-fetch `castExtraProperties()` pass reuses the cached definition collection (no extra query).
 6. **Column-based storage**: Unlike EAV meta tables, extra properties are stored as columns — enables SQL indexing, no row multiplication.
 7. **No DDL cache**: `ExtraPropertySchemaManager` performs no internal caching — DDL operations are rare (install/uninstall only) and always reflect current DB state.
 

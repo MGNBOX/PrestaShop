@@ -19,7 +19,9 @@ use Throwable;
 /**
  * Reads extra property values from the *_extra / *_extra_lang / *_extra_shop tables.
  *
- * Values are grouped by module technical name then by field name.
+ * Values are grouped by module technical name then by field name, and returned TYPED:
+ * every value is cast from its raw DB string to the declared PHP type via
+ * ExtraPropertyValueCaster::castScalarFromDb() (bool/int/float, nullable-aware NULLs).
  * Used by ObjectModel (via ServiceLocator) and front-office LazyArray / presenter contexts.
  */
 class ExtraPropertyReader implements ExtraPropertyReaderInterface
@@ -106,17 +108,24 @@ class ExtraPropertyReader implements ExtraPropertyReaderInterface
         $groupByLang = ExtraPropertyScope::LANG === $fieldScope && null === $langId;
         $extraTableName = $this->prefix . $definitions->first()->getExtraTableName();
 
-        // Build a map from DB column name to [module_key, property_name] and seed $result.
+        // Build a map from DB column name to [module_key, property_name, cast inputs] and seed $result.
         $columnToPropertyMap = [];
         $result = [];
         foreach ($definitions as $definition) {
             $propertyName = $definition->getPropertyName();
             $moduleName = $definition->getDisplayModuleKey();
             $result[$moduleName] ??= [];
-            $result[$moduleName][$propertyName] ??= ($groupByLang ? [] : null);
+            $result[$moduleName][$propertyName] ??= ($groupByLang
+                ? []
+                : ExtraPropertyValueCaster::castScalarFromDb($definition->getType(), null, $definition->isNullable()));
 
             $columnName = $definition->getStorageColumnName();
-            $columnToPropertyMap[$columnName] = ['module_name' => $moduleName, 'property_name' => $propertyName];
+            $columnToPropertyMap[$columnName] = [
+                'module_name' => $moduleName,
+                'property_name' => $propertyName,
+                'type' => $definition->getType(),
+                'nullable' => $definition->isNullable(),
+            ];
         }
 
         // Skip if IDs that must be positive were given but are invalid.
@@ -174,13 +183,13 @@ class ExtraPropertyReader implements ExtraPropertyReaderInterface
                 $groupKey = (int) ($row['id_lang'] ?? 0);
                 foreach ($columnToPropertyMap as $columnName => $propertyPath) {
                     if (array_key_exists($columnName, $row)) {
-                        $result[$propertyPath['module_name']][$propertyPath['property_name']][$groupKey] = $row[$columnName];
+                        $result[$propertyPath['module_name']][$propertyPath['property_name']][$groupKey] = ExtraPropertyValueCaster::castScalarFromDb($propertyPath['type'], $row[$columnName], $propertyPath['nullable']);
                     }
                 }
             } else {
                 foreach ($columnToPropertyMap as $columnName => $propertyPath) {
                     if (array_key_exists($columnName, $row)) {
-                        $result[$propertyPath['module_name']][$propertyPath['property_name']] = $row[$columnName];
+                        $result[$propertyPath['module_name']][$propertyPath['property_name']] = ExtraPropertyValueCaster::castScalarFromDb($propertyPath['type'], $row[$columnName], $propertyPath['nullable']);
                     }
                 }
             }

@@ -30,6 +30,10 @@ interface ExtraPropertyReaderInterface
      *     ],
      * ]
      *
+     * Values are TYPED: each value is cast from its raw DB string to the declared PHP type
+     * (ExtraPropertyValueCaster::castScalarFromDb — bool/int/float, 'Y-m-d H:i:s' date strings).
+     * NULLs are nullable-aware: kept for nullable columns, BOOL coerced to false otherwise.
+     *
      * Lang-scope fields:
      *   - $langId given  → one scalar value per field
      *   - $langId null   → array keyed by id_lang: ['property' => [1 => 'en', 2 => 'fr']]

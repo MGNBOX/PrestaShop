@@ -19,10 +19,12 @@ use PrestaShop\PrestaShop\Core\Util\DateTime\DateTime;
 
 /**
  * Converts extra property values between DB storage format (raw scalars/strings from PDO)
- * and PHP types expected by BO form widgets (DateTimeImmutable, bool, int, float).
+ * and their declared PHP types (bool, int, float, formatted date strings).
  *
  * Two directions:
- *   - castFromDb: DB → PHP, for pre-filling form widgets.
+ *   - castFromDb: DB → PHP. The canonical cast point is ExtraPropertyReader (every value it
+ *     returns is typed); castScalarFromDb also serves consumers holding raw DB rows outside
+ *     the reader (e.g. grid records in ExtraPropertiesGridQueryBuilderModifier).
  *   - castForDb:  PHP → DB, for persisting values submitted by form widgets.
  *
  * For lang-scoped fields the raw value is an array [id_lang => scalar]; each entry is cast
@@ -31,9 +33,9 @@ use PrestaShop\PrestaShop\Core\Util\DateTime\DateTime;
  * Casting is based on ExtraPropertyType only (not on the registered form field type), so the
  * behavior is consistent regardless of which Symfony form widget is used.
  *
- * The ExtraPropertyReader is intentionally NOT using this caster: the reader serves both FO
- * templates (legacy convention: raw strings from DB, e.g. '1' for booleans) and BO contexts.
- * Casting in the reader would break FO templates and change the Admin API contract.
+ * NULL handling is nullable-aware: a NULL read from a nullable column stays NULL for every
+ * type; on NOT NULL columns (value can only be NULL when the row is missing) BOOL coerces
+ * to false and other types stay NULL.
  */
 class ExtraPropertyValueCaster
 {
@@ -57,13 +59,13 @@ class ExtraPropertyValueCaster
 
             $cast = [];
             foreach ($rawValue as $idLang => $langVal) {
-                $cast[$idLang] = static::castScalarFromDb($definition->getType(), $langVal);
+                $cast[$idLang] = static::castScalarFromDb($definition->getType(), $langVal, $definition->isNullable());
             }
 
             return $cast;
         }
 
-        return static::castScalarFromDb($definition->getType(), $rawValue);
+        return static::castScalarFromDb($definition->getType(), $rawValue, $definition->isNullable());
     }
 
     /**
@@ -103,13 +105,15 @@ class ExtraPropertyValueCaster
      * a DateTimeType widget should configure it with input: 'string'.
      *
      * @param mixed $rawValue
+     * @param bool $nullable When true (nullable storage column), a NULL value is preserved as-is;
+     *                       when false, BOOL coerces NULL to false (missing row semantics)
      *
      * @return mixed
      */
-    public static function castScalarFromDb(ExtraPropertyType $type, mixed $rawValue): mixed
+    public static function castScalarFromDb(ExtraPropertyType $type, mixed $rawValue, bool $nullable = false): mixed
     {
         if (null === $rawValue) {
-            return match ($type) {
+            return $nullable ? null : match ($type) {
                 ExtraPropertyType::BOOL => false,
                 default => null,
             };

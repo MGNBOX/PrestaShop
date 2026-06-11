@@ -28,12 +28,17 @@ class DoctrineGridDataFactoryTest extends TestCase
 
         $queryParser = $this->createQueryParserMock();
 
+        // castExtraProperties() returns the records untouched, like the real implementation
+        // does when no extra property is registered for the grid.
+        $extraPropertiesModifier = $this->createMock(ExtraPropertiesGridQueryBuilderModifier::class);
+        $extraPropertiesModifier->method('castExtraProperties')->willReturnArgument(0);
+
         $doctrineGridDataFactory = new DoctrineGridDataFactory(
             $this->createDoctrineQueryBuilderMock(),
             $hookDispatcher,
             $queryParser,
             'test_grid_id',
-            $this->createMock(ExtraPropertiesGridQueryBuilderModifier::class)
+            $extraPropertiesModifier
         );
 
         $criteria = $this->createMock(SearchCriteriaInterface::class);

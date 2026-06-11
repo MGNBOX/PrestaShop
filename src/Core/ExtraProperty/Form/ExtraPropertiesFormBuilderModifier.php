@@ -16,7 +16,6 @@ use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyDefinitionR
 use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyScope;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Validation\ExtraPropertyValidationInterface;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Value\ExtraPropertyReaderInterface;
-use PrestaShop\PrestaShop\Core\ExtraProperty\Value\ExtraPropertyValueCaster;
 use PrestaShopBundle\Form\Admin\Type\NavigationTabType;
 use PrestaShopBundle\Form\Admin\Type\TranslatableType;
 use PrestaShopBundle\Form\FormBuilderModifier;
@@ -96,8 +95,8 @@ class ExtraPropertiesFormBuilderModifier
             [$type, $typeOptions] = $this->resolveFieldTypeAndOptions($definition);
 
             if (null !== $existingValues) {
-                $rawValue = $this->resolveExistingValue($existingValues, $definition->getDisplayModuleKey(), $fieldName, $definition->getScope());
-                $typeOptions['data'] = ExtraPropertyValueCaster::castFromDb($definition, $rawValue);
+                // The reader returns typed values (ExtraPropertyValueCaster applied on read).
+                $typeOptions['data'] = $this->resolveExistingValue($existingValues, $definition->getDisplayModuleKey(), $fieldName, $definition->getScope());
             }
 
             if (null === $formEntryPath) {

@@ -13,6 +13,7 @@ use PrestaShop\PrestaShop\Core\Context\LanguageContext;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyDefinitionCollection;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyDefinitionRepositoryInterface;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyScope;
+use PrestaShop\PrestaShop\Core\ExtraProperty\Value\ExtraPropertyValueCaster;
 use PrestaShop\PrestaShop\Core\Grid\Search\SearchCriteriaInterface;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 
@@ -58,6 +59,42 @@ class ExtraPropertiesGridQueryBuilderModifier
         $this->applyEntityScope($searchQueryBuilder, $countQueryBuilder, $searchCriteria, $entityName, $primaryKey, $mainAlias, $definitions->filterByScope(ExtraPropertyScope::COMMON));
         $this->applyLangScope($searchQueryBuilder, $countQueryBuilder, $searchCriteria, $entityName, $primaryKey, $mainAlias, $definitions->filterByScope(ExtraPropertyScope::LANG));
         $this->applyShopScope($searchQueryBuilder, $countQueryBuilder, $searchCriteria, $entityName, $primaryKey, $mainAlias, $definitions->filterByScope(ExtraPropertyScope::SHOP));
+    }
+
+    /**
+     * Casts the extra property columns of fetched grid records to their declared PHP types.
+     *
+     * Counterpart of apply(): apply() only shapes the query (JOIN/SELECT/WHERE), so values come
+     * out of the DB as raw strings; this method is called after the query has run (see
+     * DoctrineGridDataFactory) and casts each extra column in place via ExtraPropertyValueCaster.
+     * Grid lang values are single-language scalars (joined on one id_lang), so the scalar cast
+     * applies to every scope.
+     *
+     * @param array<int, array<string, mixed>> $records Rows fetched by the grid search query
+     *
+     * @return array<int, array<string, mixed>> Same rows with typed extra property values
+     */
+    public function castExtraProperties(array $records, string $gridId): array
+    {
+        $definitions = $this->repository->getAllDefinitions()->filterByGrid($gridId);
+        if ($definitions->isEmpty()) {
+            return $records;
+        }
+
+        foreach ($records as &$record) {
+            foreach ($definitions as $definition) {
+                $selectAlias = $definition->getFormFieldName();
+                if (array_key_exists($selectAlias, $record)) {
+                    $record[$selectAlias] = ExtraPropertyValueCaster::castScalarFromDb(
+                        $definition->getType(),
+                        $record[$selectAlias],
+                        $definition->isNullable()
+                    );
+                }
+            }
+        }
+
+        return $records;
     }
 
     /**

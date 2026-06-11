@@ -65,6 +65,10 @@ class DoctrineGridDataFactory implements GridDataFactoryInterface
         $records = $searchQueryBuilder->executeQuery()->fetchAllAssociative();
         $recordsTotal = (int) $countQueryBuilder->executeQuery()->fetchOne();
 
+        if ($this->extraPropertiesGridQueryBuilderModifier) {
+            $records = $this->extraPropertiesGridQueryBuilderModifier->castExtraProperties($records, $this->gridId);
+        }
+
         $records = new RecordCollection($records);
 
         return new GridData(
