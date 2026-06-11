@@ -50,7 +50,7 @@ export default class Header {
 
         const resetErrors = (): void => {
           $nameGroup.removeClass('has-error');
-          $nameError.addClass('d-none').find('.js-error-text').text('');
+          $nameError.removeClass('d-inline-block').addClass('d-none').find('.js-error-text').text('');
           $modalError.addClass('d-none').find('.alert-text').text('');
         };
 
@@ -64,7 +64,8 @@ export default class Header {
 
           if (!name) {
             $nameGroup.addClass('has-error');
-            $nameError.removeClass('d-none').find('.js-error-text').text($nameInput.data('required-message') as string);
+            $nameError.removeClass('d-none').addClass('d-inline-block');
+            $nameError.find('.js-error-text').text($nameInput.data('required-message') as string);
             $nameInput.trigger('focus');
 
             return;
