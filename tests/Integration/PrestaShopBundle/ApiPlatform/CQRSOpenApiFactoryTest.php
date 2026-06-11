@@ -800,6 +800,42 @@ class CQRSOpenApiFactoryTest extends KernelTestCase
         ];
     }
 
+    public function testMultipartFileUploadRequestBody(): void
+    {
+        /** @var OpenApiFactoryInterface $openApiFactory */
+        $openApiFactory = $this->getContainer()->get(OpenApiFactoryInterface::class);
+        /** @var OpenApi $openApi */
+        $openApi = $openApiFactory->__invoke();
+
+        // The multipart operation documents the uploaded file properties declared in the API resource class
+        $multipartOperation = $openApi->getPaths()->getPath('/test/file-upload')->getPost();
+        $content = $multipartOperation->getRequestBody()->getContent();
+        $this->assertTrue($content->offsetExists('multipart/form-data'));
+
+        $schema = $content->offsetGet('multipart/form-data')->getSchema();
+        // The schema is inlined so that file properties are only documented on the multipart operation
+        $this->assertArrayNotHasKey('$ref', (array) $schema);
+        $this->assertArrayHasKey('productId', $schema['properties']);
+        $this->assertEquals(['type' => 'string', 'format' => 'binary'], (array) $schema['properties']['file']);
+        $this->assertEquals(['type' => 'string', 'format' => 'binary'], (array) $schema['properties']['optionalFile']);
+        // Non-nullable file properties are required, nullable ones are optional
+        $this->assertContains('file', $schema['required']);
+        $this->assertNotContains('optionalFile', $schema['required']);
+
+        // The JSON operation based on the same CQRS command keeps its schema reference, and the
+        // shared component schema is not polluted by the file properties
+        $jsonOperation = $openApi->getPaths()->getPath('/test/file-upload-json')->getPost();
+        $jsonContent = $jsonOperation->getRequestBody()->getContent();
+        $this->assertFalse($jsonContent->offsetExists('multipart/form-data'));
+
+        $jsonSchema = $jsonContent->offsetGet('application/json')->getSchema();
+        $this->assertEquals('#/components/schemas/FileUploadResource.AddProductImageCommand', $jsonSchema['$ref']);
+
+        $componentSchema = $openApi->getComponents()->getSchemas()['FileUploadResource.AddProductImageCommand'];
+        $this->assertArrayNotHasKey('file', (array) $componentSchema['properties']);
+        $this->assertArrayNotHasKey('optionalFile', (array) $componentSchema['properties']);
+    }
+
     public function testApiPropertyOpenApiContextApplied(): void
     {
         /** @var OpenApiFactoryInterface $openApiFactory */
