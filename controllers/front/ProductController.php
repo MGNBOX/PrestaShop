@@ -1534,7 +1534,7 @@ class ProductControllerCore extends ProductPresentingFrontControllerCore
             $structuredData['product']['offers'] = [
                 '@type' => 'Offer',
                 'priceCurrency' => $this->context->currency->iso_code,
-                'price' => $product['price_amount'],
+                'price' => Tools::ps_round($product['price_amount'], $this->context->getComputingPrecision()),
                 'name' => $product['name'],
                 'url' => $this->getCanonicalURL(),
                 'priceValidUntil' => date('Y-m-d', strtotime('+15 day')),
