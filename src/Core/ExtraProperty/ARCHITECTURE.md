@@ -750,6 +750,10 @@ LEFT JOIN ps_product_extra extra ON extra.id_product = p.id_product
 
 SELECT aliases follow `ExtraPropertyDefinition::getFormFieldName()`: `extra_{scope}_{module}_{field}`.
 
+**Cardinality invariant**: every LEFT JOIN added by `ExtraPropertiesGridQueryBuilderModifier` covers the **full primary key** of its extra table (`{e}_extra`: `id_e`; `{e}_extra_lang`: `id_e` + `id_lang` + `id_shop`; `{e}_extra_shop`: `id_e` + `id_shop`), so each join matches at most one row per existing grid row — joins enrich rows 1:1 and can never multiply them. Pagination and the COUNT query stay correct without any `GROUP BY` (forbidden in this service). The shop pin of lang/shop joins is resolved in order: base `{e}_lang`/`{e}_shop` join alias of the builder → the builder's own `:shopId` parameter → ShopContext (single-shop constraint → its id, otherwise the current shop id).
+
+Joins, parameters, and filter WHEREs are built **independently per builder** (search and count): their query shapes usually differ (count builders rarely carry the base lang/shop joins), so aliases resolved on one builder are never reused on the other, and filters always apply to both so the count matches the page.
+
 ### 8.3. Column Type Mapping
 
 | ExtraPropertyType | Grid Column Type |

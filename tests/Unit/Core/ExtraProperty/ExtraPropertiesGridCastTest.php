@@ -11,6 +11,7 @@ namespace Tests\Unit\Core\ExtraProperty;
 
 use PHPUnit\Framework\TestCase;
 use PrestaShop\PrestaShop\Core\Context\LanguageContext;
+use PrestaShop\PrestaShop\Core\Context\ShopContext;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyDefinition;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyDefinitionCollection;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyDefinitionRepositoryInterface;
@@ -106,7 +107,8 @@ class ExtraPropertiesGridCastTest extends TestCase
         return new ExtraPropertiesGridQueryBuilderModifier(
             $repository,
             'ps_',
-            $this->createMock(LanguageContext::class)
+            $this->createMock(LanguageContext::class),
+            $this->createMock(ShopContext::class)
         );
     }
 

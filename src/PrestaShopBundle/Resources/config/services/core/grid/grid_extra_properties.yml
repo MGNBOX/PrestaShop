@@ -14,3 +14,4 @@ services:
       $repository: '@PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyDefinitionRepositoryInterface'
       $dbPrefix: '%database_prefix%'
       $languageContext: '@PrestaShop\PrestaShop\Core\Context\LanguageContext'
+      $shopContext: '@PrestaShop\PrestaShop\Core\Context\ShopContext'

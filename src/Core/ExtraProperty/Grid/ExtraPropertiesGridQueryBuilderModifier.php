@@ -10,6 +10,7 @@ namespace PrestaShop\PrestaShop\Core\ExtraProperty\Grid;
 
 use Doctrine\DBAL\Query\QueryBuilder;
 use PrestaShop\PrestaShop\Core\Context\LanguageContext;
+use PrestaShop\PrestaShop\Core\Context\ShopContext;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyDefinitionCollection;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyDefinitionRepositoryInterface;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyScope;
@@ -19,6 +20,21 @@ use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 
 /**
  * Adds JOIN/SELECT/FILTER clauses for extra properties in BO Symfony grids.
+ *
+ * Cardinality invariant: every LEFT JOIN added here covers the FULL primary key of its
+ * extra table ({e}_extra: id_e; {e}_extra_lang: id_e + id_lang + id_shop; {e}_extra_shop:
+ * id_e + id_shop), so each join matches at most one row per existing grid row. Joins
+ * enrich rows 1:1 and can never multiply them — pagination and COUNT stay correct without
+ * any GROUP BY (which is forbidden in this service).
+ *
+ * The shop pin of lang/shop joins is resolved per builder, in order: the base
+ * {entity}_lang/{entity}_shop join alias when that builder has one, the builder's own
+ * :shopId parameter, then ShopContext (single-shop constraint → its id, otherwise the
+ * current shop id — same rule as the toggle column in ExtraPropertiesGridDefinitionModifier).
+ *
+ * Joins and parameters are built independently for the search and count builders: their
+ * query shapes usually differ (count builders rarely carry the base lang/shop joins), so
+ * an alias resolved on one builder is never reused on the other.
  *
  * This modifier assumes:
  * - grid id matches the entity table name (e.g. "product")
@@ -34,6 +50,7 @@ class ExtraPropertiesGridQueryBuilderModifier
         protected readonly ExtraPropertyDefinitionRepositoryInterface $repository,
         protected readonly string $dbPrefix,
         protected readonly LanguageContext $languageContext,
+        protected readonly ShopContext $shopContext,
     ) {
     }
 
@@ -51,14 +68,24 @@ class ExtraPropertiesGridQueryBuilderModifier
         $entityName = $definitions->first()->getEntityName();
         $primaryKey = 'id_' . $entityName;
 
-        $mainAlias = $this->resolveMainAlias($searchQueryBuilder, $gridId, $entityName);
-        if (null === $mainAlias) {
+        // Resolve the main table alias in EACH builder: filters apply to both builders, so
+        // when either one cannot take the joins the whole scope is skipped for both
+        // (otherwise the count would diverge from the page).
+        $searchMainAlias = $this->resolveMainAlias($searchQueryBuilder, $gridId, $entityName);
+        $countMainAlias = $this->resolveMainAlias($countQueryBuilder, $gridId, $entityName);
+        if (null === $searchMainAlias || null === $countMainAlias) {
             return;
         }
 
-        $this->applyEntityScope($searchQueryBuilder, $countQueryBuilder, $searchCriteria, $primaryKey, $mainAlias, $definitions->filterByScope(ExtraPropertyScope::COMMON));
-        $this->applyLangScope($searchQueryBuilder, $countQueryBuilder, $searchCriteria, $entityName, $primaryKey, $mainAlias, $definitions->filterByScope(ExtraPropertyScope::LANG));
-        $this->applyShopScope($searchQueryBuilder, $countQueryBuilder, $searchCriteria, $entityName, $primaryKey, $mainAlias, $definitions->filterByScope(ExtraPropertyScope::SHOP));
+        // Search builder first: applySelectsAndFilters() adds the SELECTs to $builders[0] only.
+        $builders = [
+            [$searchQueryBuilder, $searchMainAlias],
+            [$countQueryBuilder, $countMainAlias],
+        ];
+
+        $this->applyEntityScope($builders, $searchCriteria, $primaryKey, $definitions->filterByScope(ExtraPropertyScope::COMMON));
+        $this->applyLangScope($builders, $searchCriteria, $entityName, $primaryKey, $definitions->filterByScope(ExtraPropertyScope::LANG));
+        $this->applyShopScope($builders, $searchCriteria, $entityName, $primaryKey, $definitions->filterByScope(ExtraPropertyScope::SHOP));
     }
 
     /**
@@ -98,14 +125,13 @@ class ExtraPropertiesGridQueryBuilderModifier
     }
 
     /**
+     * @param array<int, array{0: QueryBuilder, 1: string}> $builders [[builder, mainAlias], ...], search builder first
      * @param ExtraPropertyDefinitionCollection $definitions
      */
     protected function applyEntityScope(
-        QueryBuilder $searchQb,
-        QueryBuilder $countQb,
+        array $builders,
         SearchCriteriaInterface $criteria,
         string $primaryKey,
-        string $mainAlias,
         ExtraPropertyDefinitionCollection $definitions,
     ): void {
         if ($definitions->isEmpty()) {
@@ -113,27 +139,30 @@ class ExtraPropertiesGridQueryBuilderModifier
         }
 
         $extraTable = $this->dbPrefix . $definitions->first()->getExtraTableName();
-        $this->ensureLeftJoin($searchQb, $countQb, $mainAlias, $extraTable, self::EXTRA_ENTITY_ALIAS, sprintf(
-            '%s.`%s` = %s.`%s`',
-            self::EXTRA_ENTITY_ALIAS,
-            $primaryKey,
-            $mainAlias,
-            $primaryKey
-        ));
 
-        $this->applySelectsAndFilters($searchQb, $countQb, $criteria, self::EXTRA_ENTITY_ALIAS, $definitions);
+        foreach ($builders as [$qb, $mainAlias]) {
+            // PK-complete: {e}_extra PK is (id_e) — at most one row per grid row.
+            $this->ensureLeftJoin($qb, $mainAlias, $extraTable, self::EXTRA_ENTITY_ALIAS, sprintf(
+                '%s.`%s` = %s.`%s`',
+                self::EXTRA_ENTITY_ALIAS,
+                $primaryKey,
+                $mainAlias,
+                $primaryKey
+            ));
+        }
+
+        $this->applySelectsAndFilters($builders, $criteria, self::EXTRA_ENTITY_ALIAS, $definitions);
     }
 
     /**
+     * @param array<int, array{0: QueryBuilder, 1: string}> $builders [[builder, mainAlias], ...], search builder first
      * @param ExtraPropertyDefinitionCollection $definitions
      */
     protected function applyLangScope(
-        QueryBuilder $searchQb,
-        QueryBuilder $countQb,
+        array $builders,
         SearchCriteriaInterface $criteria,
         string $entityName,
         string $primaryKey,
-        string $mainAlias,
         ExtraPropertyDefinitionCollection $definitions,
     ): void {
         if ($definitions->isEmpty()) {
@@ -142,45 +171,52 @@ class ExtraPropertiesGridQueryBuilderModifier
 
         $extraTable = $this->dbPrefix . $definitions->first()->getExtraTableName();
         $baseLangTable = $this->dbPrefix . $entityName . '_lang';
-        [$langAlias, $langJoinCondition] = $this->findJoinedTableAliasAndCondition($searchQb, $baseLangTable);
 
-        if (null !== $langAlias) {
-            $joinParts = [
-                sprintf('%s.`%s` = %s.`%s`', self::EXTRA_LANG_ALIAS, $primaryKey, $langAlias, $primaryKey),
-                sprintf('%s.`id_lang` = %s.`id_lang`', self::EXTRA_LANG_ALIAS, $langAlias),
-            ];
-            if (null !== $langJoinCondition && $this->joinConditionMentionsShopId($langAlias, $langJoinCondition)) {
-                $joinParts[] = sprintf('%s.`id_shop` = %s.`id_shop`', self::EXTRA_LANG_ALIAS, $langAlias);
+        foreach ($builders as [$qb, $mainAlias]) {
+            [$langAlias, $langJoinCondition] = $this->findJoinedTableAliasAndCondition($qb, $baseLangTable);
+
+            // PK-complete: {e}_extra_lang PK is (id_e, id_lang, id_shop) — all three are
+            // always pinned so the join can never multiply rows in multistore.
+            $parameters = [];
+            if (null !== $langAlias) {
+                $fromAlias = $langAlias;
+                $joinParts = [
+                    sprintf('%s.`%s` = %s.`%s`', self::EXTRA_LANG_ALIAS, $primaryKey, $langAlias, $primaryKey),
+                    sprintf('%s.`id_lang` = %s.`id_lang`', self::EXTRA_LANG_ALIAS, $langAlias),
+                ];
+                if (null !== $langJoinCondition && $this->joinConditionMentionsShopId($langAlias, $langJoinCondition)) {
+                    $joinParts[] = sprintf('%s.`id_shop` = %s.`id_shop`', self::EXTRA_LANG_ALIAS, $langAlias);
+                } else {
+                    $joinParts[] = sprintf('%s.`id_shop` = :extraLangShopId', self::EXTRA_LANG_ALIAS);
+                    $parameters['extraLangShopId'] = $this->resolveShopId($qb);
+                }
+            } else {
+                // Fallback when no base lang join exists in this builder: context language.
+                $fromAlias = $mainAlias;
+                $joinParts = [
+                    sprintf('%s.`%s` = %s.`%s`', self::EXTRA_LANG_ALIAS, $primaryKey, $mainAlias, $primaryKey),
+                    sprintf('%s.`id_lang` = :extraLangId', self::EXTRA_LANG_ALIAS),
+                    sprintf('%s.`id_shop` = :extraLangShopId', self::EXTRA_LANG_ALIAS),
+                ];
+                $parameters['extraLangId'] = $this->languageContext->getId();
+                $parameters['extraLangShopId'] = $this->resolveShopId($qb);
             }
 
-            $this->ensureLeftJoin($searchQb, $countQb, $langAlias, $extraTable, self::EXTRA_LANG_ALIAS, implode(' AND ', $joinParts));
-        } else {
-            // Fallback: join on context lang only when no base lang join exists in the query.
-            $this->ensureLeftJoin($searchQb, $countQb, $mainAlias, $extraTable, self::EXTRA_LANG_ALIAS, sprintf(
-                '%s.`%s` = %s.`%s` AND %s.`id_lang` = :extraLangId',
-                self::EXTRA_LANG_ALIAS,
-                $primaryKey,
-                $mainAlias,
-                $primaryKey,
-                self::EXTRA_LANG_ALIAS
-            ));
-            $searchQb->setParameter('extraLangId', $this->languageContext->getId());
-            $countQb->setParameter('extraLangId', $this->languageContext->getId());
+            $this->ensureLeftJoin($qb, $fromAlias, $extraTable, self::EXTRA_LANG_ALIAS, implode(' AND ', $joinParts), $parameters);
         }
 
-        $this->applySelectsAndFilters($searchQb, $countQb, $criteria, self::EXTRA_LANG_ALIAS, $definitions);
+        $this->applySelectsAndFilters($builders, $criteria, self::EXTRA_LANG_ALIAS, $definitions);
     }
 
     /**
+     * @param array<int, array{0: QueryBuilder, 1: string}> $builders [[builder, mainAlias], ...], search builder first
      * @param ExtraPropertyDefinitionCollection $definitions
      */
     protected function applyShopScope(
-        QueryBuilder $searchQb,
-        QueryBuilder $countQb,
+        array $builders,
         SearchCriteriaInterface $criteria,
         string $entityName,
         string $primaryKey,
-        string $mainAlias,
         ExtraPropertyDefinitionCollection $definitions,
     ): void {
         if ($definitions->isEmpty()) {
@@ -189,46 +225,73 @@ class ExtraPropertiesGridQueryBuilderModifier
 
         $extraTable = $this->dbPrefix . $definitions->first()->getExtraTableName();
         $baseShopTable = $this->dbPrefix . $entityName . '_shop';
-        [$shopAlias] = $this->findJoinedTableAliasAndCondition($searchQb, $baseShopTable);
 
-        if (null !== $shopAlias) {
-            $this->ensureLeftJoin($searchQb, $countQb, $shopAlias, $extraTable, self::EXTRA_SHOP_ALIAS, sprintf(
-                '%s.`%s` = %s.`%s` AND %s.`id_shop` = %s.`id_shop`',
-                self::EXTRA_SHOP_ALIAS,
-                $primaryKey,
-                $shopAlias,
-                $primaryKey,
-                self::EXTRA_SHOP_ALIAS,
-                $shopAlias
-            ));
-        } elseif (array_key_exists('shopId', $searchQb->getParameters())) {
-            // Fallback for single-shop constrained queries.
-            $this->ensureLeftJoin($searchQb, $countQb, $mainAlias, $extraTable, self::EXTRA_SHOP_ALIAS, sprintf(
-                '%s.`%s` = %s.`%s` AND %s.`id_shop` = :shopId',
-                self::EXTRA_SHOP_ALIAS,
-                $primaryKey,
-                $mainAlias,
-                $primaryKey,
-                self::EXTRA_SHOP_ALIAS
-            ));
-        } else {
-            // No safe way to join shop extra data without knowing the shop constraint of the query.
-            return;
+        foreach ($builders as [$qb, $mainAlias]) {
+            [$shopAlias] = $this->findJoinedTableAliasAndCondition($qb, $baseShopTable);
+
+            // PK-complete: {e}_extra_shop PK is (id_e, id_shop) — at most one row per
+            // (entity, shop) pair of this builder.
+            if (null !== $shopAlias) {
+                $this->ensureLeftJoin($qb, $shopAlias, $extraTable, self::EXTRA_SHOP_ALIAS, sprintf(
+                    '%s.`%s` = %s.`%s` AND %s.`id_shop` = %s.`id_shop`',
+                    self::EXTRA_SHOP_ALIAS,
+                    $primaryKey,
+                    $shopAlias,
+                    $primaryKey,
+                    self::EXTRA_SHOP_ALIAS,
+                    $shopAlias
+                ));
+            } else {
+                // Fallback when no base shop join exists in this builder: pin on the
+                // builder's :shopId param or the context shop.
+                $this->ensureLeftJoin($qb, $mainAlias, $extraTable, self::EXTRA_SHOP_ALIAS, sprintf(
+                    '%s.`%s` = %s.`%s` AND %s.`id_shop` = :extraShopId',
+                    self::EXTRA_SHOP_ALIAS,
+                    $primaryKey,
+                    $mainAlias,
+                    $primaryKey,
+                    self::EXTRA_SHOP_ALIAS
+                ), ['extraShopId' => $this->resolveShopId($qb)]);
+            }
         }
 
-        $this->applySelectsAndFilters($searchQb, $countQb, $criteria, self::EXTRA_SHOP_ALIAS, $definitions);
+        $this->applySelectsAndFilters($builders, $criteria, self::EXTRA_SHOP_ALIAS, $definitions);
     }
 
     /**
+     * Resolves the shop id used to pin lang/shop extra joins when no base join carries it:
+     * the builder's own :shopId parameter when set, otherwise the context shop (single-shop
+     * constraint → its id; all-shops/group context → the current shop id, mirroring the
+     * toggle column rule in ExtraPropertiesGridDefinitionModifier).
+     */
+    protected function resolveShopId(QueryBuilder $qb): int
+    {
+        $shopIdParam = $qb->getParameters()['shopId'] ?? null;
+        if (is_numeric($shopIdParam) && (int) $shopIdParam > 0) {
+            return (int) $shopIdParam;
+        }
+
+        $shopConstraint = $this->shopContext->getShopConstraint();
+
+        return $shopConstraint->isSingleShopContext()
+            ? $shopConstraint->getShopId()->getValue()
+            : $this->shopContext->getId();
+    }
+
+    /**
+     * Adds the SELECT aliases (search builder only) and the filter WHEREs (every builder,
+     * so the count stays consistent with the page).
+     *
+     * @param array<int, array{0: QueryBuilder, 1: string}> $builders [[builder, mainAlias], ...], search builder first
      * @param ExtraPropertyDefinitionCollection $definitions
      */
     protected function applySelectsAndFilters(
-        QueryBuilder $searchQb,
-        QueryBuilder $countQb,
+        array $builders,
         SearchCriteriaInterface $criteria,
         string $joinAlias,
         ExtraPropertyDefinitionCollection $definitions,
     ): void {
+        [$searchQb] = $builders[0];
         $filters = $criteria->getFilters();
 
         foreach ($definitions as $definition) {
@@ -249,39 +312,36 @@ class ExtraPropertiesGridQueryBuilderModifier
             $paramName = $this->buildFilterParamName($selectAlias);
             $isBoolean = CheckboxType::class === $definition->getFormFieldType();
 
-            if ($isBoolean) {
-                $this->applyWhereEquals($searchQb, $countQb, $joinAlias, $storageColumn, $paramName, $filterValue);
-            } else {
-                $this->applyWhereLike($searchQb, $countQb, $joinAlias, $storageColumn, $paramName, $filterValue);
+            foreach ($builders as [$qb]) {
+                if ($isBoolean) {
+                    $this->applyWhereEquals($qb, $joinAlias, $storageColumn, $paramName, $filterValue);
+                } else {
+                    $this->applyWhereLike($qb, $joinAlias, $storageColumn, $paramName, $filterValue);
+                }
             }
         }
     }
 
     protected function applyWhereEquals(
-        QueryBuilder $searchQb,
-        QueryBuilder $countQb,
+        QueryBuilder $qb,
         string $alias,
         string $column,
         string $paramName,
         mixed $value,
     ): void {
-        $expr = sprintf('%s.`%s` = :%s', $alias, $column, $paramName);
-        $searchQb->andWhere($expr)->setParameter($paramName, $value);
-        $countQb->andWhere($expr)->setParameter($paramName, $value);
+        $qb->andWhere(sprintf('%s.`%s` = :%s', $alias, $column, $paramName))
+            ->setParameter($paramName, $value);
     }
 
     protected function applyWhereLike(
-        QueryBuilder $searchQb,
-        QueryBuilder $countQb,
+        QueryBuilder $qb,
         string $alias,
         string $column,
         string $paramName,
         mixed $value,
     ): void {
-        $expr = sprintf('%s.`%s` LIKE :%s', $alias, $column, $paramName);
-        $likeValue = '%' . (string) $value . '%';
-        $searchQb->andWhere($expr)->setParameter($paramName, $likeValue);
-        $countQb->andWhere($expr)->setParameter($paramName, $likeValue);
+        $qb->andWhere(sprintf('%s.`%s` LIKE :%s', $alias, $column, $paramName))
+            ->setParameter($paramName, '%' . (string) $value . '%');
     }
 
     protected function buildFilterParamName(string $filterName): string
@@ -289,19 +349,27 @@ class ExtraPropertiesGridQueryBuilderModifier
         return 'extra_filter_' . substr(sha1($filterName), 0, 10);
     }
 
+    /**
+     * Adds a LEFT JOIN to one builder unless the table is already joined there; the
+     * condition's parameters are only bound when the join is actually added.
+     *
+     * @param array<string, mixed> $parameters Named parameters used by $condition
+     */
     protected function ensureLeftJoin(
-        QueryBuilder $searchQb,
-        QueryBuilder $countQb,
+        QueryBuilder $qb,
         string $fromAlias,
         string $joinTable,
         string $joinAlias,
         string $condition,
+        array $parameters = [],
     ): void {
-        if (null === $this->findJoinedTableAliasAndCondition($searchQb, $joinTable)[0]) {
-            $searchQb->leftJoin($fromAlias, $joinTable, $joinAlias, $condition);
+        if (null !== $this->findJoinedTableAliasAndCondition($qb, $joinTable)[0]) {
+            return;
         }
-        if (null === $this->findJoinedTableAliasAndCondition($countQb, $joinTable)[0]) {
-            $countQb->leftJoin($fromAlias, $joinTable, $joinAlias, $condition);
+
+        $qb->leftJoin($fromAlias, $joinTable, $joinAlias, $condition);
+        foreach ($parameters as $name => $value) {
+            $qb->setParameter($name, $value);
         }
     }
 
