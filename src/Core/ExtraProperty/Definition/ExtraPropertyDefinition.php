@@ -518,8 +518,11 @@ final class ExtraPropertyDefinition
     /**
      * Returns the extra value table name for a given entity and scope.
      *
-     * Use this static version only when no ExtraPropertyDefinition instance is available
-     * (e.g. in Writer, Reader, SchemaManager which receive entity+scope as separate params).
+     * Prefer getExtraTableName() whenever a definition instance is available. Use this
+     * static version only when none exists: ExtraPropertyWriter::deleteAll() (sweeps all
+     * scope tables regardless of registered definitions) and
+     * ExtraPropertyDefinitionRepository::enrichRowsWithColumnMetadata() (runs on raw rows
+     * before definitions can be constructed).
      *
      * @return string e.g. 'product_extra', 'product_extra_lang', 'product_extra_shop'
      */
@@ -535,8 +538,10 @@ final class ExtraPropertyDefinition
     /**
      * Returns the storage column name for a given module and property name.
      *
-     * Use this static version only when no ExtraPropertyDefinition instance is available
-     * (e.g. in ModuleFieldsBag which holds only module name + field name as strings).
+     * Prefer getStorageColumnName() whenever a definition instance is available. Use this
+     * static version only when none exists:
+     * ExtraPropertyDefinitionRepository::enrichRowsWithColumnMetadata() (runs on raw rows
+     * before definitions can be constructed).
      */
     public static function buildStorageColumnName(?string $moduleName, string $propertyName): string
     {

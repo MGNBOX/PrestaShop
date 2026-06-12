@@ -61,6 +61,9 @@ class ExtraPropertyWriter implements ExtraPropertyWriterInterface
         $entityValues = [];
         $langValuesByIdLang = [];
         $shopValues = [];
+        $entityTableName = null;
+        $langTableName = null;
+        $shopTableName = null;
 
         foreach ($definitions as $definition) {
             $moduleKey = $definition->getNormalizedModuleKey();
@@ -83,6 +86,7 @@ class ExtraPropertyWriter implements ExtraPropertyWriterInterface
             $columnName = $definition->getStorageColumnName();
 
             if (ExtraPropertyScope::LANG === $definition->getScope()) {
+                $langTableName ??= $definition->getExtraTableName();
                 if (is_array($value)) {
                     // Multilang array: one entry per language.
                     foreach ($value as $langId => $langValue) {
@@ -96,24 +100,26 @@ class ExtraPropertyWriter implements ExtraPropertyWriterInterface
                     $langValuesByIdLang[$defaultLangId][$columnName] = $value;
                 }
             } elseif (ExtraPropertyScope::SHOP === $definition->getScope()) {
+                $shopTableName ??= $definition->getExtraTableName();
                 $shopValues[$columnName] = $value;
             } else {
+                $entityTableName ??= $definition->getExtraTableName();
                 $entityValues[$columnName] = $value;
             }
         }
 
         $shopId = $shopConstraint->isSingleShopContext() ? $shopConstraint->getShopId()->getValue() : null;
 
-        if (!empty($entityValues)) {
-            $this->writeCommon($entityName, $primaryKeyName, $entityId, $entityValues);
+        if (!empty($entityValues) && null !== $entityTableName) {
+            $this->writeCommon($entityTableName, $primaryKeyName, $entityId, $entityValues);
         }
 
-        if (!empty($langValuesByIdLang) && null !== $shopId) {
-            $this->writeLang($entityName, $primaryKeyName, $entityId, $shopId, $langValuesByIdLang);
+        if (!empty($langValuesByIdLang) && null !== $langTableName && null !== $shopId) {
+            $this->writeLang($langTableName, $primaryKeyName, $entityId, $shopId, $langValuesByIdLang);
         }
 
-        if (!empty($shopValues) && null !== $shopId) {
-            $this->writeShop($entityName, $primaryKeyName, $entityId, $shopId, $shopValues);
+        if (!empty($shopValues) && null !== $shopTableName && null !== $shopId) {
+            $this->writeShop($shopTableName, $primaryKeyName, $entityId, $shopId, $shopValues);
         }
     }
 
@@ -191,23 +197,24 @@ class ExtraPropertyWriter implements ExtraPropertyWriterInterface
     /**
      * Writes common-scope (entity-level) values for one entity instance.
      *
+     * @param string $extraTableName Extra table name without DB prefix (from ExtraPropertyDefinition::getExtraTableName())
      * @param array<string, mixed> $columnValues
      */
-    protected function writeCommon(string $entityName, string $primaryKeyName, int $entityId, array $columnValues): void
+    protected function writeCommon(string $extraTableName, string $primaryKeyName, int $entityId, array $columnValues): void
     {
-        $fullTableName = $this->prefix . ExtraPropertyDefinition::buildExtraTableName($entityName, ExtraPropertyScope::COMMON);
-        $sql = $this->buildUpsertSql($fullTableName, $primaryKeyName, [], $columnValues);
+        $sql = $this->buildUpsertSql($this->prefix . $extraTableName, $primaryKeyName, [], $columnValues);
         $this->connection->executeStatement($sql, [$entityId, ...array_values($columnValues)]);
     }
 
     /**
      * Writes lang-scope values for one entity instance, one row per language.
      *
+     * @param string $extraTableName Extra table name without DB prefix (from ExtraPropertyDefinition::getExtraTableName())
      * @param array<int, array<string, mixed>> $langValuesByIdLang [idLang => ['column' => value]]
      */
-    protected function writeLang(string $entityName, string $primaryKeyName, int $entityId, int $shopId, array $langValuesByIdLang): void
+    protected function writeLang(string $extraTableName, string $primaryKeyName, int $entityId, int $shopId, array $langValuesByIdLang): void
     {
-        $fullTableName = $this->prefix . ExtraPropertyDefinition::buildExtraTableName($entityName, ExtraPropertyScope::LANG);
+        $fullTableName = $this->prefix . $extraTableName;
 
         foreach ($langValuesByIdLang as $idLang => $columnValues) {
             if (empty($columnValues)) {
@@ -221,12 +228,12 @@ class ExtraPropertyWriter implements ExtraPropertyWriterInterface
     /**
      * Writes shop-scope values for one entity instance.
      *
+     * @param string $extraTableName Extra table name without DB prefix (from ExtraPropertyDefinition::getExtraTableName())
      * @param array<string, mixed> $columnValues
      */
-    protected function writeShop(string $entityName, string $primaryKeyName, int $entityId, int $shopId, array $columnValues): void
+    protected function writeShop(string $extraTableName, string $primaryKeyName, int $entityId, int $shopId, array $columnValues): void
     {
-        $fullTableName = $this->prefix . ExtraPropertyDefinition::buildExtraTableName($entityName, ExtraPropertyScope::SHOP);
-        $sql = $this->buildUpsertSql($fullTableName, $primaryKeyName, ['id_shop'], $columnValues);
+        $sql = $this->buildUpsertSql($this->prefix . $extraTableName, $primaryKeyName, ['id_shop'], $columnValues);
         $this->connection->executeStatement($sql, [$entityId, $shopId, ...array_values($columnValues)]);
     }
 
