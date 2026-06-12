@@ -330,7 +330,7 @@ All read methods return typed `ExtraPropertyDefinition` value objects. The inter
 - `register(ExtraPropertyDefinition $definition): bool`
 - `unregister(ExtraPropertyDefinition $definition, bool $dropColumn = false): bool`
 
-**`ExtraPropertyRegistry`** (pure, no cache): orchestrates register/unregister — validates input, checks immutability of storage-critical fields (`type`, `size`, `scope`, `defaultValue`), calls `ExtraPropertySchemaManagerInterface` to create tables/columns, calls `ExtraPropertyDefinitionWriterInterface` to persist. Operation order: check immutability → save → DDL (schema change happens only after definition is accepted).
+**`ExtraPropertyRegistry`** (pure, no cache): orchestrates register/unregister — validates input, refuses **destructive** schema changes on already-registered definitions (`type`/`scope` change, STRING size decrease, nullable tightening, CHOICE enum value removal), calls `ExtraPropertySchemaManagerInterface` to create tables/columns, calls `ExtraPropertyDefinitionWriterInterface` to persist. **Non-destructive** schema changes (`defaultValue` change, size increase, nullable relaxing, enum value addition) are synced onto the live column by `ensureExtraTableAndColumn()` itself (it compares the SHOW COLUMNS state with the definition and issues `ALTER TABLE … MODIFY COLUMN` when they differ — same pattern as the index sync). Operation order: check changes → save → DDL (schema change happens only after definition is accepted).
 
 **`CachedExtraPropertyDefinitionRepository`**: unified cache class implementing **both** `ExtraPropertyDefinitionRepositoryInterface` (reads from cache) **and** `ExtraPropertyDefinitionWriterInterface` (delegates writes and invalidates cache). Uses a single `CacheInterface $definitionCache` (filesystem pool). Cache invalidation is triggered by every write (`save`, `delete`, `deleteByDefinition`).
 
@@ -343,7 +343,7 @@ Located in `src/Core/ExtraProperty/Validation/`. Concrete implementation: `Extra
 ```php
 interface ExtraPropertyValidationInterface
 {
-    /** Checks if a value is a valid SQL table/identifier token. */
+    /** Checks if a value is a valid SQL table/identifier token: 1–64 chars (MySQL identifier limit), [a-zA-Z0-9_-]. */
     public static function isTableOrIdentifier(string $value): bool;
 
     /** Checks if a value is a valid module technical name. */
@@ -357,14 +357,14 @@ interface ExtraPropertyValidationInterface
 
     /**
      * Validates a batch of extra property values against their definitions.
-     * $flatValues uses storage-column name format: ['module__field' => value].
+     * $valuesByModule is grouped like the reader output: [moduleKey => [propertyName => value]].
      * Returns true on success, or the first error message string encountered.
      */
-    public function validate(array $flatValues, ExtraPropertyDefinitionCollection $definitions): bool|string;
+    public function validate(array $valuesByModule, ExtraPropertyDefinitionCollection $definitions): bool|string;
 }
 ```
 
-`isTableOrIdentifier()` and `isModuleName()` are `static` so that `ExtraPropertyDefinition` constructor can call them directly without DI injection (value objects cannot receive services).
+`isTableOrIdentifier()` and `isModuleName()` are `static` so that `ExtraPropertyDefinition` constructor can call them directly without DI injection (value objects cannot receive services). The constructor validates `entityName`, `propertyName` and the computed storage column name with `isTableOrIdentifier()` — this is the safety contract that lets DDL consumers (`ExtraPropertySchemaManager`) embed identifiers from a definition in SQL without re-validating.
 
 ### 3.8. ExtraPropertySchemaManager
 
@@ -794,7 +794,7 @@ SELECT aliases follow `ExtraPropertyDefinition::getFormFieldName()`: `extra_{sco
 1. **Column name uniqueness**: `{module_name}_{property_name}` is unique per `(entity_name, module_name, property_name, scope)` via DB unique key.
 2. **Core fields**: `module_name IS NULL` → column name = `{property_name}` (no prefix).
 3. **Column name length**: enforced ≤ 64 characters; `ExtraPropertyDefinition` constructor throws `InvalidExtraPropertyDefinitionException` if exceeded.
-4. **Type/size immutability**: `ExtraPropertyRegistry::register()` refuses to change `type`, `size`, `scope`, or `defaultValue` on already-registered definitions to prevent destructive ALTER TABLE. Changing a field's type requires `unregister()` + `register()` — no automatic column migration.
+4. **Destructive schema changes refused**: `ExtraPropertyRegistry::register()` refuses changes that risk data already stored in the extra column: `type`/`scope` change, STRING size decrease (effective lengths compared, `null` ≡ 255), nullable tightening (NULL → NOT NULL), and CHOICE enum value removal (or switching between ENUM and the VARCHAR fallback). Such changes require `unregister()` + `register()` — no automatic data migration. Non-destructive changes (`defaultValue` change, size increase, nullable relaxing, enum value addition/reordering) are accepted and applied to the live column via `ALTER TABLE … MODIFY COLUMN`. The `nullable`/`enumValues` comparison relies on the repository deducing both from the live column schema.
 5. **Scope uniqueness per module+property**: a module cannot register the same `propertyName` in two different scopes for the same entity.
 
 ---

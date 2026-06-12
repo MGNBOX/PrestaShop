@@ -19,9 +19,12 @@ use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyDefinition;
 interface ExtraPropertySchemaManagerInterface
 {
     /**
-     * Ensures that the extra table and its custom column exist.
+     * Ensures that the extra table and its custom column exist and match the definition.
      * Creates the table (copying the PK from the base entity table) if needed.
      * Creates the column (using the SQL definition built from the ExtraPropertyDefinition) if needed.
+     * When the column already exists, synchronises its definition with the declared one
+     * (size, NULL clause, ENUM literals, DEFAULT) via ALTER TABLE … MODIFY COLUMN — the
+     * caller is responsible for rejecting destructive changes beforehand.
      * Synchronises the SQL index strategy on the column.
      *
      * @param ExtraPropertyDefinition $definition Fully configured definition including type, scope, column name, and index strategy

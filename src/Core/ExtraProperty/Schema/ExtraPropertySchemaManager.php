@@ -12,8 +12,10 @@ namespace PrestaShop\PrestaShop\Core\ExtraProperty\Schema;
 use Doctrine\DBAL\Connection;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyDefinition;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertySqlIndex;
+use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyType;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
+use Throwable;
 
 /**
  * Manages the DDL of *_extra / *_extra_lang / *_extra_shop tables.
@@ -56,12 +58,10 @@ class ExtraPropertySchemaManager implements ExtraPropertySchemaManagerInterface
         }
 
         if (!$this->columnExists($extraTableName, $columnName)) {
-            if (!$this->isValidSqlIdentifier($columnName)) {
-                throw new RuntimeException(sprintf('Invalid extra column name "%s".', $columnName));
-            }
-
             $this->createExtraColumn($extraTableName, $columnName, $sqlColumnDefinition);
             $this->logger->info('Extra column created: {table}.{column}', ['table' => $extraTableName, 'column' => $columnName]);
+        } else {
+            $this->syncExtraColumnDefinition($extraTableName, $columnName, $definition);
         }
 
         $this->syncExtraColumnIndex($extraTableName, $columnName, $sqlIndex);
@@ -77,10 +77,6 @@ class ExtraPropertySchemaManager implements ExtraPropertySchemaManagerInterface
 
         if (!$this->tableExists($extraTableName) || !$this->columnExists($extraTableName, $columnName)) {
             return;
-        }
-
-        if (!$this->isValidSqlIdentifier($columnName)) {
-            throw new RuntimeException(sprintf('Invalid extra column name "%s".', $columnName));
         }
 
         $sql = sprintf(
@@ -150,6 +146,131 @@ class ExtraPropertySchemaManager implements ExtraPropertySchemaManagerInterface
             $this->connection->quoteIdentifier($columnName)
         );
         $this->connection->executeStatement($sql);
+    }
+
+    /**
+     * Brings an existing extra column in line with the declared definition, mirroring
+     * syncExtraColumnIndex(): the live column state (SHOW COLUMNS) is compared with the
+     * definition and, when they differ, the full column definition is re-applied via
+     * ALTER TABLE … MODIFY COLUMN (size, NULL clause, ENUM literals, DEFAULT).
+     *
+     * Only non-destructive drift is expected here: the registry refuses destructive
+     * changes (type/scope change, size decrease, nullable tightening, enum value
+     * removal) before any DDL runs.
+     *
+     * @param string $extraTableName Full table name (with prefix)
+     */
+    protected function syncExtraColumnDefinition(string $extraTableName, string $columnName, ExtraPropertyDefinition $definition): void
+    {
+        $liveColumn = $this->fetchLiveColumn($extraTableName, $columnName);
+        if (null === $liveColumn || $this->columnMatchesDefinition($liveColumn, $definition)) {
+            return;
+        }
+
+        $sql = sprintf(
+            'ALTER TABLE %s MODIFY COLUMN %s %s',
+            $this->connection->quoteIdentifier($extraTableName),
+            $this->connection->quoteIdentifier($columnName),
+            ColumnDefinitionMapper::getSqlDefinition($definition)
+        );
+        $this->connection->executeStatement($sql);
+        $this->logger->info('Extra column definition synced: {table}.{column}', ['table' => $extraTableName, 'column' => $columnName]);
+    }
+
+    /**
+     * Returns the SHOW COLUMNS row (Field/Type/Null/Default/…) of one column, or null
+     * when the table or column cannot be introspected.
+     *
+     * @param string $extraTableName Full table name (with prefix)
+     *
+     * @return array<string, mixed>|null
+     */
+    protected function fetchLiveColumn(string $extraTableName, string $columnName): ?array
+    {
+        try {
+            $rows = $this->connection->fetchAllAssociative(
+                'SHOW COLUMNS FROM ' . $this->connection->quoteIdentifier($extraTableName)
+            );
+        } catch (Throwable) {
+            return null;
+        }
+
+        foreach ($rows as $row) {
+            if ($columnName === (string) ($row['Field'] ?? '')) {
+                return $row;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Compares the live column (SHOW COLUMNS row) with the declared definition on the
+     * syncable aspects: nullability, DEFAULT clause, varchar length (STRING) and ENUM
+     * literals (CHOICE). The base type is not compared — type changes are refused by
+     * the registry before DDL runs.
+     *
+     * @param array<string, mixed> $liveColumn SHOW COLUMNS row
+     */
+    protected function columnMatchesDefinition(array $liveColumn, ExtraPropertyDefinition $definition): bool
+    {
+        $liveType = (string) ($liveColumn['Type'] ?? '');
+
+        $liveNullable = 'YES' === strtoupper((string) ($liveColumn['Null'] ?? 'YES'));
+        if ($liveNullable !== $definition->isNullable()) {
+            return false;
+        }
+
+        if (!$this->defaultMatches($liveColumn['Default'] ?? null, $definition)) {
+            return false;
+        }
+
+        if (ExtraPropertyType::STRING === $definition->getType()
+            && preg_match('/^varchar\((\d+)\)/i', $liveType, $matches)
+            && (int) $matches[1] !== ($definition->getSize() ?? 255)
+        ) {
+            return false;
+        }
+
+        if (ExtraPropertyType::CHOICE === $definition->getType()
+            && null !== $definition->getEnumValues()
+            && ColumnDefinitionMapper::parseEnumValues($liveType) !== array_values(array_filter($definition->getEnumValues(), 'is_string'))
+        ) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Compares the live DEFAULT clause with the definition's defaultValue.
+     *
+     * MariaDB ≥ 10.2 returns string literals quoted in SHOW COLUMNS (e.g. 'foo') while
+     * MySQL returns them bare — surrounding quotes are stripped before comparing.
+     * Numeric defaults are compared numerically (e.g. live '1.500000' vs declared 1.5).
+     */
+    protected function defaultMatches(mixed $liveDefault, ExtraPropertyDefinition $definition): bool
+    {
+        $desired = $definition->getDefaultValue();
+        if (null === $desired || null === $liveDefault) {
+            return (null === $desired) === (null === $liveDefault);
+        }
+
+        $live = (string) $liveDefault;
+        if (strlen($live) >= 2 && str_starts_with($live, "'") && str_ends_with($live, "'")) {
+            $live = str_replace("''", "'", substr($live, 1, -1));
+        }
+
+        $desiredString = match ($definition->getType()) {
+            ExtraPropertyType::BOOL => $desired ? '1' : '0',
+            default => (string) $desired,
+        };
+
+        if (is_numeric($live) && is_numeric($desiredString)) {
+            return (float) $live === (float) $desiredString;
+        }
+
+        return $live === $desiredString;
     }
 
     /**
@@ -323,15 +444,5 @@ class ExtraPropertySchemaManager implements ExtraPropertySchemaManagerInterface
         $prefix = (ExtraPropertySqlIndex::UNIQUE === $sqlIndex) ? 'uniq_extra_' : 'idx_extra_';
 
         return $prefix . substr(sha1($tableName . '|' . $columnName), 0, 16);
-    }
-
-    /**
-     * @param string $identifier
-     *
-     * @return bool
-     */
-    protected function isValidSqlIdentifier(string $identifier): bool
-    {
-        return (bool) preg_match('/^[A-Za-z0-9_]{1,64}$/', $identifier);
     }
 }

@@ -56,7 +56,7 @@ class ExtraPropertiesGridQueryBuilderModifier
             return;
         }
 
-        $this->applyEntityScope($searchQueryBuilder, $countQueryBuilder, $searchCriteria, $entityName, $primaryKey, $mainAlias, $definitions->filterByScope(ExtraPropertyScope::COMMON));
+        $this->applyEntityScope($searchQueryBuilder, $countQueryBuilder, $searchCriteria, $primaryKey, $mainAlias, $definitions->filterByScope(ExtraPropertyScope::COMMON));
         $this->applyLangScope($searchQueryBuilder, $countQueryBuilder, $searchCriteria, $entityName, $primaryKey, $mainAlias, $definitions->filterByScope(ExtraPropertyScope::LANG));
         $this->applyShopScope($searchQueryBuilder, $countQueryBuilder, $searchCriteria, $entityName, $primaryKey, $mainAlias, $definitions->filterByScope(ExtraPropertyScope::SHOP));
     }
@@ -98,14 +98,12 @@ class ExtraPropertiesGridQueryBuilderModifier
     }
 
     /**
-     * @param string $entityName kept for signature consistency with applyLangScope/applyShopScope (unused here — table name comes from getExtraTableName())
      * @param ExtraPropertyDefinitionCollection $definitions
      */
     protected function applyEntityScope(
         QueryBuilder $searchQb,
         QueryBuilder $countQb,
         SearchCriteriaInterface $criteria,
-        string $entityName,
         string $primaryKey,
         string $mainAlias,
         ExtraPropertyDefinitionCollection $definitions,

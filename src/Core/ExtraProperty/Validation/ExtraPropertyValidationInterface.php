@@ -25,7 +25,8 @@ use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyDefinitionC
 interface ExtraPropertyValidationInterface
 {
     /**
-     * Checks if a value is a valid SQL table/identifier token.
+     * Checks if a value is a valid SQL table/identifier token:
+     * 1–64 characters (MySQL identifier limit), [a-zA-Z0-9_-] only.
      */
     public static function isTableOrIdentifier(string $value): bool;
 

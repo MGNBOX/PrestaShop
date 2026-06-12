@@ -116,7 +116,7 @@ final class ExtraPropertiesBag implements ArrayAccess, IteratorAggregate, JsonSe
         /** @var array<string, array<string, mixed>> $grouped */
         $grouped = ($this->loader)();
         foreach ($grouped as $moduleKey => $fields) {
-            $this->values[(string) $moduleKey] = new ModuleFieldsBag((string) $moduleKey, (array) $fields);
+            $this->values[(string) $moduleKey] = new ModuleFieldsBag((array) $fields);
         }
     }
 
@@ -135,7 +135,7 @@ final class ExtraPropertiesBag implements ArrayAccess, IteratorAggregate, JsonSe
     {
         $this->ensureLoaded();
         if (!isset($this->values[$offset])) {
-            $this->values[$offset] = new ModuleFieldsBag((string) $offset);
+            $this->values[$offset] = new ModuleFieldsBag();
         }
 
         return $this->values[$offset];

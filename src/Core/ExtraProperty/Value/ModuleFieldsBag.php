@@ -36,10 +36,8 @@ final class ModuleFieldsBag implements ArrayAccess, IteratorAggregate, JsonSeria
     /**
      * @param array<string, mixed> $initialValues
      */
-    public function __construct(
-        private readonly string $moduleKey,
-        array $initialValues = [],
-    ) {
+    public function __construct(array $initialValues = [])
+    {
         $this->values = $initialValues;
     }
 

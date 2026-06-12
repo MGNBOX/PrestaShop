@@ -134,11 +134,14 @@ final class ExtraPropertyDefinition
             ));
         }
 
-        // Storage column names must be valid SQL identifiers: 1–64 chars, [A-Za-z0-9_] only.
+        // Storage column names must be valid SQL identifiers (1–64 chars; hyphens were
+        // already normalized to underscores by buildStorageColumnName()).
+        // This is the safety contract DDL consumers (ExtraPropertySchemaManager) rely on:
+        // any identifier coming from a constructed definition is safe to embed in SQL.
         $storageColumn = self::buildStorageColumnName($resolvedModuleName, $propertyName);
-        if (!preg_match('/^[A-Za-z0-9_]{1,64}$/', $storageColumn)) {
+        if (!ExtraPropertyValueValidator::isTableOrIdentifier($storageColumn)) {
             throw new InvalidExtraPropertyDefinitionException(sprintf(
-                'ExtraPropertyDefinition: computed storage column name "%s" must be 1–64 characters and match [A-Za-z0-9_].',
+                'ExtraPropertyDefinition: computed storage column name "%s" must be a valid SQL identifier (1–64 characters).',
                 $storageColumn
             ));
         }

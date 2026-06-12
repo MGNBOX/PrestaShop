@@ -67,6 +67,38 @@ class ExtraPropertyDefinitionConstructorTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
+    // Storage column safety contract: every constructed definition yields a
+    // SQL-safe storage column name (1–64 chars, [A-Za-z0-9_]) — DDL consumers
+    // (ExtraPropertySchemaManager) embed it in SQL without re-validating.
+    // -------------------------------------------------------------------------
+
+    public function testStorageColumnNameLongerThan64CharsThrows(): void
+    {
+        $this->expectException(InvalidExtraPropertyDefinitionException::class);
+        $this->expectExceptionMessageMatches('/storage column name/');
+
+        // moduleName (30) + '_' + propertyName (40) = 71 chars > 64.
+        new ExtraPropertyDefinition(
+            entityName: 'product',
+            propertyName: str_repeat('p', 40),
+            moduleName: str_repeat('m', 30),
+        );
+    }
+
+    public function testHyphensAreNormalizedToSqlSafeStorageColumn(): void
+    {
+        // Hyphens are valid in identifiers but not in unquoted SQL column names.
+        $definition = new ExtraPropertyDefinition(
+            entityName: 'product',
+            propertyName: 'video-link',
+            moduleName: 'my-module',
+        );
+
+        $this->assertSame('my_module_video_link', $definition->getStorageColumnName());
+        $this->assertMatchesRegularExpression('/^[A-Za-z0-9_]{1,64}$/', $definition->getStorageColumnName());
+    }
+
+    // -------------------------------------------------------------------------
     // associatedForms / labelWording guards (pre-existing, not covered elsewhere)
     // -------------------------------------------------------------------------
 
@@ -141,6 +173,7 @@ class ExtraPropertyDefinitionConstructorTest extends TestCase
             'slash' => ['entity/name'],
             'parenthesis' => ['entity(name)'],
             'SQL injection attempt' => ["'; DROP TABLE product; --"],
+            'longer than the 64-char MySQL identifier limit' => [str_repeat('a', 65)],
         ];
     }
 

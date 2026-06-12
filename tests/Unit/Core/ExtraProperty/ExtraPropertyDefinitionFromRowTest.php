@@ -9,11 +9,10 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Core\ExtraProperty;
 
-use Doctrine\DBAL\Connection;
 use PHPUnit\Framework\TestCase;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyDefinition;
-use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyDefinitionRepository;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyType;
+use PrestaShop\PrestaShop\Core\ExtraProperty\Schema\ColumnDefinitionMapper;
 
 /**
  * Covers the schema-deduced attributes flowing through ExtraPropertyDefinition::fromRow():
@@ -69,14 +68,7 @@ class ExtraPropertyDefinitionFromRowTest extends TestCase
      */
     public function testParseEnumValuesFromSqlColumnType(string $sqlColumnType, ?array $expected): void
     {
-        $repository = new class($this->createMock(Connection::class), 'ps_') extends ExtraPropertyDefinitionRepository {
-            public static function parseEnums(string $sqlColumnType): ?array
-            {
-                return self::parseEnumValues($sqlColumnType);
-            }
-        };
-
-        $this->assertSame($expected, $repository::parseEnums($sqlColumnType));
+        $this->assertSame($expected, ColumnDefinitionMapper::parseEnumValues($sqlColumnType));
     }
 
     public static function enumColumnTypeProvider(): iterable

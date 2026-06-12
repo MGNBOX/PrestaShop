@@ -72,6 +72,30 @@ class ColumnDefinitionMapper
     }
 
     /**
+     * Extracts the literals of a SQL ENUM column type, e.g. "enum('a','b')" → ['a', 'b'].
+     * Parsing counterpart of buildEnumDefinition().
+     *
+     * Returns null for any non-ENUM column type.
+     *
+     * @return list<string>|null
+     */
+    public static function parseEnumValues(string $sqlColumnType): ?array
+    {
+        if (!str_starts_with(strtolower($sqlColumnType), 'enum(')) {
+            return null;
+        }
+
+        // Literals are single-quoted; embedded quotes are doubled ('').
+        preg_match_all("/'((?:[^']|'')*)'/", $sqlColumnType, $matches);
+        $values = array_map(
+            static fn (string $value): string => str_replace("''", "'", $value),
+            $matches[1]
+        );
+
+        return [] !== $values ? array_values($values) : null;
+    }
+
+    /**
      * Builds an ENUM SQL definition from a list of allowed values, with proper single-quote escaping.
      *
      * @param list<string> $enumValues

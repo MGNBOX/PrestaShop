@@ -11,6 +11,7 @@ namespace PrestaShop\PrestaShop\Core\ExtraProperty\Definition;
 
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Query\QueryBuilder;
+use PrestaShop\PrestaShop\Core\ExtraProperty\Schema\ColumnDefinitionMapper;
 use Throwable;
 
 /**
@@ -265,33 +266,10 @@ class ExtraPropertyDefinitionRepository implements ExtraPropertyDefinitionReposi
         foreach ($columns as $column) {
             $metadata[(string) $column['Field']] = [
                 'nullable' => 'YES' === strtoupper((string) ($column['Null'] ?? 'YES')),
-                'enum_values' => self::parseEnumValues((string) ($column['Type'] ?? '')),
+                'enum_values' => ColumnDefinitionMapper::parseEnumValues((string) ($column['Type'] ?? '')),
             ];
         }
 
         return $metadata;
-    }
-
-    /**
-     * Extracts the literals of a SQL ENUM column type, e.g. "enum('a','b')" → ['a', 'b'].
-     *
-     * Returns null for any non-ENUM column type.
-     *
-     * @return list<string>|null
-     */
-    protected static function parseEnumValues(string $sqlColumnType): ?array
-    {
-        if (!str_starts_with(strtolower($sqlColumnType), 'enum(')) {
-            return null;
-        }
-
-        // Literals are single-quoted; embedded quotes are doubled ('').
-        preg_match_all("/'((?:[^']|'')*)'/", $sqlColumnType, $matches);
-        $values = array_map(
-            static fn (string $value): string => str_replace("''", "'", $value),
-            $matches[1]
-        );
-
-        return [] !== $values ? array_values($values) : null;
     }
 }

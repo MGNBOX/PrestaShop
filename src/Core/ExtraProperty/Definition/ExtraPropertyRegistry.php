@@ -10,7 +10,6 @@ declare(strict_types=1);
 namespace PrestaShop\PrestaShop\Core\ExtraProperty\Definition;
 
 use PrestaShop\PrestaShop\Core\ExtraProperty\Schema\ExtraPropertySchemaManagerInterface;
-use PrestaShop\PrestaShop\Core\ExtraProperty\Validation\ExtraPropertyValidationInterface;
 use Psr\Log\LoggerInterface;
 use Throwable;
 
@@ -32,7 +31,6 @@ class ExtraPropertyRegistry implements ExtraPropertyRegistryInterface
         protected readonly ExtraPropertyDefinitionRepositoryInterface $readRepository,
         protected readonly ExtraPropertyDefinitionWriterInterface $writeRepository,
         protected readonly ExtraPropertySchemaManagerInterface $schemaManager,
-        protected readonly ExtraPropertyValidationInterface $validator,
         protected readonly LoggerInterface $logger,
     ) {
     }
@@ -45,11 +43,17 @@ class ExtraPropertyRegistry implements ExtraPropertyRegistryInterface
      *
      * The registry additionally validates:
      * - scope-uniqueness: a module cannot register the same propertyName in two different scopes for the same entity
-     * - immutability of storage-critical fields on already-registered definitions
+     * - destructive schema changes on already-registered definitions are refused (see hasStorageChanges())
      *
-     * Operation order: validate immutability → persist to DB → create DDL.
-     * Note: if DDL creation fails after DB persistence, a retry of register() will be a no-op (column already exists).
-     * Changing a field's type requires unregister() + register() — automatic column migration is not supported.
+     * Non-destructive schema changes (defaultValue change, STRING size increase, nullable
+     * relaxing, CHOICE enum value addition) are applied to the live column by the schema
+     * manager: ensureExtraTableAndColumn() syncs the column definition the same way it
+     * syncs the index.
+     *
+     * Operation order: validate changes → persist to DB → create/alter DDL.
+     * Note: if DDL fails after DB persistence, a retry of register() re-attempts the DDL.
+     * Destructive changes (type/scope change, size decrease, nullable tightening, enum value
+     * removal) require unregister() + register() — automatic data migration is not supported.
      */
     public function register(ExtraPropertyDefinition $definition): bool
     {
@@ -78,10 +82,10 @@ class ExtraPropertyRegistry implements ExtraPropertyRegistryInterface
             return false;
         }
 
-        // 2. Check for immutable storage-critical changes on an existing definition.
+        // 2. Refuse destructive schema changes on an existing definition.
         if (null !== $existingDefinition && $this->hasStorageChanges($definition, $existingDefinition)) {
             $this->logger->error(
-                'Refusing to modify storage-critical fields (type/size/scope/defaultValue) for existing extra property {entity}.{field}.',
+                'Refusing destructive schema change (type/scope change, size decrease, nullable tightening, enum value removal) for existing extra property {entity}.{field}.',
                 ['entity' => $entityName, 'field' => $propertyName]
             );
 
@@ -95,12 +99,14 @@ class ExtraPropertyRegistry implements ExtraPropertyRegistryInterface
             return false;
         }
 
-        // 4. Ensure the *_extra table and column exist (DDL after DB write).
+        // 4. Ensure the *_extra table and column exist and match the definition: the schema
+        //    manager also syncs remaining non-destructive changes on the live column
+        //    (DDL after DB write).
         try {
             $this->schemaManager->ensureExtraTableAndColumn($definition);
         } catch (Throwable $exception) {
             $this->logger->error(
-                'Failed to create extra table/column: {message}',
+                'Failed to create or alter extra table/column: {message}',
                 ['message' => $exception->getMessage(), 'exception' => $exception]
             );
 
@@ -147,19 +153,50 @@ class ExtraPropertyRegistry implements ExtraPropertyRegistryInterface
     }
 
     /**
-     * Returns true when $incoming would change a storage-critical field on $existing.
+     * Returns true when $incoming would change the column schema in a DESTRUCTIVE way,
+     * i.e. a change that risks data already stored in the extra column:
+     *   - type or scope change (data conversion / storage table move)
+     *   - STRING size decrease — truncation risk; effective lengths compared (null ≡ 255)
+     *   - nullable tightening (NULL → NOT NULL): existing NULL rows would break the ALTER
+     *   - CHOICE enum value removal, or switching between ENUM and the VARCHAR fallback:
+     *     values already stored would no longer fit the column
      *
-     * These fields affect the SQL column schema (ALTER TABLE) and are immutable once registered.
-     * Display flags, labels, form options, positions, and index type can be updated freely.
+     * Non-destructive changes (defaultValue change, size increase, nullable relaxing, enum
+     * value addition) are NOT flagged: the schema manager syncs them onto the live column —
+     * see ExtraPropertySchemaManager::syncExtraColumnDefinition(). Display flags, labels,
+     * form options, placements, and index type are always freely mutable.
      *
-     * Note: nullable and enumValues are not persisted in the registry and therefore cannot be
-     * compared here; they are applied only at initial column creation.
+     * nullable / enumValues on $existing are deduced from the live column schema by the
+     * repository, so the comparison reflects the actual DDL state.
      */
     protected function hasStorageChanges(ExtraPropertyDefinition $incoming, ExtraPropertyDefinition $existing): bool
     {
-        return $incoming->getType() !== $existing->getType()
-            || $incoming->getScope() !== $existing->getScope()
-            || $incoming->getSize() !== $existing->getSize()
-            || $incoming->getDefaultValue() !== $existing->getDefaultValue();
+        if ($incoming->getType() !== $existing->getType() || $incoming->getScope() !== $existing->getScope()) {
+            return true;
+        }
+
+        if (ExtraPropertyType::STRING === $incoming->getType()
+            && ($incoming->getSize() ?? 255) < ($existing->getSize() ?? 255)
+        ) {
+            return true;
+        }
+
+        if ($existing->isNullable() && !$incoming->isNullable()) {
+            return true;
+        }
+
+        if (ExtraPropertyType::CHOICE === $incoming->getType()) {
+            $existingEnum = $existing->getEnumValues();
+            $incomingEnum = $incoming->getEnumValues();
+            // ENUM ↔ VARCHAR fallback switch, or any stored literal missing from the new list.
+            if ((null === $existingEnum) !== (null === $incomingEnum)) {
+                return true;
+            }
+            if (null !== $existingEnum && [] !== array_diff($existingEnum, $incomingEnum ?? [])) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

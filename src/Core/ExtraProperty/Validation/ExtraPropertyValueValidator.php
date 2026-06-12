@@ -37,7 +37,7 @@ class ExtraPropertyValueValidator implements ExtraPropertyValidationInterface
      */
     public static function isTableOrIdentifier(string $value): bool
     {
-        return (bool) preg_match('/^[a-zA-Z0-9_-]+$/', $value);
+        return (bool) preg_match('/^[a-zA-Z0-9_-]{1,64}$/', $value);
     }
 
     /**
