@@ -14,7 +14,7 @@ use Context;
 use Countable;
 use Iterator;
 use JsonSerializable;
-use ObjectModel;
+use ObjectModelCore;
 use PrestaShop\PrestaShop\Adapter\ContainerFinder;
 use PrestaShop\PrestaShop\Core\Exception\ContainerNotFoundException;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Value\ExtraPropertiesBag;
@@ -117,7 +117,7 @@ abstract class AbstractLazyArray implements Iterator, ArrayAccess, Countable, Js
      * displayFront filtering is derived from the running context like in ObjectModel:
      * filtered on front-office requests, unfiltered elsewhere (BO, CLI, API).
      *
-     * @param class-string<ObjectModel> $objectModelClass
+     * @param class-string<ObjectModelCore> $objectModelClass
      * @param int $entityId Entity row id (<= 0 results in an empty bag)
      * @param int|null $langId Language id carried by the entity; null falls back to context language
      */

@@ -9,7 +9,7 @@ use PrestaShop\PrestaShop\Adapter\ServiceLocator;
 use PrestaShop\PrestaShop\Core\Exception\ContainerNotFoundException;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyDefinitionCollection;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyDefinitionRepositoryInterface;
-use PrestaShop\PrestaShop\Core\ExtraProperty\Validation\ExtraPropertyValidationInterface;
+use PrestaShop\PrestaShop\Core\ExtraProperty\Validation\ExtraPropertyValidatorInterface;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Value\ExtraPropertiesBag;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Value\ExtraPropertyWriterInterface;
 use PrestaShop\PrestaShop\Core\Image\ImageFormatConfiguration;
@@ -1070,12 +1070,12 @@ abstract class ObjectModelCore implements PrestaShop\PrestaShop\Core\Foundation\
     /**
      * Checks if extra-properties values are valid before database interaction.
      *
-     * Delegates to ExtraPropertyValueValidator which centralizes all Validate::xxx calls.
+     * Delegates to ExtraPropertyValidator which centralizes all Validate::xxx calls.
      * Only validates values that are in the write buffer ($extra_properties); if nothing has
      * been set on this instance, validation is skipped entirely.
      *
      * Returns true without validating when the container is unavailable or when
-     * ExtraPropertyValidationInterface is not registered in it (front-office legacy container) —
+     * ExtraPropertyValidatorInterface is not registered in it (front-office legacy container) —
      * persistence is still safe because the writer only stores values for registered properties.
      *
      * @param bool $die [default=true] If false, return a value instead of throwing an exception on error
@@ -1098,8 +1098,8 @@ abstract class ObjectModelCore implements PrestaShop\PrestaShop\Core\Foundation\
             return true;
         }
 
-        /** @var ExtraPropertyValidationInterface|null $validator */
-        $validator = self::findService(ExtraPropertyValidationInterface::class);
+        /** @var ExtraPropertyValidatorInterface|null $validator */
+        $validator = self::findService(ExtraPropertyValidatorInterface::class);
         if (!$validator) {
             return true;
         }

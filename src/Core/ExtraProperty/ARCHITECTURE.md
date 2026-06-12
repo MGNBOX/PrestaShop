@@ -192,8 +192,8 @@ src/Core/ExtraProperty/
 │   ├── ColumnDefinitionMapper.php
 │   └── ExtraPropertySchemaManager.php               ← raw DDL via DBAL (BO-only service)
 ├── Validation/
-│   ├── ExtraPropertyValidationInterface.php
-│   └── ExtraPropertyValueValidator.php
+│   ├── ExtraPropertyValidatorInterface.php
+│   └── ExtraPropertyValidator.php
 └── Value/
     ├── ExtraPropertyReaderInterface.php
     ├── ExtraPropertyWriterInterface.php
@@ -336,19 +336,13 @@ All read methods return typed `ExtraPropertyDefinition` value objects. The inter
 
 `ExtraPropertyRegistryInterface` is resolved directly to `ExtraPropertyRegistry` in the DI container — no decorator needed, since cache management lives entirely in `CachedExtraPropertyDefinitionRepository` (the registry's injected definition writer).
 
-### 3.7. ExtraPropertyValidationInterface
+### 3.7. ExtraPropertyValidatorInterface
 
-Located in `src/Core/ExtraProperty/Validation/`. Concrete implementation: `ExtraPropertyValueValidator`.
+Located in `src/Core/ExtraProperty/Validation/`. Concrete implementation: `ExtraPropertyValidator`.
 
 ```php
-interface ExtraPropertyValidationInterface
+interface ExtraPropertyValidatorInterface
 {
-    /** Checks if a value is a valid SQL table/identifier token: 1–64 chars (MySQL identifier limit), [a-zA-Z0-9_-]. */
-    public static function isTableOrIdentifier(string $value): bool;
-
-    /** Checks if a value is a valid module technical name. */
-    public static function isModuleName(string $value): bool;
-
     /**
      * Validates one extra property value against its definition's validator.
      * Returns true on success, or a translated error message string on failure.
@@ -364,7 +358,7 @@ interface ExtraPropertyValidationInterface
 }
 ```
 
-`isTableOrIdentifier()` and `isModuleName()` are `static` so that `ExtraPropertyDefinition` constructor can call them directly without DI injection (value objects cannot receive services). The constructor validates `entityName`, `propertyName` and the computed storage column name with `isTableOrIdentifier()` — this is the safety contract that lets DDL consumers (`ExtraPropertySchemaManager`) embed identifiers from a definition in SQL without re-validating.
+The concrete `ExtraPropertyValidator` additionally exposes two `static` structural helpers — `isTableOrIdentifier()` (valid SQL identifier: 1–64 chars, MySQL identifier limit, `[a-zA-Z0-9_-]`) and `isModuleName()`. They are intentionally NOT part of the interface: statics cannot be called through an injected interface, and their only caller is the `ExtraPropertyDefinition` constructor, which cannot receive services. The constructor validates `entityName`, `propertyName` and the computed storage column name with `isTableOrIdentifier()` — this is the safety contract that lets DDL consumers (`ExtraPropertySchemaManager`) embed identifiers from a definition in SQL without re-validating.
 
 ### 3.8. ExtraPropertySchemaManager
 
@@ -492,8 +486,8 @@ services:
     public: true
 
   # Validation
-  PrestaShop\PrestaShop\Core\ExtraProperty\Validation\ExtraPropertyValidationInterface:
-    alias: 'PrestaShop\PrestaShop\Core\ExtraProperty\Validation\ExtraPropertyValueValidator'
+  PrestaShop\PrestaShop\Core\ExtraProperty\Validation\ExtraPropertyValidatorInterface:
+    alias: 'PrestaShop\PrestaShop\Core\ExtraProperty\Validation\ExtraPropertyValidator'
     public: true
 
   # Reader / Writer

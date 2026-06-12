@@ -17,7 +17,7 @@ use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyDefinition;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyDefinitionCollection;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyDefinitionRepositoryInterface;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyScope;
-use PrestaShop\PrestaShop\Core\ExtraProperty\Validation\ExtraPropertyValidationInterface;
+use PrestaShop\PrestaShop\Core\ExtraProperty\Validation\ExtraPropertyValidatorInterface;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Value\ExtraPropertyReaderInterface;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Value\ExtraPropertyWriterInterface;
 use PrestaShopBundle\Entity\Repository\LangRepository;
@@ -82,7 +82,7 @@ class ExtraPropertiesApiService
         protected readonly RequestStack $requestStack,
         protected readonly ExtraPropertyReaderInterface $reader,
         protected readonly ExtraPropertyWriterInterface $writer,
-        protected readonly ExtraPropertyValidationInterface $validatorAdapter,
+        protected readonly ExtraPropertyValidatorInterface $validatorAdapter,
         protected readonly ShopContext $shopContext,
         protected readonly LangRepository $langRepository,
         protected readonly ?PropertyNameCollectionFactoryInterface $propertyNameCollectionFactory = null,

@@ -10,7 +10,7 @@ declare(strict_types=1);
 namespace PrestaShop\PrestaShop\Core\ExtraProperty\Definition;
 
 use PrestaShop\PrestaShop\Core\ExtraProperty\Exception\InvalidExtraPropertyDefinitionException;
-use PrestaShop\PrestaShop\Core\ExtraProperty\Validation\ExtraPropertyValueValidator;
+use PrestaShop\PrestaShop\Core\ExtraProperty\Validation\ExtraPropertyValidator;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Value\ExtraPropertyValueCaster;
 
 /**
@@ -107,13 +107,13 @@ final class ExtraPropertyDefinition
         protected readonly ?string $descriptionWording = null,
         protected readonly ?string $descriptionDomain = null,
     ) {
-        if (!ExtraPropertyValueValidator::isTableOrIdentifier($entityName)) {
+        if (!ExtraPropertyValidator::isTableOrIdentifier($entityName)) {
             throw new InvalidExtraPropertyDefinitionException(sprintf(
                 'ExtraPropertyDefinition: entityName "%s" must be a valid SQL identifier ([a-zA-Z0-9_-]+).',
                 $entityName
             ));
         }
-        if (!ExtraPropertyValueValidator::isTableOrIdentifier($propertyName)) {
+        if (!ExtraPropertyValidator::isTableOrIdentifier($propertyName)) {
             throw new InvalidExtraPropertyDefinitionException(sprintf(
                 'ExtraPropertyDefinition: propertyName "%s" must be a valid SQL identifier ([a-zA-Z0-9_-]+).',
                 $propertyName
@@ -127,7 +127,7 @@ final class ExtraPropertyDefinition
             : $moduleName;
         $this->moduleName = $resolvedModuleName;
         $this->normalizedModuleKey = $resolvedModuleName ?? self::CORE_MODULE_KEY;
-        if (null !== $resolvedModuleName && !ExtraPropertyValueValidator::isModuleName($resolvedModuleName)) {
+        if (null !== $resolvedModuleName && !ExtraPropertyValidator::isModuleName($resolvedModuleName)) {
             throw new InvalidExtraPropertyDefinitionException(sprintf(
                 'ExtraPropertyDefinition: moduleName "%s" is not a valid PrestaShop module name.',
                 $moduleName
@@ -139,7 +139,7 @@ final class ExtraPropertyDefinition
         // This is the safety contract DDL consumers (ExtraPropertySchemaManager) rely on:
         // any identifier coming from a constructed definition is safe to embed in SQL.
         $storageColumn = self::buildStorageColumnName($resolvedModuleName, $propertyName);
-        if (!ExtraPropertyValueValidator::isTableOrIdentifier($storageColumn)) {
+        if (!ExtraPropertyValidator::isTableOrIdentifier($storageColumn)) {
             throw new InvalidExtraPropertyDefinitionException(sprintf(
                 'ExtraPropertyDefinition: computed storage column name "%s" must be a valid SQL identifier (1–64 characters).',
                 $storageColumn

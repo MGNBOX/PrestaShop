@@ -43,7 +43,7 @@ services:
       $repository: '@PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyDefinitionRepositoryInterface'
       $reader: '@PrestaShop\PrestaShop\Core\ExtraProperty\Value\ExtraPropertyReaderInterface'
       $translator: '@translator'
-      $validatorAdapter: '@PrestaShop\PrestaShop\Core\ExtraProperty\Validation\ExtraPropertyValidationInterface'
+      $validatorAdapter: '@PrestaShop\PrestaShop\Core\ExtraProperty\Validation\ExtraPropertyValidatorInterface'
       $shopContext: '@PrestaShop\PrestaShop\Core\Context\ShopContext'
       $formBuilderModifier: '@PrestaShopBundle\Form\FormBuilderModifier'
 
@@ -61,7 +61,7 @@ services:
       $requestStack: '@request_stack'
       $reader: '@PrestaShop\PrestaShop\Core\ExtraProperty\Value\ExtraPropertyReaderInterface'
       $writer: '@PrestaShop\PrestaShop\Core\ExtraProperty\Value\ExtraPropertyWriterInterface'
-      $validatorAdapter: '@PrestaShop\PrestaShop\Core\ExtraProperty\Validation\ExtraPropertyValidationInterface'
+      $validatorAdapter: '@PrestaShop\PrestaShop\Core\ExtraProperty\Validation\ExtraPropertyValidatorInterface'
       $shopContext: '@PrestaShop\PrestaShop\Core\Context\ShopContext'
       $langRepository: '@PrestaShopBundle\Entity\Repository\LangRepository'
       $propertyNameCollectionFactory: '@?api_platform.metadata.property_name_collection_factory'

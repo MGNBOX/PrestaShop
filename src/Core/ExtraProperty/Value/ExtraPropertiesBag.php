@@ -13,7 +13,7 @@ use ArrayIterator;
 use Closure;
 use IteratorAggregate;
 use JsonSerializable;
-use ObjectModel;
+use ObjectModelCore;
 use PrestaShop\PrestaShop\Core\Domain\Shop\ValueObject\ShopConstraint;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyDefinitionRepositoryInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -51,7 +51,10 @@ final class ExtraPropertiesBag implements ArrayAccess, IteratorAggregate, JsonSe
      * never throws, and any invalid state resolves to an empty bag on first access.
      *
      * @param ContainerInterface|null $container Null = no-op bag (container unavailable)
-     * @param class-string<ObjectModel> $objectModelClassName
+     * @param class-string<ObjectModelCore> $objectModelClassName ObjectModelCore is the most-base
+     *                                                            class common to all object models
+     *                                                            (ObjectModel is generated dynamically
+     *                                                            by the class override mechanism)
      * @param int $entityId Entity row id; <= 0 = no-op bag (not persisted yet)
      * @param int|null $langId Null fetches all languages (lang-keyed arrays), as used by ObjectModel/BO
      * @param ShopConstraint $shopConstraint Shop context — determines which row to read
@@ -67,11 +70,11 @@ final class ExtraPropertiesBag implements ArrayAccess, IteratorAggregate, JsonSe
         bool $forFrontOffice = true,
     ): self {
         return new self(static function () use ($container, $objectModelClassName, $entityId, $langId, $shopConstraint, $forFrontOffice): array {
-            if (null === $container || $entityId <= 0 || !is_subclass_of($objectModelClassName, ObjectModel::class)) {
+            if (null === $container || $entityId <= 0 || !is_subclass_of($objectModelClassName, ObjectModelCore::class)) {
                 return [];
             }
 
-            $def = ObjectModel::getDefinition($objectModelClassName);
+            $def = ObjectModelCore::getDefinition($objectModelClassName);
             if (!is_array($def) || empty($def['table']) || empty($def['primary'])) {
                 return [];
             }
@@ -101,7 +104,7 @@ final class ExtraPropertiesBag implements ArrayAccess, IteratorAggregate, JsonSe
                 $entityId,
                 $langId,
                 $shopConstraint,
-                ObjectModel::isClassLangMultishop($objectModelClassName),
+                ObjectModelCore::isClassLangMultishop($objectModelClassName),
                 $definitions
             );
         });

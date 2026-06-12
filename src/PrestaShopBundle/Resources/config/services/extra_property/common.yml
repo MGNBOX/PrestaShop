@@ -35,10 +35,10 @@ services:
 
   # ─── Validation ──────────────────────────────────────────────────────────────
 
-  PrestaShop\PrestaShop\Core\ExtraProperty\Validation\ExtraPropertyValueValidator: ~
+  PrestaShop\PrestaShop\Core\ExtraProperty\Validation\ExtraPropertyValidator: ~
 
-  PrestaShop\PrestaShop\Core\ExtraProperty\Validation\ExtraPropertyValidationInterface:
-    alias: 'PrestaShop\PrestaShop\Core\ExtraProperty\Validation\ExtraPropertyValueValidator'
+  PrestaShop\PrestaShop\Core\ExtraProperty\Validation\ExtraPropertyValidatorInterface:
+    alias: 'PrestaShop\PrestaShop\Core\ExtraProperty\Validation\ExtraPropertyValidator'
     public: true
 
   # ─── Reader ──────────────────────────────────────────────────────────────────

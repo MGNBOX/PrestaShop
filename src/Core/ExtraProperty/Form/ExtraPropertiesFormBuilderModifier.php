@@ -14,7 +14,7 @@ use PrestaShop\PrestaShop\Core\Context\ShopContext;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyDefinition;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyDefinitionRepositoryInterface;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyScope;
-use PrestaShop\PrestaShop\Core\ExtraProperty\Validation\ExtraPropertyValidationInterface;
+use PrestaShop\PrestaShop\Core\ExtraProperty\Validation\ExtraPropertyValidatorInterface;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Value\ExtraPropertyReaderInterface;
 use PrestaShopBundle\Form\Admin\Type\NavigationTabType;
 use PrestaShopBundle\Form\Admin\Type\TranslatableType;
@@ -52,7 +52,7 @@ class ExtraPropertiesFormBuilderModifier
         protected readonly ExtraPropertyDefinitionRepositoryInterface $repository,
         protected readonly ExtraPropertyReaderInterface $reader,
         protected readonly TranslatorInterface $translator,
-        protected readonly ExtraPropertyValidationInterface $validatorAdapter,
+        protected readonly ExtraPropertyValidatorInterface $validatorAdapter,
         protected readonly ShopContext $shopContext,
         protected readonly FormBuilderModifier $formBuilderModifier,
     ) {

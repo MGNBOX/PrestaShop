@@ -15,26 +15,16 @@ use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyDefinitionC
 /**
  * Validation contract for the ExtraProperty feature.
  *
- * Structural checks (isTableOrIdentifier, isModuleName) are used at registration time.
  * Value validation (validateValue / validate) is used by forms, API, and ObjectModel.
+ * The structural static helpers (isTableOrIdentifier, isModuleName) live only on the
+ * concrete ExtraPropertyValidator: statics cannot be called through an injected
+ * interface, so declaring them here would serve no caller.
  *
- * This interface is kept as a DI alias contract (→ ExtraPropertyValueValidator) so that
- * callers can depend on the interface rather than the concrete class. Merging it into
- * ExtraPropertyValueValidator would remove the indirection without meaningful gain.
+ * This interface is kept as a DI alias contract (→ ExtraPropertyValidator) so that
+ * callers can depend on the interface rather than the concrete class.
  */
-interface ExtraPropertyValidationInterface
+interface ExtraPropertyValidatorInterface
 {
-    /**
-     * Checks if a value is a valid SQL table/identifier token:
-     * 1–64 characters (MySQL identifier limit), [a-zA-Z0-9_-] only.
-     */
-    public static function isTableOrIdentifier(string $value): bool;
-
-    /**
-     * Checks if a value is a valid module technical name.
-     */
-    public static function isModuleName(string $value): bool;
-
     /**
      * Validates one extra property value against its definition's validator.
      *

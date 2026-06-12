@@ -25,7 +25,7 @@ use Validate;
  * the ObjectModel instance and are therefore intentionally skipped by validateValue().
  * ObjectModel-level validation handles those two cases directly.
  */
-class ExtraPropertyValueValidator implements ExtraPropertyValidationInterface
+class ExtraPropertyValidator implements ExtraPropertyValidatorInterface
 {
     public function __construct(
         protected readonly ?TranslatorInterface $translator = null,
@@ -33,7 +33,11 @@ class ExtraPropertyValueValidator implements ExtraPropertyValidationInterface
     }
 
     /**
-     * {@inheritdoc}
+     * Checks if a value is a valid SQL table/identifier token:
+     * 1–64 characters (MySQL identifier limit), [a-zA-Z0-9_-] only.
+     *
+     * Static (not part of the interface): called by the ExtraPropertyDefinition
+     * constructor, which cannot receive injected services.
      */
     public static function isTableOrIdentifier(string $value): bool
     {
@@ -41,7 +45,10 @@ class ExtraPropertyValueValidator implements ExtraPropertyValidationInterface
     }
 
     /**
-     * {@inheritdoc}
+     * Checks if a value is a valid module technical name.
+     *
+     * Static (not part of the interface): called by the ExtraPropertyDefinition
+     * constructor, which cannot receive injected services.
      */
     public static function isModuleName(string $value): bool
     {
