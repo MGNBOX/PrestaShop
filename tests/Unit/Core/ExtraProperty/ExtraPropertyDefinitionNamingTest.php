@@ -148,6 +148,30 @@ class ExtraPropertyDefinitionNamingTest extends TestCase
         ];
     }
 
+    /**
+     * Rule: getPrimaryKeyName() is always 'id_' + the normalized entity name — the
+     * PrestaShop primary key convention, centralized so callers never build it manually.
+     *
+     * @dataProvider primaryKeyNameProvider
+     */
+    public function testGetPrimaryKeyName(string $entityName, string $expected): void
+    {
+        $definition = new ExtraPropertyDefinition(entityName: $entityName, propertyName: 'field');
+
+        $this->assertSame($expected, $definition->getPrimaryKeyName());
+    }
+
+    public static function primaryKeyNameProvider(): array
+    {
+        return [
+            'simple entity' => ['product', 'id_product'],
+            'compound entity' => ['manufacturer_address', 'id_manufacturer_address'],
+            'uppercase entity is normalized first' => ['Product', 'id_product'],
+            'CamelCase entity is tableized first' => ['ProductAttribute', 'id_product_attribute'],
+            'hyphenated entity is normalized first' => ['my-entity', 'id_my_entity'],
+        ];
+    }
+
     public function testCoreModuleKeyConstant(): void
     {
         $this->assertSame('_core', ExtraPropertyDefinition::CORE_MODULE_KEY);

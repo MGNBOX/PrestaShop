@@ -76,7 +76,7 @@ class ExtraPropertiesFormDataPersister
         // lang/shop scopes are handled by the writer.
         $this->writer->writeAll(
             $storageEntityName,
-            'id_' . $storageEntityName,
+            $definitions->first()->getPrimaryKeyName(),
             $entityId,
             $valuesByModule,
             $this->shopContext->getShopConstraint()

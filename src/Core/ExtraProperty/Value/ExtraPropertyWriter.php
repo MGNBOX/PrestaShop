@@ -139,7 +139,7 @@ class ExtraPropertyWriter implements ExtraPropertyWriterInterface
         }
 
         $fullTableName = $this->connection->quoteIdentifier($this->prefix . $definition->getExtraTableName());
-        $quotedPk = $this->connection->quoteIdentifier('id_' . $definition->getEntityName());
+        $quotedPk = $this->connection->quoteIdentifier($definition->getPrimaryKeyName());
         $quotedCol = $this->connection->quoteIdentifier($definition->getStorageColumnName());
 
         if (ExtraPropertyScope::SHOP === $definition->getScope()) {

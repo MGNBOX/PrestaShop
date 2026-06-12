@@ -268,7 +268,12 @@ public function getExtraTableName(): string;
 
 /** Returns the base entity table name: "{entity}_lang" for LANG scope, "{entity}" otherwise */
 public function getBaseTableName(): string;
+
+/** Returns the entity primary key column name: "id_{entity}" (also the FK column of the *_extra tables) */
+public function getPrimaryKeyName(): string;
 ```
+
+`entityName` is normalized to lower snake_case at construction (Doctrine `tableize()`: CamelCase → snake_case, e.g. `ProductAttribute` → `product_attribute`; hyphens → underscores): it is the fragment behind the extra table names and the primary key column, so casing never leaks into SQL identifiers.
 
 **Parsed grid/form entries:**
 

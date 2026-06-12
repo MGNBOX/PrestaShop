@@ -66,7 +66,7 @@ class ExtraPropertiesGridQueryBuilderModifier
         }
 
         $entityName = $definitions->first()->getEntityName();
-        $primaryKey = 'id_' . $entityName;
+        $primaryKey = $definitions->first()->getPrimaryKeyName();
 
         // Resolve the main table alias in EACH builder: filters apply to both builders, so
         // when either one cannot take the joins the whole scope is skipped for both

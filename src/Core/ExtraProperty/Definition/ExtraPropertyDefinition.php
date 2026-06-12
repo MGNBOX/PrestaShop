@@ -12,6 +12,7 @@ namespace PrestaShop\PrestaShop\Core\ExtraProperty\Definition;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Exception\InvalidExtraPropertyDefinitionException;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Validation\ExtraPropertyValidator;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Value\ExtraPropertyValueCaster;
+use PrestaShop\PrestaShop\Core\Util\Inflector;
 
 /**
  * Immutable value object representing an extra property definition.
@@ -58,7 +59,14 @@ final class ExtraPropertyDefinition
     protected readonly string $normalizedModuleKey;
 
     /**
-     * @param string $entityName Entity table name (e.g. 'product'). Required — must be non-empty.
+     * Entity table name, normalized to lower snake_case at construction: it is a SQL
+     * table name fragment ({entity}_extra tables) and the base of the primary key
+     * column name (id_{entity}), so casing/hyphens never leak into identifiers.
+     */
+    protected readonly string $entityName;
+
+    /**
+     * @param string $entityName Entity table name (e.g. 'product'). Required — must be non-empty. Normalized to lower snake_case at construction.
      * @param string $propertyName Property name as declared by the module (e.g. 'video_link'). Required.
      * @param ExtraPropertyType $type Field storage type. Determines the SQL column type via ColumnDefinitionMapper.
      * @param ExtraPropertyScope $scope Storage scope: COMMON (entity-level), LANG (per-language), SHOP (per-shop)
@@ -84,7 +92,7 @@ final class ExtraPropertyDefinition
      * @throws InvalidExtraPropertyDefinitionException when entityName or propertyName is empty or not a valid SQL identifier, when associatedForms/associatedGrids have invalid format or duplicates, when labelWording is missing despite being required, or when the computed storage column name exceeds 64 characters
      */
     public function __construct(
-        protected readonly string $entityName,
+        string $entityName,
         protected readonly string $propertyName,
         protected readonly ExtraPropertyType $type = ExtraPropertyType::STRING,
         protected readonly ExtraPropertyScope $scope = ExtraPropertyScope::COMMON,
@@ -107,12 +115,18 @@ final class ExtraPropertyDefinition
         protected readonly ?string $descriptionWording = null,
         protected readonly ?string $descriptionDomain = null,
     ) {
-        if (!ExtraPropertyValidator::isTableOrIdentifier($entityName)) {
+        // Entity names are SQL identifier fragments (tables + primary key column):
+        // normalize to lower snake_case before validating and storing — tableize()
+        // converts CamelCase (ProductAttribute → product_attribute), then hyphens
+        // become underscores.
+        $normalizedEntityName = str_replace('-', '_', Inflector::getInflector()->tableize($entityName));
+        if (!ExtraPropertyValidator::isTableOrIdentifier($normalizedEntityName)) {
             throw new InvalidExtraPropertyDefinitionException(sprintf(
                 'ExtraPropertyDefinition: entityName "%s" must be a valid SQL identifier ([a-zA-Z0-9_-]+).',
                 $entityName
             ));
         }
+        $this->entityName = $normalizedEntityName;
         if (!ExtraPropertyValidator::isTableOrIdentifier($propertyName)) {
             throw new InvalidExtraPropertyDefinitionException(sprintf(
                 'ExtraPropertyDefinition: propertyName "%s" must be a valid SQL identifier ([a-zA-Z0-9_-]+).',
@@ -299,9 +313,22 @@ final class ExtraPropertyDefinition
     // Getters
     // -------------------------------------------------------------------------
 
+    /**
+     * Entity table name — always lower snake_case (normalized at construction).
+     */
     public function getEntityName(): string
     {
         return $this->entityName;
+    }
+
+    /**
+     * Returns the primary key column name of the entity ('id_' + entityName) — also the
+     * FK column of the *_extra tables. Centralizes the PrestaShop naming convention so
+     * callers holding a definition never build it manually.
+     */
+    public function getPrimaryKeyName(): string
+    {
+        return 'id_' . $this->entityName;
     }
 
     /**

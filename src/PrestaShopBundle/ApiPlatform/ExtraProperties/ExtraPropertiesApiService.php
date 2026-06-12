@@ -313,8 +313,21 @@ class ExtraPropertiesApiService
      */
     protected function loadExtraProperties(string $entityTable, int $entityId): array
     {
+        $definitions = $this->repository->getAllDefinitions()->filterByEntity($entityTable);
+        if ($definitions->isEmpty()) {
+            return [];
+        }
+
         $shopConstraint = $this->shopContext->getShopConstraint();
-        $values = $this->reader->getExtraProperties($entityTable, 'id_' . $entityTable, $entityId, null, $shopConstraint, true);
+        $values = $this->reader->getExtraProperties(
+            $entityTable,
+            $definitions->first()->getPrimaryKeyName(),
+            $entityId,
+            null,
+            $shopConstraint,
+            true,
+            $definitions
+        );
 
         if (empty($values)) {
             return [];
@@ -376,10 +389,12 @@ class ExtraPropertiesApiService
 
         [$mainValuesByModule, $shopValuesByShopId] = $this->buildWritableValues($allDefinitions, $extraPropertiesByModule);
 
+        $primaryKeyName = $allDefinitions->first()->getPrimaryKeyName();
+
         if (!empty($mainValuesByModule)) {
             $this->writer->writeAll(
                 $entityTable,
-                'id_' . $entityTable,
+                $primaryKeyName,
                 $entityId,
                 $mainValuesByModule,
                 $this->shopContext->getShopConstraint()
@@ -389,7 +404,7 @@ class ExtraPropertiesApiService
         foreach ($shopValuesByShopId as $shopId => $valuesByModule) {
             $this->writer->writeAll(
                 $entityTable,
-                'id_' . $entityTable,
+                $primaryKeyName,
                 $entityId,
                 $valuesByModule,
                 ShopConstraint::shop((int) $shopId)

@@ -64,7 +64,7 @@ class ExtraPropertiesGridDefinitionModifier
                 $extraDefinition->getLabelDomain(),
             );
 
-            $column = $this->buildColumn($gridId, $label, $extraDefinition);
+            $column = $this->buildColumn($label, $extraDefinition);
 
             // getGridEntry() returns the already-parsed array — no need to call parseGridEntry().
             $gridEntry = $extraDefinition->getGridEntry($gridId) ?? ['gridId' => $gridId, 'columnId' => null, 'mode' => null];
@@ -91,7 +91,7 @@ class ExtraPropertiesGridDefinitionModifier
         }
     }
 
-    protected function buildColumn(string $gridId, string $label, ExtraPropertyDefinition $definition): ColumnInterface
+    protected function buildColumn(string $label, ExtraPropertyDefinition $definition): ColumnInterface
     {
         // H8: column type is derived from the logical field type, not the form type override.
         $columnId = $definition->getFormFieldName();
@@ -99,7 +99,7 @@ class ExtraPropertiesGridDefinitionModifier
         $fieldName = $definition->getPropertyName();
 
         if (ExtraPropertyType::BOOL === $definition->getType()) {
-            $primaryField = 'id_' . $gridId;
+            $primaryField = $definition->getPrimaryKeyName();
             $entityName = $definition->getEntityName();
 
             return (new ToggleColumn($columnId))

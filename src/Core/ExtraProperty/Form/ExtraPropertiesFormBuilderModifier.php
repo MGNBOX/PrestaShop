@@ -71,10 +71,9 @@ class ExtraPropertiesFormBuilderModifier
 
         $existingValues = null;
         if (null !== $entityId && $entityId > 0) {
-            $storageEntityName = $formDefinitions->first()->getEntityName();
             $existingValues = $this->reader->getExtraProperties(
-                $storageEntityName,
-                'id_' . $storageEntityName,
+                $formDefinitions->first()->getEntityName(),
+                $formDefinitions->first()->getPrimaryKeyName(),
                 $entityId,
                 null,
                 $this->shopContext->getShopConstraint(),

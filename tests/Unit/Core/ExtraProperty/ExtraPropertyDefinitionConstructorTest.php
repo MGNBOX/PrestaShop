@@ -58,11 +58,12 @@ class ExtraPropertyDefinitionConstructorTest extends TestCase
     /**
      * @dataProvider validIdentifierProvider
      */
-    public function testValidIdentifiersAccepted(string $entityName, string $propertyName): void
+    public function testValidIdentifiersAccepted(string $entityName, string $propertyName, string $expectedEntityName): void
     {
         $definition = new ExtraPropertyDefinition(entityName: $entityName, propertyName: $propertyName);
 
-        $this->assertSame($entityName, $definition->getEntityName());
+        // entityName is normalized to lower snake_case at construction; propertyName is kept as-is.
+        $this->assertSame($expectedEntityName, $definition->getEntityName());
         $this->assertSame($propertyName, $definition->getPropertyName());
     }
 
@@ -185,12 +186,13 @@ class ExtraPropertyDefinitionConstructorTest extends TestCase
     public static function validIdentifierProvider(): array
     {
         return [
-            'simple lowercase' => ['product', 'video_link'],
-            'uppercase' => ['Product', 'VideoLink'],
-            'hyphen in entity' => ['my-entity', 'field'],
-            'hyphen in property' => ['product', 'my-field'],
-            'alphanumeric with digits' => ['entity123', 'field456'],
-            'underscore separators' => ['ps_product', 'extra_video_link'],
+            'simple lowercase' => ['product', 'video_link', 'product'],
+            'uppercase entity is lowercased' => ['Product', 'VideoLink', 'product'],
+            'CamelCase entity is tableized' => ['ProductAttribute', 'field', 'product_attribute'],
+            'hyphen in entity becomes underscore' => ['my-entity', 'field', 'my_entity'],
+            'hyphen in property' => ['product', 'my-field', 'product'],
+            'alphanumeric with digits' => ['entity123', 'field456', 'entity123'],
+            'underscore separators' => ['ps_product', 'extra_video_link', 'ps_product'],
         ];
     }
 }
