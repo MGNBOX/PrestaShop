@@ -44,11 +44,25 @@ final class ExtraPropertyDefinition
     public const CORE_MODULE_KEY = '_core';
 
     /**
+     * Owning module technical name. Always null for core fields: '' and the '_core'
+     * sentinel are normalized to null at construction, so getModuleName() needs no
+     * defensive re-normalization by callers.
+     */
+    protected readonly ?string $moduleName;
+
+    /**
+     * Module key used in grouped extra-property arrays (reader output, writer input,
+     * bags, form field names): the module technical name, or '_core' for core fields.
+     * Computed once at construction — the exact counterpart of $moduleName.
+     */
+    protected readonly string $normalizedModuleKey;
+
+    /**
      * @param string $entityName Entity table name (e.g. 'product'). Required — must be non-empty.
      * @param string $propertyName Property name as declared by the module (e.g. 'video_link'). Required.
      * @param ExtraPropertyType $type Field storage type. Determines the SQL column type via ColumnDefinitionMapper.
      * @param ExtraPropertyScope $scope Storage scope: COMMON (entity-level), LANG (per-language), SHOP (per-shop)
-     * @param string|null $moduleName Owning module name. Null = core field. Auto-populated by Module::registerExtraProperty().
+     * @param string|null $moduleName Owning module name. Null = core field ('' and '_core' are normalized to null). Auto-populated by Module::registerExtraProperty().
      * @param list<string>|null $enumValues For CHOICE type: SQL ENUM allowed values. Not persisted — schema creation only.
      * @param scalar|null $defaultValue Adds a DEFAULT clause in DDL. Also persisted in registry.
      * @param bool $nullable Controls NULL vs NOT NULL in DDL. Not persisted — schema creation only.
@@ -74,7 +88,7 @@ final class ExtraPropertyDefinition
         protected readonly string $propertyName,
         protected readonly ExtraPropertyType $type = ExtraPropertyType::STRING,
         protected readonly ExtraPropertyScope $scope = ExtraPropertyScope::COMMON,
-        protected readonly ?string $moduleName = null,
+        ?string $moduleName = null,
         protected readonly ?array $enumValues = null,
         protected readonly int|float|string|bool|null $defaultValue = null,
         protected readonly bool $nullable = true,
@@ -107,9 +121,12 @@ final class ExtraPropertyDefinition
         }
 
         // Non-empty, non-sentinel module names must match PrestaShop module naming rules.
+        // The normalized value is what gets stored: getModuleName() always returns null for core fields.
         $resolvedModuleName = (null === $moduleName || '' === $moduleName || self::CORE_MODULE_KEY === $moduleName)
             ? null
             : $moduleName;
+        $this->moduleName = $resolvedModuleName;
+        $this->normalizedModuleKey = $resolvedModuleName ?? self::CORE_MODULE_KEY;
         if (null !== $resolvedModuleName && !ExtraPropertyValueValidator::isModuleName($resolvedModuleName)) {
             throw new InvalidExtraPropertyDefinitionException(sprintf(
                 'ExtraPropertyDefinition: moduleName "%s" is not a valid PrestaShop module name.',
@@ -216,7 +233,7 @@ final class ExtraPropertyDefinition
             propertyName: (string) ($row['property_name'] ?? ''),
             type: $type,
             scope: ExtraPropertyScope::from((string) ($row['scope'] ?? ExtraPropertyScope::COMMON->value)),
-            moduleName: isset($row['module_name']) && '' !== $row['module_name'] ? (string) $row['module_name'] : null,
+            moduleName: isset($row['module_name']) ? (string) $row['module_name'] : null,
             enumValues: isset($row['enum_values']) && is_array($row['enum_values']) && [] !== $row['enum_values'] ? array_values($row['enum_values']) : null,
             defaultValue: null !== $rawDefaultValue ? ExtraPropertyValueCaster::castScalarFromDb($type, $rawDefaultValue) : null,
             nullable: !array_key_exists('nullable', $row) || (bool) $row['nullable'],
@@ -284,6 +301,9 @@ final class ExtraPropertyDefinition
         return $this->entityName;
     }
 
+    /**
+     * Owning module technical name — always null for core fields (normalized at construction).
+     */
     public function getModuleName(): ?string
     {
         return $this->moduleName;
@@ -460,17 +480,16 @@ final class ExtraPropertyDefinition
      */
     public function getFormFieldName(): string
     {
-        return 'extra_' . $this->scope->value . '_' . self::normalizeModuleKey($this->moduleName) . '_' . $this->propertyName;
+        return 'extra_' . $this->scope->value . '_' . $this->normalizedModuleKey . '_' . $this->propertyName;
     }
 
     /**
-     * Returns the display key for this module in grouped extra-property arrays.
-     *
-     * Maps null to the canonical '_core' key; all other values are returned as-is.
+     * Returns the module key used in grouped extra-property arrays: the module
+     * technical name, or the canonical '_core' key for core fields.
      */
-    public function getDisplayModuleKey(): string
+    public function getNormalizedModuleKey(): string
     {
-        return self::normalizeModuleKey($this->moduleName);
+        return $this->normalizedModuleKey;
     }
 
     /**
@@ -530,14 +549,6 @@ final class ExtraPropertyDefinition
         $normalizedModule = str_replace('-', '_', $moduleName);
 
         return $normalizedModule . '_' . $normalizedProperty;
-    }
-
-    /**
-     * Normalizes a module name for use in identifiers.
-     */
-    private static function normalizeModuleKey(?string $moduleName): string
-    {
-        return (null === $moduleName || '' === $moduleName) ? self::CORE_MODULE_KEY : $moduleName;
     }
 
     /**

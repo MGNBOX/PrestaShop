@@ -84,7 +84,7 @@ CREATE TABLE IF NOT EXISTS `PREFIX_extra_property_definition` (
   `description_wording` varchar(191) DEFAULT NULL,
   `description_domain` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id_extra_property_definition`),
-  UNIQUE KEY `extra_property_definition_unique` (`entity_name`, `module_name`, `property_name`, `scope`),
+  UNIQUE KEY `extra_property_definition_unique` (`entity_name`, `module_name`, `property_name`),
   KEY `entity_name` (`entity_name`, `scope`),
   KEY `module_name` (`module_name`)
 ) ENGINE=ENGINE_TYPE DEFAULT CHARSET=utf8mb4 COLLATION;
@@ -177,8 +177,7 @@ src/Core/ExtraProperty/
 │   ├── ExtraPropertyDefinitionWriterInterface.php    ← write contract (save / delete / deleteByDefinition)
 │   ├── CachedExtraPropertyDefinitionRepository.php  ← read cache decorator + write cache invalidation
 │   ├── ExtraPropertyRegistryInterface.php            ← register / unregister
-│   ├── ExtraPropertyRegistry.php                     ← pure implementation (no cache)
-│   └── CachedExtraPropertyRegistry.php              ← thin pass-through decorator
+│   └── ExtraPropertyRegistry.php                     ← implementation (cache invalidation via the definition writer)
 ├── Exception/
 │   ├── ExtraPropertyException.php                    ← base exception (extends CoreException)
 │   └── InvalidExtraPropertyDefinitionException.php  ← thrown by ExtraPropertyDefinition constructor
@@ -261,8 +260,8 @@ public function getStorageColumnName(): string;
 /** Returns the BO form field name: "extra_{scope}_{module}_{field}" */
 public function getFormFieldName(): string;
 
-/** Returns the display module key: '_core' for null/empty/sentinel, module name otherwise */
-public function getDisplayModuleKey(): string;
+/** Returns the normalized module key: '_core' for core fields, module name otherwise (stored field, computed at construction) */
+public function getNormalizedModuleKey(): string;
 
 /** Returns the extra table name: "{entity}_extra[_lang|_shop]" depending on scope */
 public function getExtraTableName(): string;
@@ -319,7 +318,7 @@ The registry is split into four layers, all in the `Definition/` namespace:
 
 **`ExtraPropertyDefinitionRepositoryInterface`** (read, 2 methods):
 - `getAllDefinitions(): ExtraPropertyDefinitionCollection` — returns **all** definitions; use collection filter helpers to narrow (replaces the former `getDefinitionCollection($entityName)`)
-- `findDefinitionByModuleAndField(string $entityName, ?string $moduleName, string $fieldName, string $fieldScope): ?ExtraPropertyDefinition` — targeted write-path lookup, never cached
+- `findDefinitionByModuleAndField(string $entityName, ?string $moduleName, string $fieldName): ?ExtraPropertyDefinition` — targeted write-path lookup, never cached. No scope parameter: (entity, module, property) is unique across scopes (registry rule + DB unique key)
 
 All read methods return typed `ExtraPropertyDefinition` value objects. The interface is resolved to `CachedExtraPropertyDefinitionRepository` in the DI container.
 
@@ -336,7 +335,7 @@ All read methods return typed `ExtraPropertyDefinition` value objects. The inter
 
 **`CachedExtraPropertyDefinitionRepository`**: unified cache class implementing **both** `ExtraPropertyDefinitionRepositoryInterface` (reads from cache) **and** `ExtraPropertyDefinitionWriterInterface` (delegates writes and invalidates cache). Uses a single `CacheInterface $definitionCache` (filesystem pool). Cache invalidation is triggered by every write (`save`, `delete`, `deleteByDefinition`).
 
-**`CachedExtraPropertyRegistry`**: thin pass-through decorator wrapping `ExtraPropertyRegistry`. No cache logic — cache is fully managed by `CachedExtraPropertyDefinitionRepository`. `ExtraPropertyRegistryInterface` is resolved to this class in the DI container.
+`ExtraPropertyRegistryInterface` is resolved directly to `ExtraPropertyRegistry` in the DI container — no decorator needed, since cache management lives entirely in `CachedExtraPropertyDefinitionRepository` (the registry's injected definition writer).
 
 ### 3.7. ExtraPropertyValidationInterface
 
@@ -409,7 +408,7 @@ public function getExtraProperties(
 - Grid: `filterByGrid($gridId)`
 - Admin API: `filterByApi()`
 
-Return format: `['module_key' => ['field_name' => value]]` where `module_key` is `$definition->getDisplayModuleKey()` (`'_core'` for core fields).
+Return format: `['module_key' => ['field_name' => value]]` where `module_key` is `$definition->getNormalizedModuleKey()` (`'_core'` for core fields).
 
 Lang-scope semantics:
 - `$langId = null` → lang-scope fields returned as `[id_lang => value]` (all languages; BO forms, Admin API)
@@ -423,6 +422,8 @@ Performance: if no definitions exist for the entity, returns `[]` immediately wi
 
 Writes extra property values to `_extra` tables via `INSERT ... ON DUPLICATE KEY UPDATE`.
 
+Callers pass values **grouped the same way the reader returns them** ([moduleKey => [propertyName => value]]); the writer resolves the definitions (via the definition repository) and routes each value to the table matching its registered scope. Scope splitting, storage column resolution and nullable NULL handling are centralized here — no caller pre-splits.
+
 **Interface**: `ExtraPropertyWriterInterface` (`src/Core/ExtraProperty/Value/`)
 
 ```php
@@ -430,10 +431,9 @@ public function writeAll(
     string $entityName,
     string $primaryKeyName,
     int $entityId,
-    array $entityValues,          // ['storageColumn' => value] for common scope
-    array $langValuesByIdLang,    // [idLang => ['storageColumn' => value]]
-    array $shopValues,            // ['storageColumn' => value] for shop scope
+    array $valuesByModule,        // [moduleKey => [propertyName => value]]; lang values: [id_lang => value] or scalar
     ShopConstraint $shopConstraint,
+    ?int $defaultLangId = null,   // lang used for scalar lang values; null skips them
 ): void;
 
 public function toggleExtraProperty(
@@ -520,9 +520,9 @@ services:
   PrestaShop\PrestaShop\Core\ExtraProperty\Schema\ExtraPropertySchemaManagerInterface:
     alias: 'PrestaShop\PrestaShop\Core\ExtraProperty\Schema\ExtraPropertySchemaManager'
 
-  # Registry: pure implementation + thin pass-through decorator
+  # Registry: cache invalidation handled by the injected definition writer
   PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyRegistryInterface:
-    alias: 'PrestaShop\PrestaShop\Core\ExtraProperty\Definition\CachedExtraPropertyRegistry'
+    alias: 'PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyRegistry'
     public: true
 
   # Back-office form services, Admin API service…
@@ -633,16 +633,16 @@ ObjectModel holds a single protected field `$extra_properties` typed as `?ExtraP
 
 **`ExtraPropertiesBag`** (`src/Core/ExtraProperty/Value/ExtraPropertiesBag.php`): lazy-loading grouped bag implementing `ArrayAccess`, `IteratorAggregate`, and `JsonSerializable`. Keys are module names (`'mymodule'`, `'_core'`); values are `ModuleFieldsBag` instances.
 
-**`ModuleFieldsBag`** (`src/Core/ExtraProperty/Value/ModuleFieldsBag.php`): per-module `ArrayAccess` bag. Keys are field names; values are scalars (or `[id_lang => value]` arrays for lang-scoped fields). Tracks its own dirty fields and computes storage column names on `getModifiedValues()`.
+**`ModuleFieldsBag`** (`src/Core/ExtraProperty/Value/ModuleFieldsBag.php`): per-module `ArrayAccess` bag. Keys are field names; values are scalars (or `[id_lang => value]` arrays for lang-scoped fields). Tracks its own dirty fields; `getModifiedValues()` returns them as `[propertyName => value]` (storage columns are resolved inside the writer).
 
 ```php
 $product->extra_properties['mymodule']['video_link']           // read (grouped)
 $product->extra_properties['mymodule']['video_link'] = '...'   // write + mark dirty
 ```
 
-`offsetGet()` on `ExtraPropertiesBag` auto-creates an empty `ModuleFieldsBag` for unknown keys, which makes chained writes work without a prior load. `getModifiedValues()` on the parent bag aggregates flat `[storageColumnName => value]` maps from all module bags.
+`offsetGet()` on `ExtraPropertiesBag` auto-creates an empty `ModuleFieldsBag` for unknown keys, which makes chained writes work without a prior load. `getModifiedValues()` on the parent bag returns the dirty fields grouped `[moduleKey => [propertyName => value]]` — the same shape the reader outputs and the writer accepts.
 
-Persistence via `persistExtraProperties()` (called from `add()`/`update()` after `actionObject*After` hooks): iterates definitions to compute scope routing, then delegates to `ExtraPropertyWriterInterface::writeAll()` with `ShopConstraint` from `Context::getContext()->getShopConstraint()`. Multi-shop persistence iterates `$this->id_shop_list` for shop-scoped fields.
+Persistence via `persistExtraProperties()` (called from `add()`/`update()` after `actionObject*After` hooks): hands the bag's grouped modified values straight to `ExtraPropertyWriterInterface::writeAll()` with the context `ShopConstraint` and `resolveCurrentLangId()` as the scalar-lang fallback — scope routing happens inside the writer.
 
 `$this->id_lang` is passed as the bag `$langId` when the ObjectModel was constructed with a language (lang-scope fields return a scalar for that language — FO pattern), and `null` otherwise (full `[id_lang => value]` arrays — BO/programmatic access, enabling read-modify-save of all languages at once).
 

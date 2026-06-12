@@ -88,18 +88,25 @@ class ExtraPropertyDefinitionNamingTest extends TestCase
     }
 
     /**
-     * @dataProvider displayModuleKeyProvider
+     * Rule: getNormalizedModuleKey() always returns '_core' for core fields and the
+     * module technical name otherwise — computed once at construction.
+     *
+     * @dataProvider normalizedModuleKeyProvider
      */
-    public function testGetDisplayModuleKey(ExtraPropertyDefinition $definition, string $expected): void
+    public function testGetNormalizedModuleKey(ExtraPropertyDefinition $definition, string $expected): void
     {
-        $this->assertSame($expected, $definition->getDisplayModuleKey());
+        $this->assertSame($expected, $definition->getNormalizedModuleKey());
     }
 
-    public static function displayModuleKeyProvider(): array
+    public static function normalizedModuleKeyProvider(): array
     {
         return [
             'null maps to _core' => [
                 new ExtraPropertyDefinition(entityName: 'entity', propertyName: 'field', moduleName: null),
+                ExtraPropertyDefinition::CORE_MODULE_KEY,
+            ],
+            'empty string maps to _core' => [
+                new ExtraPropertyDefinition(entityName: 'entity', propertyName: 'field', moduleName: ''),
                 ExtraPropertyDefinition::CORE_MODULE_KEY,
             ],
             '_core stays _core' => [
@@ -114,6 +121,30 @@ class ExtraPropertyDefinitionNamingTest extends TestCase
                 new ExtraPropertyDefinition(entityName: 'entity', propertyName: 'field', moduleName: 'demomodule'),
                 'demomodule',
             ],
+        ];
+    }
+
+    /**
+     * Rule: getModuleName() always returns null for core fields — '' and the '_core'
+     * sentinel are normalized to null at construction, so callers never need to
+     * re-normalize (getNormalizedModuleKey() is the '_core'-keyed counterpart).
+     *
+     * @dataProvider moduleNameNormalizationProvider
+     */
+    public function testGetModuleNameIsNormalizedAtConstruction(?string $inputModuleName, ?string $expected): void
+    {
+        $definition = new ExtraPropertyDefinition(entityName: 'entity', propertyName: 'field', moduleName: $inputModuleName);
+
+        $this->assertSame($expected, $definition->getModuleName());
+    }
+
+    public static function moduleNameNormalizationProvider(): array
+    {
+        return [
+            'null stays null' => [null, null],
+            'empty string normalized to null' => ['', null],
+            '_core sentinel normalized to null' => [ExtraPropertyDefinition::CORE_MODULE_KEY, null],
+            'module name kept as-is' => ['ps_mymodule', 'ps_mymodule'],
         ];
     }
 

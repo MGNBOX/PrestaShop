@@ -13,7 +13,6 @@ use PrestaShop\PrestaShop\Core\Domain\Notification\Query\GetNotificationLastElem
 use PrestaShop\PrestaShop\Core\Domain\Notification\QueryResult\NotificationsResults;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyDefinition;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyDefinitionRepositoryInterface;
-use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyScope;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Value\ExtraPropertyWriterInterface;
 use PrestaShop\PrestaShop\Core\Grid\Definition\Factory\AbstractGridDefinitionFactory;
 use PrestaShop\PrestaShop\Core\Grid\Definition\Factory\FilterableGridDefinitionFactoryInterface;
@@ -92,7 +91,6 @@ class CommonController extends PrestaShopAdminController
      * @param int $entityId
      * @param string $moduleName normalized module name, can be "_core" for core properties
      * @param string $propertyName
-     * @param string $scope Supported scopes: "entity" and "shop"
      * @param int $shopId Shop context for shop-scoped properties (ignored for entity scope)
      */
     #[AdminSecurity("is_granted('ROLE_EMPLOYEE')")]
@@ -101,7 +99,6 @@ class CommonController extends PrestaShopAdminController
         int $entityId,
         string $moduleName,
         string $propertyName,
-        string $scope,
         int $shopId = 0,
     ): JsonResponse {
         // Derive the legacy controller from the entityName URL path param (trusted, non-forgeable).
@@ -114,21 +111,14 @@ class CommonController extends PrestaShopAdminController
             ], 403);
         }
 
-        $scopeEnum = ExtraPropertyScope::tryFrom($scope);
-        if (null === $scopeEnum) {
-            return new JsonResponse([
-                'status' => false,
-                'message' => $this->trans('Field not found.', [], 'Admin.Notifications.Error'),
-            ], 404);
-        }
-
         /** @var ExtraPropertyDefinitionRepositoryInterface $repository */
         $repository = $this->container->get(ExtraPropertyDefinitionRepositoryInterface::class);
 
         // '_core' is the display sentinel for core properties; the DB stores null.
         $resolvedModuleName = ExtraPropertyDefinition::CORE_MODULE_KEY === $moduleName ? null : $moduleName;
 
-        $matched = $repository->findDefinitionByModuleAndField($entityName, $resolvedModuleName, $propertyName, $scopeEnum->value);
+        // (entity, module, property) is unique across scopes — the definition carries its own scope.
+        $matched = $repository->findDefinitionByModuleAndField($entityName, $resolvedModuleName, $propertyName);
         if (null === $matched) {
             return new JsonResponse([
                 'status' => false,

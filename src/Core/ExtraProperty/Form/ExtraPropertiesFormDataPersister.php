@@ -11,7 +11,6 @@ namespace PrestaShop\PrestaShop\Core\ExtraProperty\Form;
 
 use PrestaShop\PrestaShop\Core\Context\ShopContext;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyDefinitionRepositoryInterface;
-use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyScope;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Value\ExtraPropertyValueCaster;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Value\ExtraPropertyWriterInterface;
 use PrestaShopBundle\Form\Admin\Type\NavigationTabType;
@@ -23,7 +22,7 @@ use Symfony\Component\Form\ResolvedFormTypeInterface;
  *
  * Strategy:
  * - Read submitted values from form fields (unmapped) based on definitions.
- * - Collect all three scope payloads (common, lang, shop) from the form.
+ * - Group them by module/property — scope routing happens inside the writer.
  * - Write directly via ExtraPropertyWriterInterface.
  */
 class ExtraPropertiesFormDataPersister
@@ -46,18 +45,11 @@ class ExtraPropertiesFormDataPersister
             return;
         }
 
-        $shopConstraint = $this->shopContext->getShopConstraint();
-        $hasShop = $shopConstraint->isSingleShopContext();
-
         $storageEntityName = $definitions->first()->getEntityName();
 
-        $entityValues = [];
-        $langValuesByIdLang = [];
-        $shopValues = [];
+        $valuesByModule = [];
 
         foreach ($definitions as $definition) {
-            $columnName = $definition->getStorageColumnName();
-
             // getFormEntry() returns the already-parsed array — no need to re-parse.
             $formEntry = $definition->getFormEntry($entityName);
             $targetPath = $formEntry['path'] ?? '';
@@ -77,36 +69,17 @@ class ExtraPropertiesFormDataPersister
             $submittedValue = $targetForm->get($formFieldName)->getData();
             $submittedValue = ExtraPropertyValueCaster::castForDb($definition, $submittedValue);
 
-            $scope = $definition->getScope();
-            if (ExtraPropertyScope::LANG === $scope) {
-                if (!is_array($submittedValue) || !$hasShop) {
-                    continue;
-                }
-                foreach ($submittedValue as $idLang => $value) {
-                    $idLang = (int) $idLang;
-                    if ($idLang <= 0) {
-                        continue;
-                    }
-                    $langValuesByIdLang[$idLang][$columnName] = $value;
-                }
-            } elseif (ExtraPropertyScope::SHOP === $scope) {
-                if (!$hasShop) {
-                    continue;
-                }
-                $shopValues[$columnName] = $submittedValue;
-            } else {
-                $entityValues[$columnName] = $submittedValue;
-            }
+            $valuesByModule[$definition->getNormalizedModuleKey()][$definition->getPropertyName()] = $submittedValue;
         }
 
+        // Scope routing, storage column resolution and single-shop guards for
+        // lang/shop scopes are handled by the writer.
         $this->writer->writeAll(
             $storageEntityName,
             'id_' . $storageEntityName,
             $entityId,
-            $entityValues,
-            $langValuesByIdLang,
-            $shopValues,
-            $shopConstraint
+            $valuesByModule,
+            $this->shopContext->getShopConstraint()
         );
     }
 

@@ -31,13 +31,8 @@ services:
       $validator: '@PrestaShop\PrestaShop\Core\ExtraProperty\Validation\ExtraPropertyValidationInterface'
       $logger: '@logger'
 
-  # Thin pass-through decorator kept for future extensibility.
-  PrestaShop\PrestaShop\Core\ExtraProperty\Definition\CachedExtraPropertyRegistry:
-    arguments:
-      $inner: '@PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyRegistry'
-
   PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyRegistryInterface:
-    alias: 'PrestaShop\PrestaShop\Core\ExtraProperty\Definition\CachedExtraPropertyRegistry'
+    alias: 'PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyRegistry'
     public: true
 
   PrestaShop\PrestaShop\Core\ExtraProperty\Value\ExtraPropertyValueCaster: ~

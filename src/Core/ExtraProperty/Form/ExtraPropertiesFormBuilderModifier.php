@@ -96,7 +96,7 @@ class ExtraPropertiesFormBuilderModifier
 
             if (null !== $existingValues) {
                 // The reader returns typed values (ExtraPropertyValueCaster applied on read).
-                $typeOptions['data'] = $this->resolveExistingValue($existingValues, $definition->getDisplayModuleKey(), $fieldName, $definition->getScope());
+                $typeOptions['data'] = $this->resolveExistingValue($existingValues, $definition->getNormalizedModuleKey(), $fieldName, $definition->getScope());
             }
 
             if (null === $formEntryPath) {

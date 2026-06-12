@@ -59,6 +59,7 @@ services:
     arguments:
       $connection: '@doctrine.dbal.default_connection'
       $prefix: '%database_prefix%'
+      $definitionRepository: '@PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyDefinitionRepositoryInterface'
 
   PrestaShop\PrestaShop\Core\ExtraProperty\Value\ExtraPropertyWriterInterface:
     alias: 'PrestaShop\PrestaShop\Core\ExtraProperty\Value\ExtraPropertyWriter'

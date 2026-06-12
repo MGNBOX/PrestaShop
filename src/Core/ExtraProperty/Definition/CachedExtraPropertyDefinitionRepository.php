@@ -63,9 +63,9 @@ class CachedExtraPropertyDefinitionRepository implements ExtraPropertyDefinition
      *
      * Not cached: targeted write-path lookup that must always reflect current DB state.
      */
-    public function findDefinitionByModuleAndField(string $entityName, ?string $moduleName, string $fieldName, string $fieldScope): ?ExtraPropertyDefinition
+    public function findDefinitionByModuleAndField(string $entityName, ?string $moduleName, string $fieldName): ?ExtraPropertyDefinition
     {
-        return $this->repository->findDefinitionByModuleAndField($entityName, $moduleName, $fieldName, $fieldScope);
+        return $this->repository->findDefinitionByModuleAndField($entityName, $moduleName, $fieldName);
     }
 
     // -------------------------------------------------------------------------

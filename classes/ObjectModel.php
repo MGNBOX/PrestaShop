@@ -2283,11 +2283,10 @@ abstract class ObjectModelCore implements PrestaShop\PrestaShop\Core\Foundation\
      * Persists runtime extra properties into dedicated *_extra tables.
      *
      * Uses ExtraPropertyWriterInterface via ContainerFinder (Symfony service,
-     * available in both FO and BO contexts via common.yml).
-     *
-     * Null handling follows the definition's nullable flag (deduced from the storage
-     * column schema by the definition repository): NULL is persisted as-is for nullable
-     * fields, and skipped for NOT NULL columns (the SQL default applies on first insert).
+     * available in both FO and BO contexts via common.yml). The bag's modified
+     * values are passed grouped by module — scope routing, storage column
+     * resolution and nullable NULL handling all happen inside the writer.
+     * Lang-scoped scalar values are written for resolveCurrentLangId().
      *
      * @return bool
      */
@@ -2308,51 +2307,6 @@ abstract class ObjectModelCore implements PrestaShop\PrestaShop\Core\Foundation\
             return true;
         }
 
-        $modifiedValues = $bag->getModifiedValues();
-        $entityValues = [];
-        $langValuesByIdLang = [];
-        $shopValues = [];
-
-        foreach ($collection as $definition) {
-            $fieldScope = $definition->getScope()->value;
-            $columnName = $definition->getStorageColumnName();
-            if (!array_key_exists($columnName, $modifiedValues)) {
-                continue;
-            }
-            $value = $modifiedValues[$columnName];
-            $isNullable = $definition->isNullable();
-            // NULL is a legitimate value for nullable columns; for NOT NULL columns it is
-            // skipped so the SQL default applies on first insert.
-            if (null === $value && !$isNullable) {
-                continue;
-            }
-
-            if ('lang' === $fieldScope) {
-                // B5: accept [id_lang => value] arrays (multi-lang) or scalar (current lang only).
-                if (is_array($value)) {
-                    foreach ($value as $langId => $langVal) {
-                        if ((int) $langId <= 0 || (null === $langVal && !$isNullable)) {
-                            continue;
-                        }
-                        $langValuesByIdLang[(int) $langId][$columnName] = $langVal;
-                    }
-                } else {
-                    $langId = $this->resolveCurrentLangId();
-                    if ($langId > 0) {
-                        $langValuesByIdLang[$langId][$columnName] = $value;
-                    }
-                }
-            } elseif ('shop' === $fieldScope) {
-                $shopValues[$columnName] = $value;
-            } else {
-                $entityValues[$columnName] = $value;
-            }
-        }
-
-        if (empty($entityValues) && empty($langValuesByIdLang) && empty($shopValues)) {
-            return true;
-        }
-
         /** @var ExtraPropertyWriterInterface $writer|null */
         $writer = self::findService(ExtraPropertyWriterInterface::class);
         if (!$writer) {
@@ -2364,10 +2318,9 @@ abstract class ObjectModelCore implements PrestaShop\PrestaShop\Core\Foundation\
                 $this->def['table'],
                 $this->def['primary'],
                 (int) $this->id,
-                $entityValues,
-                $langValuesByIdLang,
-                $shopValues,
-                Context::getContext()->getShopConstraint()
+                $bag->getModifiedValues(),
+                Context::getContext()->getShopConstraint(),
+                $this->resolveCurrentLangId() ?: null
             );
         } catch (Throwable) {
             return false;

@@ -200,7 +200,7 @@ class ExtraPropertiesApiService
                 continue;
             }
 
-            $moduleName = $def->getDisplayModuleKey();
+            $moduleName = $def->getNormalizedModuleKey();
             $fieldName = $def->getPropertyName();
 
             if ('' === $fieldName || !isset($extraPropertiesByModule[$moduleName]) || !array_key_exists($fieldName, $extraPropertiesByModule[$moduleName])) {
@@ -339,7 +339,7 @@ class ExtraPropertiesApiService
         // Keep only fields flagged display_api = 1.
         $whitelist = [];
         foreach ($this->repository->getAllDefinitions()->filterByEntity($entityTable)->filterByApi() as $def) {
-            $whitelist[$def->getDisplayModuleKey()][$def->getPropertyName()] = true;
+            $whitelist[$def->getNormalizedModuleKey()][$def->getPropertyName()] = true;
         }
         foreach ($result as $moduleKey => $fields) {
             foreach (array_keys($fields) as $fieldName) {
@@ -358,6 +358,11 @@ class ExtraPropertiesApiService
     /**
      * Persists extra properties for all three scopes via the writer.
      *
+     * The payload is already grouped by module/property — the same shape the writer
+     * accepts — so this method only filters API-writable definitions, converts lang
+     * locale keys to id_lang, and isolates shop-scoped values per shop id. Scope
+     * routing and storage column resolution happen inside the writer.
+     *
      * @param string $entityTable Entity storage table (e.g. 'product')
      * @param int $entityId Entity primary key value
      * @param array<string, array<string, mixed>> $extraPropertiesByModule Grouped by module name
@@ -369,166 +374,88 @@ class ExtraPropertiesApiService
             return;
         }
 
-        $entityValues = $this->buildEntityScopeValues($allDefinitions, $extraPropertiesByModule);
-        $langValuesByIdLang = $this->buildLangScopeValues($allDefinitions, $extraPropertiesByModule);
-        $shopValuesByShopId = $this->buildShopScopeValues($allDefinitions, $extraPropertiesByModule);
+        [$mainValuesByModule, $shopValuesByShopId] = $this->buildWritableValues($allDefinitions, $extraPropertiesByModule);
 
-        if (empty($entityValues) && empty($langValuesByIdLang) && empty($shopValuesByShopId)) {
-            return;
-        }
-
-        $shopConstraint = $this->shopContext->getShopConstraint();
-
-        if (!empty($entityValues) || !empty($langValuesByIdLang)) {
+        if (!empty($mainValuesByModule)) {
             $this->writer->writeAll(
                 $entityTable,
                 'id_' . $entityTable,
                 $entityId,
-                $entityValues,
-                $langValuesByIdLang,
-                [],
-                $shopConstraint
+                $mainValuesByModule,
+                $this->shopContext->getShopConstraint()
             );
         }
 
-        foreach ($shopValuesByShopId as $shopId => $shopValues) {
-            if (empty($shopValues)) {
-                continue;
-            }
+        foreach ($shopValuesByShopId as $shopId => $valuesByModule) {
             $this->writer->writeAll(
                 $entityTable,
                 'id_' . $entityTable,
                 $entityId,
-                [],
-                [],
-                $shopValues,
+                $valuesByModule,
                 ShopConstraint::shop((int) $shopId)
             );
         }
     }
 
     /**
-     * Builds the common-scope column values from the module-keyed payload.
+     * Splits the API payload into the main grouped write (common + lang values, with
+     * locale keys converted to id_lang) and per-shop grouped writes (shop-scoped values
+     * are arrays keyed by shop id in the payload).
      *
-     * Only definitions flagged display_api = 1 and scope 'common' are included.
+     * Only definitions flagged display_api = 1 are writable.
      *
      * @param ExtraPropertyDefinitionCollection $allDefinitions
      * @param array<string, array<string, mixed>> $extraPropertiesByModule
      *
-     * @return array<string, mixed> [storage_column => value]
+     * @return array{0: array<string, array<string, mixed>>, 1: array<int, array<string, array<string, mixed>>>}
      */
-    protected function buildEntityScopeValues(ExtraPropertyDefinitionCollection $allDefinitions, array $extraPropertiesByModule): array
+    protected function buildWritableValues(ExtraPropertyDefinitionCollection $allDefinitions, array $extraPropertiesByModule): array
     {
-        $columnValues = [];
+        $localeToIdLangMap = null;
+        $mainValuesByModule = [];
+        $shopValuesByShopId = [];
+
         foreach ($allDefinitions as $def) {
-            if (ExtraPropertyScope::COMMON !== $def->getScope() || !$def->isDisplayApi()) {
+            if (!$def->isDisplayApi()) {
                 continue;
             }
 
-            $moduleName = $def->getDisplayModuleKey();
+            $moduleName = $def->getNormalizedModuleKey();
             $fieldName = $def->getPropertyName();
-
-            if ('' === $fieldName) {
+            if ('' === $fieldName || !isset($extraPropertiesByModule[$moduleName][$fieldName])) {
                 continue;
             }
 
-            if (!isset($extraPropertiesByModule[$moduleName][$fieldName])) {
-                continue;
-            }
+            $value = $extraPropertiesByModule[$moduleName][$fieldName];
 
-            $storageColumn = $def->getStorageColumnName();
-            $columnValues[$storageColumn] = $extraPropertiesByModule[$moduleName][$fieldName];
-        }
-
-        return $columnValues;
-    }
-
-    /**
-     * Builds the lang-scope column values from the module-keyed payload.
-     *
-     * Locale strings (e.g. "fr-FR") in the payload are resolved to id_lang (int).
-     * Only definitions flagged display_api = 1 and scope 'lang' are included.
-     *
-     * @param ExtraPropertyDefinitionCollection $allDefinitions
-     * @param array<string, array<string, mixed>> $extraPropertiesByModule
-     *
-     * @return array<int, array<string, mixed>> [id_lang => [storage_column => value]]
-     */
-    protected function buildLangScopeValues(ExtraPropertyDefinitionCollection $allDefinitions, array $extraPropertiesByModule): array
-    {
-        $columnToPropertyMap = $this->buildColumnPropertyMap($allDefinitions, ExtraPropertyScope::LANG);
-        if (empty($columnToPropertyMap)) {
-            return [];
-        }
-
-        // Collect all (locale → column → value) entries from the payload
-        $localeColumnValues = [];
-        foreach ($columnToPropertyMap as $columnName => $propertyPath) {
-            $moduleName = $propertyPath['module_name'];
-            $fieldName = $propertyPath['property_name'];
-
-            $fieldValue = $extraPropertiesByModule[$moduleName][$fieldName] ?? null;
-            if (!is_array($fieldValue)) {
-                continue;
-            }
-
-            foreach ($fieldValue as $locale => $value) {
-                $localeColumnValues[(string) $locale][$columnName] = $value;
+            if (ExtraPropertyScope::LANG === $def->getScope()) {
+                if (!is_array($value)) {
+                    continue;
+                }
+                $localeToIdLangMap ??= array_flip($this->fetchLangIdLocaleMap());
+                $valueByIdLang = [];
+                foreach ($value as $locale => $langValue) {
+                    $idLang = $localeToIdLangMap[(string) $locale] ?? null;
+                    if (null !== $idLang) {
+                        $valueByIdLang[(int) $idLang] = $langValue;
+                    }
+                }
+                if ([] !== $valueByIdLang) {
+                    $mainValuesByModule[$moduleName][$fieldName] = $valueByIdLang;
+                }
+            } elseif (ExtraPropertyScope::SHOP === $def->getScope()) {
+                if (!is_array($value)) {
+                    continue;
+                }
+                foreach ($value as $shopId => $shopValue) {
+                    $shopValuesByShopId[(int) $shopId][$moduleName][$fieldName] = $shopValue;
+                }
+            } else {
+                $mainValuesByModule[$moduleName][$fieldName] = $value;
             }
         }
 
-        if (empty($localeColumnValues)) {
-            return [];
-        }
-
-        $localeToIdLangMap = array_flip($this->fetchLangIdLocaleMap());
-
-        $langValuesByIdLang = [];
-        foreach ($localeColumnValues as $locale => $columnValues) {
-            $idLang = $localeToIdLangMap[$locale] ?? null;
-            if (null === $idLang) {
-                continue;
-            }
-            $langValuesByIdLang[(int) $idLang] = $columnValues;
-        }
-
-        return $langValuesByIdLang;
-    }
-
-    /**
-     * Builds the shop-scope column values from the module-keyed payload.
-     *
-     * Shop IDs (integer keys) in the payload are preserved as-is.
-     * Only definitions flagged display_api = 1 and scope 'shop' are included.
-     *
-     * @param ExtraPropertyDefinitionCollection $allDefinitions
-     * @param array<string, array<string, mixed>> $extraPropertiesByModule
-     *
-     * @return array<int, array<string, mixed>> [id_shop => [storage_column => value]]
-     */
-    protected function buildShopScopeValues(ExtraPropertyDefinitionCollection $allDefinitions, array $extraPropertiesByModule): array
-    {
-        $columnToPropertyMap = $this->buildColumnPropertyMap($allDefinitions, ExtraPropertyScope::SHOP);
-        if (empty($columnToPropertyMap)) {
-            return [];
-        }
-
-        $shopColumnValues = [];
-        foreach ($columnToPropertyMap as $columnName => $propertyPath) {
-            $moduleName = $propertyPath['module_name'];
-            $fieldName = $propertyPath['property_name'];
-
-            $fieldValue = $extraPropertiesByModule[$moduleName][$fieldName] ?? null;
-            if (!is_array($fieldValue)) {
-                continue;
-            }
-
-            foreach ($fieldValue as $shopId => $value) {
-                $shopColumnValues[(int) $shopId][$columnName] = $value;
-            }
-        }
-
-        return $shopColumnValues;
+        return [$mainValuesByModule, $shopValuesByShopId];
     }
 
     /**
@@ -577,37 +504,6 @@ class ExtraPropertiesApiService
     }
 
     /**
-     * Builds a storage-column → property-path map for a given scope, filtered to display_api=1.
-     *
-     * @param ExtraPropertyDefinitionCollection $allDefinitions All repository definitions for the entity
-     * @param ExtraPropertyScope $scope Scope to filter by
-     *
-     * @return array<string, array{module_name: string, property_name: string}>
-     */
-    private function buildColumnPropertyMap(ExtraPropertyDefinitionCollection $allDefinitions, ExtraPropertyScope $scope): array
-    {
-        $map = [];
-        foreach ($allDefinitions as $def) {
-            if ($def->getScope() !== $scope || !$def->isDisplayApi()) {
-                continue;
-            }
-
-            $fieldName = $def->getPropertyName();
-            if ('' === $fieldName) {
-                continue;
-            }
-
-            $storageColumn = $def->getStorageColumnName();
-            $map[$storageColumn] = [
-                'module_name' => $def->getDisplayModuleKey(),
-                'property_name' => $fieldName,
-            ];
-        }
-
-        return $map;
-    }
-
-    /**
      * Returns a module-keyed set of field names that are shop-scoped and API-exposed.
      *
      * Used by R8 (flatten shop-scoped values in single-shop context).
@@ -629,7 +525,7 @@ class ExtraPropertiesApiService
                 continue;
             }
 
-            $moduleKey = $def->getDisplayModuleKey();
+            $moduleKey = $def->getNormalizedModuleKey();
             $shopFields[$moduleKey][$fieldName] = true;
         }
 
@@ -660,7 +556,7 @@ class ExtraPropertiesApiService
                 continue;
             }
 
-            $moduleKey = $def->getDisplayModuleKey();
+            $moduleKey = $def->getNormalizedModuleKey();
             $langFields[$moduleKey][$fieldName] = true;
         }
 

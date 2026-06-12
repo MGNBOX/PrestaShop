@@ -90,23 +90,28 @@ class ExtraPropertyValueValidator implements ExtraPropertyValidationInterface
     /**
      * Validates a set of extra property values against a list of definitions.
      *
-     * Values use the flat storage-column format: ['module_field' => value_or_lang_array].
+     * Values are grouped by module then property name, like the reader output and the
+     * writer input: [moduleKey => [propertyName => value_or_lang_array]].
      * Returns true on success, or the first error message string on failure.
      *
-     * @param array<string, mixed> $flatValues column_name => value
+     * @param array<string, array<string, mixed>> $valuesByModule [moduleKey => [propertyName => value]]
      * @param ExtraPropertyDefinitionCollection $definitions
      *
      * @return true|string
      */
-    public function validate(array $flatValues, ExtraPropertyDefinitionCollection $definitions): bool|string
+    public function validate(array $valuesByModule, ExtraPropertyDefinitionCollection $definitions): bool|string
     {
         foreach ($definitions as $definition) {
-            $columnName = $definition->getStorageColumnName();
-            if (!array_key_exists($columnName, $flatValues)) {
+            $moduleKey = $definition->getNormalizedModuleKey();
+            $propertyName = $definition->getPropertyName();
+            if (!isset($valuesByModule[$moduleKey])
+                || !is_array($valuesByModule[$moduleKey])
+                || !array_key_exists($propertyName, $valuesByModule[$moduleKey])
+            ) {
                 continue;
             }
 
-            $result = $this->validateValue($definition, $flatValues[$columnName]);
+            $result = $this->validateValue($definition, $valuesByModule[$moduleKey][$propertyName]);
             if (true !== $result) {
                 return $result;
             }

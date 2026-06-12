@@ -50,14 +50,15 @@ interface ExtraPropertyValidationInterface
     /**
      * Validates a batch of extra property values against their definitions.
      *
-     * $flatValues uses the storage-column name format: ['module__field' => value].
-     * Definitions not present in $flatValues are skipped.
+     * $valuesByModule is grouped like the reader output / writer input:
+     * [moduleKey => [propertyName => value_or_lang_array]].
+     * Definitions not present in $valuesByModule are skipped.
      * Returns true on success, or the first error message string encountered.
      *
-     * @param array<string, mixed> $flatValues column_name => value
+     * @param array<string, array<string, mixed>> $valuesByModule [moduleKey => [propertyName => value]]
      * @param ExtraPropertyDefinitionCollection $definitions
      *
      * @return true|string
      */
-    public function validate(array $flatValues, ExtraPropertyDefinitionCollection $definitions): bool|string;
+    public function validate(array $valuesByModule, ExtraPropertyDefinitionCollection $definitions): bool|string;
 }

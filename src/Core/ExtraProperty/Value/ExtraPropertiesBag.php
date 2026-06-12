@@ -182,15 +182,22 @@ final class ExtraPropertiesBag implements ArrayAccess, IteratorAggregate, JsonSe
         return false;
     }
 
-    /** @return array<string, mixed> Flat [storageColumnName => value] map of all dirty fields across modules. */
+    /**
+     * Dirty fields grouped by module — the same shape the reader returns and the writer accepts.
+     *
+     * @return array<string, array<string, mixed>> [moduleKey => [propertyName => value]]
+     */
     public function getModifiedValues(): array
     {
-        $flat = [];
-        foreach ($this->values as $moduleBag) {
-            $flat += $moduleBag->getModifiedValues();
+        $grouped = [];
+        foreach ($this->values as $moduleKey => $moduleBag) {
+            $modified = $moduleBag->getModifiedValues();
+            if ([] !== $modified) {
+                $grouped[$moduleKey] = $modified;
+            }
         }
 
-        return $flat;
+        return $grouped;
     }
 
     /** @return array<string, ModuleFieldsBag> All loaded module bags. Triggers lazy load. */

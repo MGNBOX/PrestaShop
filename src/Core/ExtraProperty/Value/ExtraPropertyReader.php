@@ -113,7 +113,7 @@ class ExtraPropertyReader implements ExtraPropertyReaderInterface
         $result = [];
         foreach ($definitions as $definition) {
             $propertyName = $definition->getPropertyName();
-            $moduleName = $definition->getDisplayModuleKey();
+            $moduleName = $definition->getNormalizedModuleKey();
             $result[$moduleName] ??= [];
             $result[$moduleName][$propertyName] ??= ($groupByLang
                 ? []

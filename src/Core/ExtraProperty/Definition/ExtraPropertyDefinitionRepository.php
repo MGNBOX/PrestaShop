@@ -52,7 +52,7 @@ class ExtraPropertyDefinitionRepository implements ExtraPropertyDefinitionReposi
     /**
      * {@inheritdoc}
      */
-    public function findDefinitionByModuleAndField(string $entityName, ?string $moduleName, string $fieldName, string $fieldScope): ?ExtraPropertyDefinition
+    public function findDefinitionByModuleAndField(string $entityName, ?string $moduleName, string $fieldName): ?ExtraPropertyDefinition
     {
         $table = $this->prefix . 'extra_property_definition';
         $qb = $this->connection->createQueryBuilder();
@@ -61,10 +61,8 @@ class ExtraPropertyDefinitionRepository implements ExtraPropertyDefinitionReposi
             ->from($table, 'eef')
             ->where('eef.entity_name = :entityName')
             ->andWhere('eef.property_name = :fieldName')
-            ->andWhere('eef.scope = :fieldScope')
             ->setParameter('entityName', $entityName)
-            ->setParameter('fieldName', $fieldName)
-            ->setParameter('fieldScope', $fieldScope);
+            ->setParameter('fieldName', $fieldName);
 
         $this->applyModuleNameFilter($qb, $moduleName, 'eef');
 
@@ -110,7 +108,7 @@ class ExtraPropertyDefinitionRepository implements ExtraPropertyDefinitionReposi
         ];
 
         // Resolve existing row ID from the unique key to decide INSERT vs UPDATE.
-        $existingId = $this->findIdByUniqueKey($entityName, $normalizedModuleName, $propertyName, $normalizedScope);
+        $existingId = $this->findIdByUniqueKey($entityName, $normalizedModuleName, $propertyName);
 
         if (null !== $existingId) {
             $saved = (bool) $this->connection->update($table, $data, ['id_extra_property_definition' => $existingId]);
@@ -144,12 +142,11 @@ class ExtraPropertyDefinitionRepository implements ExtraPropertyDefinitionReposi
      */
     public function deleteByDefinition(ExtraPropertyDefinition $definition): bool
     {
-        $entityName = $definition->getEntityName();
-        $propertyName = $definition->getPropertyName();
-        $moduleName = $definition->getModuleName();
-        $scope = $definition->getScope()->value;
-
-        $id = $this->findIdByUniqueKey($entityName, $moduleName, $propertyName, $scope);
+        $id = $this->findIdByUniqueKey(
+            $definition->getEntityName(),
+            $definition->getModuleName(),
+            $definition->getPropertyName()
+        );
         if (null === $id) {
             return true;
         }
@@ -158,11 +155,12 @@ class ExtraPropertyDefinitionRepository implements ExtraPropertyDefinitionReposi
     }
 
     /**
-     * Looks up the primary key for a definition identified by its unique key.
+     * Looks up the primary key for a definition identified by its unique key
+     * (entity + module + property — unique across scopes).
      *
      * Returns null when no matching row exists.
      */
-    protected function findIdByUniqueKey(string $entityName, ?string $moduleName, string $propertyName, string $scope): ?int
+    protected function findIdByUniqueKey(string $entityName, ?string $moduleName, string $propertyName): ?int
     {
         $table = $this->prefix . 'extra_property_definition';
         $qb = $this->connection->createQueryBuilder();
@@ -170,10 +168,8 @@ class ExtraPropertyDefinitionRepository implements ExtraPropertyDefinitionReposi
             ->from($table)
             ->where('entity_name = :entityName')
             ->andWhere('property_name = :propertyName')
-            ->andWhere('scope = :scope')
             ->setParameter('entityName', $entityName)
-            ->setParameter('propertyName', $propertyName)
-            ->setParameter('scope', $scope);
+            ->setParameter('propertyName', $propertyName);
 
         $this->applyModuleNameFilter($qb, $moduleName);
 

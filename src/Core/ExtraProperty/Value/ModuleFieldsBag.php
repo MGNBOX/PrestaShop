@@ -13,15 +13,14 @@ use ArrayAccess;
 use ArrayIterator;
 use IteratorAggregate;
 use JsonSerializable;
-use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyDefinition;
 use Traversable;
 
 /**
  * Per-module value bag inside an ExtraPropertiesBag.
  *
  * Keys are field names (property_name from the definition). Writes are tracked
- * for persistence; getModifiedValues() returns a flat [storageColumnName => value]
- * map ready for ExtraPropertyWriterInterface.
+ * for persistence; getModifiedValues() returns the dirty [propertyName => value]
+ * map — scope routing and storage column resolution happen inside the writer.
  *
  * Usage (via parent ExtraPropertiesBag):
  *   $product->extra_properties['demoextrafield']['is_dangerous']       // read
@@ -82,16 +81,10 @@ final class ModuleFieldsBag implements ArrayAccess, IteratorAggregate, JsonSeria
     }
 
     /**
-     * @return array<string, mixed> flat [storageColumnName => value] map of dirty fields
+     * @return array<string, mixed> [propertyName => value] map of dirty fields
      */
     public function getModifiedValues(): array
     {
-        $result = [];
-        $module = '_core' === $this->moduleKey ? null : $this->moduleKey;
-        foreach ($this->modifiedFields as $fieldName => $value) {
-            $result[ExtraPropertyDefinition::buildStorageColumnName($module, $fieldName)] = $value;
-        }
-
-        return $result;
+        return $this->modifiedFields;
     }
 }

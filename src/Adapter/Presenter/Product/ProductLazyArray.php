@@ -1618,7 +1618,7 @@ class ProductLazyArray extends AbstractLazyArray
             'ecotax',
             'ecotax_rate',
             'extraContent',
-            'extraProperties',
+            'extra_properties',
             'features',
             'flags',
             'has_discount',

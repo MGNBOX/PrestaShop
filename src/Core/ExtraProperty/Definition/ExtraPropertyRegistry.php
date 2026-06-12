@@ -22,7 +22,9 @@ use Throwable;
  *   - ExtraPropertyDefinitionWriterInterface for definition persistence (save/delete)
  *   - ExtraPropertySchemaManagerInterface for DDL on *_extra / *_extra_lang / *_extra_shop tables
  *
- * Does NOT handle cache invalidation: wrap with CachedExtraPropertyRegistry for that concern.
+ * Cache invalidation is not handled here: the injected definition writer
+ * (CachedExtraPropertyDefinitionRepository in production) invalidates the
+ * definitions cache on every save/delete.
  */
 class ExtraPropertyRegistry implements ExtraPropertyRegistryInterface
 {
@@ -53,45 +55,30 @@ class ExtraPropertyRegistry implements ExtraPropertyRegistryInterface
     {
         $entityName = $definition->getEntityName();
         $propertyName = $definition->getPropertyName();
-
-        // Resolve module name: '_core' is a display-only sentinel — never stored in DB.
-        $rawModuleName = $definition->getModuleName();
-        $moduleName = (null !== $rawModuleName && '' !== $rawModuleName && ExtraPropertyDefinition::CORE_MODULE_KEY !== $rawModuleName)
-            ? $rawModuleName
-            : null;
+        // getModuleName() is already normalized: null for core fields ('' / '_core' inputs included).
+        $moduleName = $definition->getModuleName();
 
         $scope = $definition->getScope();
         $normalizedScope = $scope->value;
 
-        // 1. Validate scope-uniqueness: same entity + module + propertyName must not exist with a different scope.
-        foreach (ExtraPropertyScope::cases() as $otherScope) {
-            if ($otherScope === $scope) {
-                continue;
-            }
-            $conflict = $this->readRepository->findDefinitionByModuleAndField(
-                $entityName,
-                $moduleName,
-                $propertyName,
-                $otherScope->value
-            );
-            if (null !== $conflict) {
-                $this->logger->error(
-                    'Cannot register extra property {entity}.{field}: already registered with scope "{existing_scope}", cannot also register with scope "{new_scope}".',
-                    ['entity' => $entityName, 'field' => $propertyName, 'existing_scope' => $otherScope->value, 'new_scope' => $normalizedScope]
-                );
-
-                return false;
-            }
-        }
-
-        // 2. Check for immutable storage-critical changes on an existing definition.
+        // 1. (entity, module, property) is unique across scopes — a single lookup covers both
+        // the scope-uniqueness rule and the immutability check on an existing definition.
         $existingDefinition = $this->readRepository->findDefinitionByModuleAndField(
             $entityName,
             $moduleName,
-            $propertyName,
-            $normalizedScope
+            $propertyName
         );
 
+        if (null !== $existingDefinition && $existingDefinition->getScope() !== $scope) {
+            $this->logger->error(
+                'Cannot register extra property {entity}.{field}: already registered with scope "{existing_scope}", cannot also register with scope "{new_scope}".',
+                ['entity' => $entityName, 'field' => $propertyName, 'existing_scope' => $existingDefinition->getScope()->value, 'new_scope' => $normalizedScope]
+            );
+
+            return false;
+        }
+
+        // 2. Check for immutable storage-critical changes on an existing definition.
         if (null !== $existingDefinition && $this->hasStorageChanges($definition, $existingDefinition)) {
             $this->logger->error(
                 'Refusing to modify storage-critical fields (type/size/scope/defaultValue) for existing extra property {entity}.{field}.',
@@ -131,12 +118,27 @@ class ExtraPropertyRegistry implements ExtraPropertyRegistryInterface
 
     /**
      * {@inheritdoc}
+     *
+     * The stored definition is resolved first (entity + module + property are unique
+     * across scopes) and used for both the DDL drop and the registry deletion, so the
+     * caller's definition does not need an accurate scope (a wrong scope would
+     * otherwise target the wrong *_extra table for the column drop).
      */
     public function unregister(ExtraPropertyDefinition $definition, bool $dropColumn = false): bool
     {
+        $storedDefinition = $this->readRepository->findDefinitionByModuleAndField(
+            $definition->getEntityName(),
+            $definition->getModuleName(),
+            $definition->getPropertyName()
+        );
+        if (null === $storedDefinition) {
+            // Nothing registered — nothing to delete.
+            return true;
+        }
+
         if ($dropColumn) {
             try {
-                $this->schemaManager->dropExtraColumnIfExists($definition);
+                $this->schemaManager->dropExtraColumnIfExists($storedDefinition);
             } catch (Throwable $exception) {
                 $this->logger->error(
                     'Failed to drop extra column: {message}',
@@ -147,7 +149,7 @@ class ExtraPropertyRegistry implements ExtraPropertyRegistryInterface
             }
         }
 
-        return $this->writeRepository->deleteByDefinition($definition);
+        return $this->writeRepository->deleteByDefinition($storedDefinition);
     }
 
     /**

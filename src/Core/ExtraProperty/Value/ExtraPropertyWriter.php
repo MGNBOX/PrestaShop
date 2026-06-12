@@ -13,12 +13,18 @@ use Doctrine\DBAL\Connection;
 use InvalidArgumentException;
 use PrestaShop\PrestaShop\Core\Domain\Shop\ValueObject\ShopConstraint;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyDefinition;
+use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyDefinitionRepositoryInterface;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyScope;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyType;
 use Throwable;
 
 /**
  * Writes extra property values into the *_extra / *_extra_lang / *_extra_shop tables.
+ *
+ * Callers pass values grouped the same way the reader returns them
+ * ([moduleKey => [propertyName => value]]); the writer resolves each property's
+ * definition and routes the value to the table matching its scope. Storage column
+ * names never leave the storage layer.
  *
  * All writes use UPSERT (INSERT … ON DUPLICATE KEY UPDATE) to handle the case where
  * a row may or may not already exist.
@@ -28,6 +34,7 @@ class ExtraPropertyWriter implements ExtraPropertyWriterInterface
     public function __construct(
         protected readonly Connection $connection,
         protected readonly string $prefix,
+        protected readonly ExtraPropertyDefinitionRepositoryInterface $definitionRepository,
     ) {
     }
 
@@ -38,11 +45,63 @@ class ExtraPropertyWriter implements ExtraPropertyWriterInterface
         string $entityName,
         string $primaryKeyName,
         int $entityId,
-        array $entityValues,
-        array $langValuesByIdLang,
-        array $shopValues,
+        array $valuesByModule,
         ShopConstraint $shopConstraint,
+        ?int $defaultLangId = null,
     ): void {
+        if (empty($valuesByModule)) {
+            return;
+        }
+
+        $definitions = $this->definitionRepository->getAllDefinitions()->filterByEntity($entityName);
+        if ($definitions->isEmpty()) {
+            return;
+        }
+
+        $entityValues = [];
+        $langValuesByIdLang = [];
+        $shopValues = [];
+
+        foreach ($definitions as $definition) {
+            $moduleKey = $definition->getNormalizedModuleKey();
+            $propertyName = $definition->getPropertyName();
+            if (!isset($valuesByModule[$moduleKey])
+                || !is_array($valuesByModule[$moduleKey])
+                || !array_key_exists($propertyName, $valuesByModule[$moduleKey])
+            ) {
+                continue;
+            }
+
+            $value = $valuesByModule[$moduleKey][$propertyName];
+            $isNullable = $definition->isNullable();
+            // NULL is a legitimate value for nullable columns; for NOT NULL columns it is
+            // skipped so the SQL default applies on first insert.
+            if (null === $value && !$isNullable) {
+                continue;
+            }
+
+            $columnName = $definition->getStorageColumnName();
+
+            if (ExtraPropertyScope::LANG === $definition->getScope()) {
+                if (is_array($value)) {
+                    // Multilang array: one entry per language.
+                    foreach ($value as $langId => $langValue) {
+                        if ((int) $langId <= 0 || (null === $langValue && !$isNullable)) {
+                            continue;
+                        }
+                        $langValuesByIdLang[(int) $langId][$columnName] = $langValue;
+                    }
+                } elseif (null !== $defaultLangId && $defaultLangId > 0) {
+                    // Scalar lang value: written for the caller-provided language only.
+                    $langValuesByIdLang[$defaultLangId][$columnName] = $value;
+                }
+            } elseif (ExtraPropertyScope::SHOP === $definition->getScope()) {
+                $shopValues[$columnName] = $value;
+            } else {
+                $entityValues[$columnName] = $value;
+            }
+        }
+
         $shopId = $shopConstraint->isSingleShopContext() ? $shopConstraint->getShopId()->getValue() : null;
 
         if (!empty($entityValues)) {

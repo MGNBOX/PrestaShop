@@ -901,7 +901,7 @@ CREATE TABLE `PREFIX_extra_property_definition` (
   `description_wording` varchar(191) DEFAULT NULL,
   `description_domain` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id_extra_property_definition`),
-  UNIQUE KEY `extra_property_definition_unique` (`entity_name`, `module_name`, `property_name`, `scope`),
+  UNIQUE KEY `extra_property_definition_unique` (`entity_name`, `module_name`, `property_name`),
   KEY `entity_name` (`entity_name`, `scope`),
   KEY `module_name` (`module_name`)
 ) ENGINE=ENGINE_TYPE DEFAULT CHARSET=utf8mb4 COLLATION;

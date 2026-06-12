@@ -21,31 +21,42 @@ use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyDefinition;
 interface ExtraPropertyWriterInterface
 {
     /**
-     * Persists all extra property values for one entity instance (all scopes in one call).
+     * Persists extra property values for one entity instance (all scopes in one call).
      *
-     * All three value arrays may be empty; non-empty arrays trigger an UPSERT on the
-     * corresponding *_extra / *_extra_lang / *_extra_shop table.
+     * Values are grouped the same way the reader returns them — by module then property
+     * name — and the writer routes each value to the table matching the property's
+     * registered scope (storage column names stay internal to the writer):
+     *
+     * [
+     *     'module_technical_name' => [
+     *         'common_property' => 'value',
+     *         'lang_property' => [1 => 'en value', 2 => 'fr value'],   // or scalar, see $defaultLangId
+     *         'shop_property' => 'value',                              // for the constraint's shop
+     *     ],
+     * ]
+     *
+     * NULL values are persisted as-is for nullable storage columns and skipped for
+     * NOT NULL ones (SQL default applies). Modules/properties without a matching
+     * definition are ignored.
      *
      * Lang and shop writes require a specific shop: use ShopConstraint::shop($id).
-     * ShopConstraint::allShops() leaves lang and shop-scope values unwritten (use the caller
-     * to iterate shops when broad writes are needed).
+     * ShopConstraint::allShops() leaves lang and shop-scope values unwritten (the caller
+     * iterates shops when broad writes are needed).
      *
      * @param string $entityName Entity table name (e.g. "product")
      * @param string $primaryKeyName PK column name (e.g. "id_product")
      * @param int $entityId
-     * @param array<string, mixed> $entityValues ['storageColumn' => value] for common scope
-     * @param array<int, array<string, mixed>> $langValuesByIdLang [idLang => ['storageColumn' => value]]
-     * @param array<string, mixed> $shopValues ['storageColumn' => value] for shop scope
+     * @param array<string, array<string, mixed>> $valuesByModule [moduleKey => [propertyName => value]]
      * @param ShopConstraint $shopConstraint Specific shop for lang/shop scopes; allShops() skips them
+     * @param int|null $defaultLangId Language used when a lang-scoped value is a scalar; null skips scalar lang values
      */
     public function writeAll(
         string $entityName,
         string $primaryKeyName,
         int $entityId,
-        array $entityValues,
-        array $langValuesByIdLang,
-        array $shopValues,
-        ShopConstraint $shopConstraint
+        array $valuesByModule,
+        ShopConstraint $shopConstraint,
+        ?int $defaultLangId = null
     ): void;
 
     /**

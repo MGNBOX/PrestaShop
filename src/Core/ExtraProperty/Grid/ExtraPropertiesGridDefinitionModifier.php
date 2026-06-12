@@ -96,8 +96,7 @@ class ExtraPropertiesGridDefinitionModifier
     protected function buildColumn(string $gridId, string $columnId, string $label, ExtraPropertyDefinition $definition): ColumnInterface
     {
         // H8: column type is derived from the logical field type, not the form type override.
-        $scope = $definition->getScope()->value;
-        $moduleName = $definition->getDisplayModuleKey();
+        $moduleName = $definition->getNormalizedModuleKey();
         $fieldName = $definition->getPropertyName();
 
         if (ExtraPropertyType::BOOL === $definition->getType()) {
@@ -112,10 +111,11 @@ class ExtraPropertiesGridDefinitionModifier
                     'route' => 'admin_common_extra_properties_toggle',
                     'route_param_name' => 'entityId',
                     'extra_route_params' => [
+                        // No scope param: (entity, module, property) identifies the definition
+                        // uniquely across scopes; the endpoint resolves the stored scope itself.
                         'entityName' => $entityName,
                         'moduleName' => $moduleName,
                         'propertyName' => $fieldName,
-                        'scope' => $scope,
                         // H10: single shop → use its ID; all-shops context → use the current default shop
                         // (toggle must not implicitly cascade to all shops).
                         'shopId' => $this->shopContext->getShopConstraint()->isSingleShopContext()

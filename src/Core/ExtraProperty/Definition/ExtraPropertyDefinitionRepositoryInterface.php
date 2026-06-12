@@ -34,7 +34,11 @@ interface ExtraPropertyDefinitionRepositoryInterface
     public function getAllDefinitions(): ExtraPropertyDefinitionCollection;
 
     /**
-     * Finds one registry definition matching entity, module, property name, and scope.
+     * Finds one registry definition matching entity, module, and property name.
+     *
+     * The (entity, module, property) tuple is unique across scopes — the registry
+     * refuses to register the same property name under two different scopes — so no
+     * scope is needed to identify a definition.
      *
      * Used by the write path (ExtraPropertyRegistry) to check for an existing definition
      * before deciding INSERT vs UPDATE. Never cached — always reflects current DB state.
@@ -42,7 +46,6 @@ interface ExtraPropertyDefinitionRepositoryInterface
      * @param string $entityName Normalized entity name
      * @param string|null $moduleName Module technical name, or null for core fields
      * @param string $fieldName Property name
-     * @param string $fieldScope Normalized scope ('common', 'lang', 'shop')
      *
      * @return ExtraPropertyDefinition|null
      */
@@ -50,6 +53,5 @@ interface ExtraPropertyDefinitionRepositoryInterface
         string $entityName,
         ?string $moduleName,
         string $fieldName,
-        string $fieldScope,
     ): ?ExtraPropertyDefinition;
 }
