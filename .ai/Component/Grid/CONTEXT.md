@@ -57,6 +57,7 @@ When grid data needs post-processing (e.g. resolving image URLs from IDs, format
 
 - Column IDs must be `snake_case` and **exactly match** the SQL column aliases in the query builder
 - **Column ordering:** `BulkActionColumn` is always first, `ActionColumn` is always last. `PositionColumn` (if present) goes second after BulkActionColumn
+- **`PositionColumn` requires a `ReorderPositionsButtonType` filter** (associated with the position column) — it provides the drag-and-drop "Rearrange" UX. Canonical example: `FeatureValueGridDefinitionFactory`; see the [`create-position-column`](skills/create-position-column/SKILL.md) skill
 - `ToggleColumn` requires a dedicated AJAX toggle route — it cannot work without one
 - Grid definition must declare a `GRID_ID` const shared between the definition factory, the `{Domain}Filters` class, and the JS Grid constructor
 
