@@ -877,6 +877,35 @@ CREATE TABLE `PREFIX_employee_shop` (
   KEY `id_shop` (`id_shop`)
 ) ENGINE=ENGINE_TYPE DEFAULT CHARSET=utf8mb4 COLLATION;
 
+/* Registry for all declared extra property definitions */
+CREATE TABLE `PREFIX_extra_property_definition` (
+  `id_extra_property_definition` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `entity_name` varchar(64) NOT NULL,
+  `module_name` varchar(64) DEFAULT NULL,
+  `property_name` varchar(64) NOT NULL,
+  `type` ENUM ('int','bool','string','float','date','html','json','choice') NOT NULL DEFAULT 'string',
+  `scope` ENUM ('common','lang','shop') NOT NULL DEFAULT 'common',
+  `sql_index` ENUM ('none','key','unique') NOT NULL DEFAULT 'none',
+  `size` smallint(5) unsigned DEFAULT NULL,
+  `default_value` varchar(255) DEFAULT NULL,
+  `validator` varchar(255) DEFAULT NULL,
+  `display_front` tinyint(1) unsigned NOT NULL DEFAULT 1,
+  `display_api` tinyint(1) unsigned NOT NULL DEFAULT '0',
+  `associated_grids` text DEFAULT NULL,
+  `associated_forms` text DEFAULT NULL,
+  `form_field_type` varchar(255) DEFAULT NULL,
+  `form_required` tinyint(1) unsigned NOT NULL DEFAULT '0',
+  `form_options` text DEFAULT NULL,
+  `label_wording` varchar(191) DEFAULT NULL,
+  `label_domain` varchar(255) DEFAULT NULL,
+  `description_wording` varchar(191) DEFAULT NULL,
+  `description_domain` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`id_extra_property_definition`),
+  UNIQUE KEY `extra_property_definition_unique` (`entity_name`, `module_name`, `property_name`),
+  KEY `entity_name` (`entity_name`, `scope`),
+  KEY `module_name` (`module_name`)
+) ENGINE=ENGINE_TYPE DEFAULT CHARSET=utf8mb4 COLLATION;
+
 /* Position of each feature */
 CREATE TABLE `PREFIX_feature` (
   `id_feature` int(10) unsigned NOT NULL auto_increment,
