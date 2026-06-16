@@ -65,7 +65,7 @@ describe('BO - Orders - Create order : Create simple order in BO', async () => {
     paymentMethod: dataPaymentMethods.checkPayment,
     status: dataOrderStatuses.paymentAccepted,
     totalPrice: (dataProducts.demo_5.priceTaxExcluded * 4) * 1.2, // Price tax included
-    orderMessage: 'Order message test',
+    message: 'Order message test',
   });
 
   before(async function () {
@@ -173,7 +173,7 @@ describe('BO - Orders - Create order : Create simple order in BO', async () => {
       await testContext.addContextItem(this, 'testIdentifier', 'checkOrderMessage', baseContext);
 
       const textMessage = await boOrdersViewBlockMessagesPage.getTextMessage(page, 1, 'customer');
-      expect(textMessage, 'Message is not correct!').to.contains(orderToMake.orderMessage);
+      expect(textMessage, 'Message is not correct!').to.contains(orderToMake.message);
     });
   });
 
