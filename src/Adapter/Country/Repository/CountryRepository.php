@@ -18,7 +18,6 @@ use PrestaShop\PrestaShop\Core\Domain\Country\Exception\DuplicateCountryIsoCodeE
 use PrestaShop\PrestaShop\Core\Domain\Country\ValueObject\CountryId;
 use PrestaShop\PrestaShop\Core\Exception\CoreException;
 use PrestaShop\PrestaShop\Core\Repository\AbstractObjectModelRepository;
-use Validate;
 
 /**
  * Provides methods to access data storage of Country
@@ -110,14 +109,14 @@ final class CountryRepository extends AbstractObjectModelRepository implements C
      * Ensures no other country already uses the same ISO code, replicating the legacy
      * AdminCountriesController uniqueness check so the migrated page behaves identically.
      *
+     * The ISO code format and presence are already guaranteed by the prior
+     * CountryValidator::validate() call (iso_code is required and validated as a
+     * language ISO code in the Country ObjectModel definition).
+     *
      * @throws DuplicateCountryIsoCodeException
      */
     private function assertIsoCodeIsUnique(Country $country): void
     {
-        if (empty($country->iso_code) || !Validate::isLanguageIsoCode($country->iso_code)) {
-            return;
-        }
-
         $existingCountryId = (int) Country::getByIso($country->iso_code);
 
         if (0 !== $existingCountryId && $existingCountryId !== (int) $country->id) {
