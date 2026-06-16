@@ -354,7 +354,7 @@ class CountryController extends PrestaShopAdminController
                 'Admin.International.Feature'
             ),
             DuplicateCountryIsoCodeException::class => $this->trans(
-                'This ISO code already exists.You cannot create two countries with the same ISO code.',
+                'This ISO code already exists. You cannot create two countries with the same ISO code.',
                 [],
                 'Admin.International.Notification'
             ),
