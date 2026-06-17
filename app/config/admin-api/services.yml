@@ -83,3 +83,34 @@ services:
   PrestaShopBundle\ApiPlatform\Encoder\MultipartDecoder:
     autowire: true
     autoconfigure: true
+
+  # ─── Extra properties (Admin API bridge) ─────────────────────────────────────
+  # Exposes and persists module-declared extra properties on the Admin API. Defined here (API kernel only) so
+  # the behaviour never loads in the Back-Office or Front-Office kernels.
+
+  PrestaShopBundle\ApiPlatform\ExtraProperties\ApiResourceIdResolver:
+    arguments:
+      $propertyNameCollectionFactory: '@?api_platform.metadata.property_name_collection_factory'
+      $propertyMetadataFactory: '@?api_platform.metadata.property.metadata_factory'
+
+  PrestaShopBundle\ApiPlatform\ExtraProperties\ExtraPropertyApiResponseInjector: ~
+  PrestaShop\PrestaShop\Core\ExtraProperty\Api\ExtraPropertyApiResponseInjectorInterface:
+    alias: 'PrestaShopBundle\ApiPlatform\ExtraProperties\ExtraPropertyApiResponseInjector'
+
+  PrestaShopBundle\ApiPlatform\ExtraProperties\ExtraPropertyApiPayloadHandler: ~
+  PrestaShop\PrestaShop\Core\ExtraProperty\Api\ExtraPropertyApiPayloadHandlerInterface:
+    alias: 'PrestaShopBundle\ApiPlatform\ExtraProperties\ExtraPropertyApiPayloadHandler'
+
+  # Single centralized subscriber: persists the validated payload after the write, then injects the
+  # extraProperties sub-object into the JSON response (item + paginated-list items). Auto-tagged
+  # kernel.event_subscriber via autoconfigure.
+  PrestaShop\PrestaShop\Core\ExtraProperty\EventListener\ExtraPropertyApiSubscriber: ~
+
+  # Merging validator: combines extra-property violations with the resource constraint violations into a single
+  # 422. Aliased over CQRSApiValidator so CQRSApiNormalizer autowires it in the Admin API kernel only.
+  PrestaShopBundle\ApiPlatform\Validator\ExtraPropertyCQRSApiValidator:
+    arguments:
+      $validatorMetadataFactory: '@validator.mapping.class_metadata_factory'
+      $resourceMetadataFactory: '@api_platform.metadata.resource.metadata_collection_factory'
+  PrestaShopBundle\ApiPlatform\Validator\CQRSApiValidator:
+    alias: 'PrestaShopBundle\ApiPlatform\Validator\ExtraPropertyCQRSApiValidator'
