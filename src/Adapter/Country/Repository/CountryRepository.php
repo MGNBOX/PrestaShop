@@ -74,7 +74,6 @@ final class CountryRepository extends AbstractObjectModelRepository implements C
     public function add(Country $country): Country
     {
         $this->countryValidator->validate($country);
-        $this->assertIsoCodeIsUnique($country);
 
         $this->addObjectModel($country, CannotAddCountryException::class);
 
@@ -93,7 +92,6 @@ final class CountryRepository extends AbstractObjectModelRepository implements C
     public function update(Country $country): Country
     {
         $this->countryValidator->validate($country);
-        $this->assertIsoCodeIsUnique($country);
 
         $this->updateObjectModel($country, CannotEditCountryException::class);
 
@@ -103,27 +101,5 @@ final class CountryRepository extends AbstractObjectModelRepository implements C
     public function delete(CountryId $countryId): void
     {
         $this->deleteObjectModel($this->get($countryId), CannotDeleteCountryException::class);
-    }
-
-    /**
-     * Ensures no other country already uses the same ISO code, replicating the legacy
-     * AdminCountriesController uniqueness check so the migrated page behaves identically.
-     *
-     * The ISO code format and presence are already guaranteed by the prior
-     * CountryValidator::validate() call (iso_code is required and validated as a
-     * language ISO code in the Country ObjectModel definition).
-     *
-     * @throws DuplicateCountryIsoCodeException
-     */
-    private function assertIsoCodeIsUnique(Country $country): void
-    {
-        $existingCountryId = (int) Country::getByIso($country->iso_code);
-
-        if (0 !== $existingCountryId && $existingCountryId !== (int) $country->id) {
-            throw new DuplicateCountryIsoCodeException(sprintf(
-                'Country with ISO code "%s" already exists',
-                $country->iso_code
-            ));
-        }
     }
 }
