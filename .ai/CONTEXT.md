@@ -66,7 +66,7 @@ Breaking changes are only allowed in major versions. See [ADR 0017](https://gith
 
 ## PR hygiene
 
-Recurring review rejections that are unrelated to the feature itself — check before pushing:
+Common slips unrelated to the feature itself — check before pushing:
 
 - **No unrelated lock-file changes.** A PR must not carry `composer.lock` / `package-lock.json` updates for dependencies it doesn't intentionally bump (a stray `composer install` often rewrites them). Restore them, or squash them out before review.
 - **No IDE / local config files** (`.idea/`, editor settings) and no stray blank-line or missing-end-of-line changes.

@@ -44,7 +44,7 @@ All fully migrated unless noted:
 
 ## Clean-break rules (don't carry legacy shape into the migrated code)
 
-The migration is the occasion to do things cleanly — replicating the legacy structure is a recurring source of review pushback:
+The migration is the occasion to do things cleanly — replicating the legacy structure is a common mistake:
 
 - **No legacy context.** Don't inject values read from the legacy `Context` (e.g. `Context::getContext()->language->id`). Use the modern context services — `LanguageContext`, `ShopContext`, etc. — passed where needed. This applies to query builders, providers, and services alike
 - **One URL = one action.** Don't keep the legacy controller's habit of a single endpoint that branches on a `method`/`action` parameter to do create *and* delete. Migrated controllers get distinct actions + routes per operation
