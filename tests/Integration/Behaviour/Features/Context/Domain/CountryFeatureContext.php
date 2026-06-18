@@ -74,6 +74,14 @@ class CountryFeatureContext extends AbstractDomainFeatureContext
     }
 
     /**
+     * @Then I should get error that call prefix is invalid
+     */
+    public function assertCallPrefixIsInvalid(): void
+    {
+        $this->assertLastErrorIs(CountryConstraintException::class, CountryConstraintException::INVALID_CALL_PREFIX);
+    }
+
+    /**
      * @Then I should get error that zone was not found
      */
     public function assertZoneNotFound(): void
@@ -105,7 +113,7 @@ class CountryFeatureContext extends AbstractDomainFeatureContext
             $countryId = $this->getCommandBus()->handle(new AddCountryCommand(
                 $data['name'],
                 (string) $data['iso_code'],
-                (int) $data['call_prefix'],
+                (string) $data['call_prefix'],
                 (int) $data['default_currency'],
                 (int) $data['zone'],
                 PrimitiveUtils::castStringBooleanIntoBoolean($data['need_zip_code']),
@@ -133,57 +141,57 @@ class CountryFeatureContext extends AbstractDomainFeatureContext
     {
         $data = $this->localizeByRows($table);
 
-        $command = new EditCountryCommand(SharedStorage::getStorage()->get($countryReference));
-
-        if (isset($data['name'])) {
-            $command->setLocalizedNames($data['name']);
-        }
-
-        if (isset($data['iso_code'])) {
-            $command->setIsoCode($data['iso_code']);
-        }
-
-        if (isset($data['call_prefix'])) {
-            $command->setCallPrefix((int) $data['call_prefix']);
-        }
-
-        if (isset($data['default_currency'])) {
-            $command->setDefaultCurrency((int) $data['default_currency']);
-        }
-
-        if (isset($data['zone'])) {
-            $command->setZoneId((int) $data['zone']);
-        }
-
-        if (isset($data['need_zip_code'])) {
-            $command->setNeedZipCode(PrimitiveUtils::castStringBooleanIntoBoolean($data['need_zip_code']));
-        }
-
-        if (isset($data['zip_code_format'])) {
-            $command->setZipCodeFormat($data['zip_code_format']);
-        }
-
-        if (isset($data['address_format'])) {
-            $command->setAddressFormat($this->unescapeFormat($data['address_format']));
-        }
-
-        if (isset($data['is_enabled'])) {
-            $command->setEnabled(PrimitiveUtils::castStringBooleanIntoBoolean($data['is_enabled']));
-        }
-
-        if (isset($data['contains_states'])) {
-            $command->setContainsStates(PrimitiveUtils::castStringBooleanIntoBoolean($data['contains_states']));
-        }
-
-        if (isset($data['need_identification_number'])) {
-            $command->setNeedIdNumber(PrimitiveUtils::castStringBooleanIntoBoolean($data['need_identification_number']));
-        }
-
-        if (isset($data['display_tax_label'])) {
-            $command->setDisplayTaxLabel(PrimitiveUtils::castStringBooleanIntoBoolean($data['display_tax_label']));
-        }
-
         try {
+            $command = new EditCountryCommand(SharedStorage::getStorage()->get($countryReference));
+
+            if (isset($data['name'])) {
+                $command->setLocalizedNames($data['name']);
+            }
+
+            if (isset($data['iso_code'])) {
+                $command->setIsoCode($data['iso_code']);
+            }
+
+            if (isset($data['call_prefix'])) {
+                $command->setCallPrefix((string) $data['call_prefix']);
+            }
+
+            if (isset($data['default_currency'])) {
+                $command->setDefaultCurrency((int) $data['default_currency']);
+            }
+
+            if (isset($data['zone'])) {
+                $command->setZoneId((int) $data['zone']);
+            }
+
+            if (isset($data['need_zip_code'])) {
+                $command->setNeedZipCode(PrimitiveUtils::castStringBooleanIntoBoolean($data['need_zip_code']));
+            }
+
+            if (isset($data['zip_code_format'])) {
+                $command->setZipCodeFormat($data['zip_code_format']);
+            }
+
+            if (isset($data['address_format'])) {
+                $command->setAddressFormat($this->unescapeFormat($data['address_format']));
+            }
+
+            if (isset($data['is_enabled'])) {
+                $command->setEnabled(PrimitiveUtils::castStringBooleanIntoBoolean($data['is_enabled']));
+            }
+
+            if (isset($data['contains_states'])) {
+                $command->setContainsStates(PrimitiveUtils::castStringBooleanIntoBoolean($data['contains_states']));
+            }
+
+            if (isset($data['need_identification_number'])) {
+                $command->setNeedIdNumber(PrimitiveUtils::castStringBooleanIntoBoolean($data['need_identification_number']));
+            }
+
+            if (isset($data['display_tax_label'])) {
+                $command->setDisplayTaxLabel(PrimitiveUtils::castStringBooleanIntoBoolean($data['display_tax_label']));
+            }
+
             $this->getCommandBus()->handle($command);
         } catch (CountryException $e) {
             $this->setLastException($e);

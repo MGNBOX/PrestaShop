@@ -8,6 +8,7 @@ declare(strict_types=1);
 
 namespace PrestaShop\PrestaShop\Core\Domain\Country\Command;
 
+use PrestaShop\PrestaShop\Core\Domain\Country\ValueObject\CallPrefix;
 use PrestaShop\PrestaShop\Core\Domain\Country\ValueObject\CountryZipCodeFormat;
 use PrestaShop\PrestaShop\Core\Domain\Zone\ValueObject\ZoneId;
 use Tools;
@@ -18,17 +19,19 @@ use Tools;
 class AddCountryCommand
 {
     private string $isoCode;
+    private CallPrefix $callPrefix;
     private ZoneId $zoneId;
     private ?CountryZipCodeFormat $zipCodeFormat;
 
     /**
      * @param string[] $localizedNames
+     * @param string $callPrefix raw call prefix value, validated by the CallPrefix value object
      * @param int[] $shopAssociation
      */
     public function __construct(
         private array $localizedNames,
         string $isoCode,
-        private int $callPrefix,
+        string $callPrefix,
         private int $defaultCurrency,
         int $zoneId,
         private bool $needZipCode,
@@ -41,6 +44,7 @@ class AddCountryCommand
         private array $shopAssociation,
     ) {
         $this->isoCode = Tools::strtoupper(Tools::substr($isoCode, 0, 2));
+        $this->callPrefix = new CallPrefix($callPrefix);
         $this->zoneId = new ZoneId($zoneId);
         $this->zipCodeFormat = $zipCodeFormat ? new CountryZipCodeFormat($zipCodeFormat) : null;
     }
@@ -58,7 +62,7 @@ class AddCountryCommand
         return $this->isoCode;
     }
 
-    public function getCallPrefix(): int
+    public function getCallPrefix(): CallPrefix
     {
         return $this->callPrefix;
     }
