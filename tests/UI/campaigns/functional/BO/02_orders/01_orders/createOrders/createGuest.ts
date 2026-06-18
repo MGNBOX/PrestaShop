@@ -97,7 +97,7 @@ describe('BO - Orders - Create order : Create guest from new order page', async 
 
     await boCustomersCreatePage.enableGuestAccount(customerFrame, true);
 
-    let isPasswordDisabled = await boCustomersCreatePage.isPasswordDisabled(customerFrame);
+    const isPasswordDisabled = await boCustomersCreatePage.isPasswordDisabled(customerFrame);
     expect(isPasswordDisabled).to.equal(true);
 
     const isCustomerDisabled = await boCustomersCreatePage.isCustomerDisabled(customerFrame);
