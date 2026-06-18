@@ -63,6 +63,7 @@ Error code constants must be unique integers within the class. Never throw gener
 - **Never call another handler** from within a handler — compose at controller level
 - **Add handler** returns `{Domain}Id`; all other command handlers return `void`
 - Query handlers always return a typed DTO — never void, never ObjectModel instances
+- **Validation placement** — single-value format validation belongs in the field's Value Object constructor (a `{Domain}ConstraintException`). Cross-field / entity-level business rules (uniqueness, required-fields-by-config, existence of related records) belong in a dedicated **`{Domain}Validator` service** (in `src/Adapter/{Domain}/`) that the handler calls — **not inline in the repository, the controller, or the FormType**. The repository only persists. See `src/Adapter/Country/Validate/CountryValidator.php`
 
 ### Bulk handlers
 
