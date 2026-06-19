@@ -202,13 +202,13 @@ final class ExtraPropertyEndpointTest extends ApiTestCase
         $this->assertArrayNotHasKey('extraProperties', $writtenItem);
 
         // COMMON value, inline at root, already cast to bool by the grid query.
-        $flagKey = 'extra_common_' . self::MODULE_NAME . '_api_flag';
+        $flagKey = 'extra_' . self::MODULE_NAME . '_api_flag';
         $this->assertArrayHasKey($flagKey, $writtenItem);
         $this->assertTrue($writtenItem[$flagKey]);
 
         // LANG value, inline at root, as the single current-locale scalar (not a {locale: value} object). The
         // value is whichever locale the API context resolves to among the two we wrote.
-        $noteKey = 'extra_lang_' . self::MODULE_NAME . '_api_note';
+        $noteKey = 'extra_' . self::MODULE_NAME . '_api_note';
         $this->assertArrayHasKey($noteKey, $writtenItem);
         $this->assertIsString($writtenItem[$noteKey]);
         $this->assertContains($writtenItem[$noteKey], ['hello', 'bonjour']);

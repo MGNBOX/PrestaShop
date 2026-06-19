@@ -580,13 +580,15 @@ final class ExtraPropertyDefinition
     }
 
     /**
-     * Returns the form field name and grid column identifier for this definition.
+     * The property's flat field identifier, used identically by the back-office form (field name), the grid
+     * (column id / SELECT alias) and the Admin API (inline list key).
      *
-     * The same format is used for unmapped Symfony form fields and SELECT aliases in grids.
+     * A property is unique per module + property name, so the scope is intentionally not part of it — keeping
+     * identifiers short and predictable.
      */
-    public function getFormFieldName(): string
+    public function getFieldName(): string
     {
-        return 'extra_' . $this->scope->value . '_' . $this->normalizedModuleKey . '_' . $this->propertyName;
+        return 'extra_' . $this->normalizedModuleKey . '_' . $this->propertyName;
     }
 
     /**

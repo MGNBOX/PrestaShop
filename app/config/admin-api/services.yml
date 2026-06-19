@@ -89,17 +89,13 @@ services:
   # the behaviour never loads in the Back-Office or Front-Office kernels.
 
   # Request-scoped reuse of the extra-property values already fetched by a grid query, so list responses do not
-  # re-read them row by row. Populated by QueryListProvider, read back by the response injector. Implements
+  # re-read them row by row. Populated by QueryListProvider, read back by the subscriber. Implements
   # ResetInterface, so autoconfiguration tags it kernel.reset (cleared between requests in a worker runtime).
   PrestaShop\PrestaShop\Core\ExtraProperty\Api\ExtraPropertyApiListRecordCollector: ~
 
-  PrestaShop\PrestaShop\Core\ExtraProperty\Api\ExtraPropertyApiResponseInjector: ~
-
-  PrestaShop\PrestaShop\Core\ExtraProperty\Api\ExtraPropertyApiPayloadHandler: ~
-
-  # Single API-Platform bridge: resolves the entity id and converts LANG values (locale <-> id_lang), then persists
-  # the submitted payload after a write and enriches the JSON response (nested object for an item, inline grid
-  # values per list item). Auto-tagged kernel.event_subscriber via autoconfigure.
+  # Single API-Platform bridge: resolves the entity id and converts LANG values (locale <-> id_lang), then writes
+  # the submitted payload after a write (directly via the writer) and enriches the JSON response (nested object for
+  # an item, inline grid values per list item). Auto-tagged kernel.event_subscriber via autoconfigure.
   PrestaShopBundle\EventListener\API\ExtraPropertyApiSubscriber:
     arguments:
       $propertyNameCollectionFactory: '@?api_platform.metadata.property_name_collection_factory'

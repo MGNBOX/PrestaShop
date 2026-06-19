@@ -13,11 +13,15 @@ use ApiPlatform\Metadata\CollectionOperationInterface;
 use ApiPlatform\Metadata\HttpOperation;
 use ApiPlatform\Metadata\Property\Factory\PropertyMetadataFactoryInterface;
 use ApiPlatform\Metadata\Property\Factory\PropertyNameCollectionFactoryInterface;
-use PrestaShop\PrestaShop\Core\ExtraProperty\Api\ExtraPropertyApiPayloadHandler;
-use PrestaShop\PrestaShop\Core\ExtraProperty\Api\ExtraPropertyApiResponseInjector;
+use ObjectModelCore;
+use PrestaShop\PrestaShop\Core\Context\ShopContext;
+use PrestaShop\PrestaShop\Core\ExtraProperty\Api\ExtraPropertyApiListRecordCollector;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyDefinitionCollection;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyDefinitionRepositoryInterface;
 use PrestaShop\PrestaShop\Core\ExtraProperty\Definition\ExtraPropertyScope;
+use PrestaShop\PrestaShop\Core\ExtraProperty\Value\ExtraPropertyReaderInterface;
+use PrestaShop\PrestaShop\Core\ExtraProperty\Value\ExtraPropertyWriterInterface;
+use PrestaShop\PrestaShop\Core\Util\Inflector;
 use PrestaShopBundle\ApiPlatform\Exception\LocaleNotFoundException;
 use PrestaShopBundle\ApiPlatform\LocalizedValueUpdater;
 use PrestaShopBundle\ApiPlatform\Metadata\LocalizedValue;
@@ -32,8 +36,8 @@ use Throwable;
 /**
  * Bridges Admin API responses with the extra property system, and is the single API-Platform-coupled entry point of
  * the feature: it resolves the entity id and converts LANG values between locale and id_lang (LocalizedValueUpdater),
- * so the read/write services it delegates to stay pure Core. Validation lives in the dedicated CQRSApiValidator
- * subclass.
+ * so the pure-Core services it drives — the reader (single item), the grid-record collector (list) and the writer
+ * — never depend on API Platform. Validation lives in the dedicated CQRSApiValidator decorator.
  *
  * On kernel.response (after API Platform produced the JSON body) it:
  *  - persists the submitted extraProperties payload of a write, once the entity id is in the response body,
@@ -46,8 +50,10 @@ class ExtraPropertyApiSubscriber implements EventSubscriberInterface
 {
     public function __construct(
         protected readonly ExtraPropertyDefinitionRepositoryInterface $repository,
-        protected readonly ExtraPropertyApiResponseInjector $responseInjector,
-        protected readonly ExtraPropertyApiPayloadHandler $payloadHandler,
+        protected readonly ExtraPropertyReaderInterface $reader,
+        protected readonly ExtraPropertyApiListRecordCollector $listRecordCollector,
+        protected readonly ExtraPropertyWriterInterface $writer,
+        protected readonly ShopContext $shopContext,
         protected readonly LocalizedValueUpdater $localizedValueUpdater,
         protected readonly ?PropertyNameCollectionFactoryInterface $propertyNameCollectionFactory = null,
         protected readonly ?PropertyMetadataFactoryInterface $propertyMetadataFactory = null,
@@ -110,7 +116,12 @@ class ExtraPropertyApiSubscriber implements EventSubscriberInterface
                     }
                     $entityId = $this->resolveId($item, $entityName, $resourceClass);
                     if ($entityId > 0) {
-                        $decoded['items'][$index] = $this->responseInjector->injectInlineListItem($item, $definitions, $entityId);
+                        // The collector already kept only the extra-property columns (by field name) the grid
+                        // fetched, so merge them at the item root as-is (single context-locale values).
+                        $captured = $this->listRecordCollector->find($entityName, $entityId);
+                        if (null !== $captured) {
+                            $decoded['items'][$index] = array_merge($item, $captured);
+                        }
                     }
                 }
             }
@@ -120,14 +131,31 @@ class ExtraPropertyApiSubscriber implements EventSubscriberInterface
                 // Persist the submitted payload first (write operations), so the read-back below reflects it. A 2xx
                 // response means the merging validator already accepted the payload.
                 if ($this->isWriteMethod($method)) {
-                    $payload = $this->extractRequestPayload($request);
+                    $payload = $this->extractRequestPayload($request, $definitions);
                     if ([] !== $payload) {
-                        $this->payloadHandler->persist($definitions, $entityId, $this->localesToIds($payload, $langScopedFields));
+                        // The payload is already in writeAll() shape (LANG values keyed by id_lang). Shop scoping
+                        // comes from the ShopContext, built by the Admin API kernel's shop-context listener — a
+                        // multi-shop value is a single value identified by that context, like the form integration.
+                        $this->writer->writeAll(
+                            $entityName,
+                            $definitions->first()->getPrimaryKeyName(),
+                            $entityId,
+                            $this->localesToIds($payload, $langScopedFields),
+                            $this->shopContext->getShopConstraint(),
+                        );
                     }
                 }
 
                 $values = $this->idsToLocales(
-                    $this->responseInjector->loadExtraProperties($definitions, $entityId),
+                    $this->reader->getExtraProperties(
+                        $entityName,
+                        $definitions->first()->getPrimaryKeyName(),
+                        $entityId,
+                        null,
+                        $this->shopContext->getShopConstraint(),
+                        $this->isLangMultishop($entityName),
+                        $definitions,
+                    ),
                     $langScopedFields
                 );
                 if ([] !== $values) {
@@ -142,6 +170,16 @@ class ExtraPropertyApiSubscriber implements EventSubscriberInterface
         $response->setContent((string) json_encode($decoded));
         // Content length is recomputed when the response is sent; drop any stale value.
         $response->headers->remove('Content-Length');
+    }
+
+    /**
+     * Whether the entity stores LANG values per shop (its ObjectModel definition is multilang_shop). The class name
+     * is the StudlyCase of the (tableized) entity name; isClassLangMultishop safely returns false for any unknown
+     * class, so a wrong guess never breaks the read.
+     */
+    protected function isLangMultishop(string $entityName): bool
+    {
+        return ObjectModelCore::isClassLangMultishop(Inflector::getInflector()->classify($entityName));
     }
 
     protected function isJsonEntityResponse(Response $response): bool
@@ -201,12 +239,15 @@ class ExtraPropertyApiSubscriber implements EventSubscriberInterface
     }
 
     /**
-     * Reads the submitted extraProperties sub-object from the initial request body. Request::getContent() is
-     * cached, so this does not consume the input stream a second time.
+     * Reads the submitted extraProperties sub-object from the initial request body and keeps only the properties
+     * actually associated with this operation — those in $definitions, already narrowed by filterByApi. Without this
+     * filtering, a write to any endpoint-associated property would let the payload smuggle in unrelated extra
+     * properties (no definition of theirs matched the operation). Request::getContent() is cached, so this does not
+     * consume the input stream a second time.
      *
      * @return array<string, array<string, mixed>>
      */
-    protected function extractRequestPayload(Request $request): array
+    protected function extractRequestPayload(Request $request, ExtraPropertyDefinitionCollection $definitions): array
     {
         $content = $request->getContent();
         if ('' === $content) {
@@ -218,7 +259,18 @@ class ExtraPropertyApiSubscriber implements EventSubscriberInterface
             return [];
         }
 
-        return $decoded['extraProperties'];
+        $submitted = $decoded['extraProperties'];
+        $filtered = [];
+        foreach ($definitions as $definition) {
+            $moduleKey = $definition->getNormalizedModuleKey();
+            $propertyName = $definition->getPropertyName();
+            // array_key_exists (not isset): an explicit null is a valid submitted value and must be kept.
+            if (isset($submitted[$moduleKey]) && is_array($submitted[$moduleKey]) && array_key_exists($propertyName, $submitted[$moduleKey])) {
+                $filtered[$moduleKey][$propertyName] = $submitted[$moduleKey][$propertyName];
+            }
+        }
+
+        return $filtered;
     }
 
     /**

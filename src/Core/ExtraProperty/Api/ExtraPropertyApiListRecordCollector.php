@@ -19,10 +19,10 @@ use Symfony\Contracts\Service\ResetInterface;
  *
  * It is populated from QueryListProvider with the records returned by the grid data factory — which the
  * ExtraPropertiesGridQueryBuilderModifier enriched with one column per grid-associated extra property — and read
- * back by ExtraPropertyApiResponseInjector while enriching each list item.
+ * back by ExtraPropertyApiSubscriber while enriching each list item.
  *
  * Registered only in the Admin API kernel. Records are keyed by entity name then entity id; values keep the grid
- * column name (ExtraPropertyDefinition::getFormFieldName()) and the single context-locale value the grid fetched.
+ * column name (ExtraPropertyDefinition::getFieldName()) and the single context-locale value the grid fetched.
  */
 class ExtraPropertyApiListRecordCollector implements ResetInterface
 {
@@ -64,7 +64,7 @@ class ExtraPropertyApiListRecordCollector implements ResetInterface
                 }
 
                 foreach ($entityDefinitions as $definition) {
-                    $alias = $definition->getFormFieldName();
+                    $alias = $definition->getFieldName();
                     if (array_key_exists($alias, $record)) {
                         $this->recordsByEntity[$entityName][$entityId][$alias] = $record[$alias];
                     }
