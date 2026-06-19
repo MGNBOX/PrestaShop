@@ -57,6 +57,8 @@ services:
       - { name: 'prestashop.openapi.schema_adapter.resource', priority: 10 }
       - { name: 'prestashop.openapi.schema_adapter.operation', priority: 40 }
 
+  PrestaShopBundle\ApiPlatform\OpenApi\FileUploadRequestBodyBuilder: ~
+
   # Schema adapter chains - orchestrates adapters in the correct order
   prestashop_bundle.api_platform.open_api.resource_schema_adapter_chain:
     class: PrestaShopBundle\ApiPlatform\OpenApi\Adapter\SchemaAdapterChain
