@@ -66,6 +66,7 @@ use PrestaShop\PrestaShop\Core\Domain\Order\QueryResult\OrderSourceForViewing;
 use PrestaShop\PrestaShop\Core\Domain\Order\QueryResult\OrderSourcesForViewing;
 use PrestaShop\PrestaShop\Core\Domain\Order\QueryResult\OrderStatusForViewing;
 use PrestaShop\PrestaShop\Core\Domain\Order\ValueObject\OrderId;
+use PrestaShop\PrestaShop\Core\Domain\Shipment\ValueObject\DeliverySlipNumber;
 use PrestaShop\PrestaShop\Core\Domain\Shop\ValueObject\ShopConstraint;
 use PrestaShop\PrestaShop\Core\Localization\Exception\LocalizationException;
 use PrestaShop\PrestaShop\Core\Localization\Locale;
@@ -516,11 +517,10 @@ final class GetOrderForViewingHandler extends AbstractOrderHandler implements Ge
                     continue;
                 }
 
-                $number = sprintf(
-                    '%s%06d%s',
+                $number = DeliverySlipNumber::format(
                     $conf[$this->contextLanguageId] ?? '',
                     $order->id,
-                    '-' . $shipment->getId()
+                    $shipment->getId()
                 );
 
                 $documentsForViewing[] = new OrderDocumentForViewing(

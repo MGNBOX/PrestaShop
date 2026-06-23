@@ -4,6 +4,7 @@
  * docs/licenses/LICENSE.txt file that was distributed with this source code.
  */
 
+use PrestaShop\PrestaShop\Core\Domain\Shipment\ValueObject\DeliverySlipNumber;
 use PrestaShop\PrestaShop\Core\Util\Sorter;
 use PrestaShopBundle\Entity\Shipment;
 
@@ -66,11 +67,10 @@ class HTMLTemplateShipmentDeliverySlipCore extends HTMLTemplate
         // Use delivery slip prefix and shipment ID as the number
         $prefix = Configuration::get('PS_DELIVERY_PREFIX', Context::getContext()->language->id);
 
-        $this->title = sprintf(
-            HTMLTemplateShipmentDeliverySlip::l('%s%06d%s'),
+        $this->title = DeliverySlipNumber::format(
             $prefix,
             $this->order->id,
-            '-' . $this->shipment->getId()
+            $this->shipment->getId()
         );
 
         // footer informations
@@ -250,6 +250,11 @@ class HTMLTemplateShipmentDeliverySlipCore extends HTMLTemplate
      */
     public function getFilename()
     {
-        return Configuration::get('PS_DELIVERY_PREFIX', Context::getContext()->language->id, null, $this->order->id_shop) . sprintf('%06d%s', $this->order->id, '-' . $this->shipment->getId()) . '.pdf';
+        return Configuration::get('PS_DELIVERY_PREFIX', Context::getContext()->language->id, null, $this->order->id_shop)
+            . DeliverySlipNumber::format(
+                '',
+                $this->order->id,
+                $this->shipment->getId()
+            ) . '.pdf';
     }
 }
