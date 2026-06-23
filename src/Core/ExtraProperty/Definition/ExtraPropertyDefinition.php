@@ -76,7 +76,7 @@ final class ExtraPropertyDefinition
      * @param list<string>|null $enumValues For CHOICE type: SQL ENUM allowed values. Not persisted — schema creation only.
      * @param scalar|null $defaultValue Adds a DEFAULT clause in DDL. Also persisted in registry.
      * @param bool $nullable Controls NULL vs NOT NULL in DDL. Not persisted — schema creation only.
-     * @param bool $formRequired when true, marks the BO form field as required
+     * @param bool $required when true, marks the field as required in BO forms and in the Admin API (OpenAPI) schema
      * @param int|null $size for STRING type: varchar column length (defaults to 255)
      * @param ExtraPropertySqlIndex $sqlIndex SQL index strategy on the storage column
      * @param bool $displayFront allow this field to be exposed in front-office presenters
@@ -102,7 +102,7 @@ final class ExtraPropertyDefinition
         protected readonly ?array $enumValues = null,
         protected readonly int|float|string|bool|null $defaultValue = null,
         protected readonly bool $nullable = true,
-        protected readonly bool $formRequired = false,
+        protected readonly bool $required = false,
         protected readonly ?int $size = null,
         protected readonly ExtraPropertySqlIndex $sqlIndex = ExtraPropertySqlIndex::NONE,
         protected readonly bool $displayFront = true,
@@ -301,7 +301,7 @@ final class ExtraPropertyDefinition
             enumValues: isset($row['enum_values']) && is_array($row['enum_values']) && [] !== $row['enum_values'] ? array_values($row['enum_values']) : null,
             defaultValue: null !== $rawDefaultValue ? ExtraPropertyValueCaster::castFromDb($type, $rawDefaultValue) : null,
             nullable: !array_key_exists('nullable', $row) || (bool) $row['nullable'],
-            formRequired: !empty($row['form_required']),
+            required: !empty($row['required']),
             size: isset($row['size']) && '' !== $row['size'] ? (int) $row['size'] : null,
             sqlIndex: ExtraPropertySqlIndex::from((string) ($row['sql_index'] ?? ExtraPropertySqlIndex::NONE->value)),
             displayFront: !empty($row['display_front']),
@@ -382,7 +382,7 @@ final class ExtraPropertyDefinition
             enumValues: $this->enumValues,
             defaultValue: $this->defaultValue,
             nullable: $this->nullable,
-            formRequired: $this->formRequired,
+            required: $this->required,
             size: $this->size,
             sqlIndex: $this->sqlIndex,
             displayFront: $this->displayFront,
@@ -498,9 +498,9 @@ final class ExtraPropertyDefinition
         return $this->displayFront;
     }
 
-    public function isFormRequired(): bool
+    public function isRequired(): bool
     {
-        return $this->formRequired;
+        return $this->required;
     }
 
     public function isNullable(): bool

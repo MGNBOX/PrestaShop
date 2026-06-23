@@ -135,7 +135,7 @@ class ExtraPropertiesFormBuilderModifier
                     'label' => $label,
                     'help' => $help,
                     'mapped' => false,
-                    'required' => $definition->isFormRequired(),
+                    'required' => $definition->isRequired(),
                     'constraints' => $constraints,
                     'options' => $extraOptions,
                 ],
@@ -147,7 +147,7 @@ class ExtraPropertiesFormBuilderModifier
             array_merge(
                 [
                     'mapped' => false,
-                    'required' => $definition->isFormRequired(),
+                    'required' => $definition->isRequired(),
                     'label' => $label,
                     'help' => $help,
                     'constraints' => $constraints,

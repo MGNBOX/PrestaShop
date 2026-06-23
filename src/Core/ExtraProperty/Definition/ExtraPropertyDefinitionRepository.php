@@ -88,7 +88,7 @@ class ExtraPropertyDefinitionRepository implements ExtraPropertyDefinitionReposi
             'scope' => $definition->getScope()->value,
             'type' => $definition->getType()->value,
             'size' => $definition->getSize(),
-            'form_required' => (int) $definition->isFormRequired(),
+            'required' => (int) $definition->isRequired(),
             'default_value' => null !== $definition->getDefaultValue() ? (string) $definition->getDefaultValue() : null,
             'form_field_type' => $definition->getFormFieldType(),
             'form_options' => null !== $definition->getFormOptions() ? json_encode($definition->getFormOptions()) : null,

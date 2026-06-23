@@ -53,7 +53,7 @@ class ExtraPropertiesFormBuilderModifierTest extends AbstractFormTester
             propertyName: 'is_dangerous',
             scope: ExtraPropertyScope::COMMON,
             moduleName: 'demoextrafield',
-            formRequired: true,
+            required: true,
             associatedForms: ['product'],
             formFieldType: TextType::class,
             constraints: [$url],
@@ -67,7 +67,7 @@ class ExtraPropertiesFormBuilderModifierTest extends AbstractFormTester
 
         // The definition's constraints are attached verbatim to the field …
         $this->assertSame([$url], $constraints);
-        // … and formRequired no longer injects a server-side NotBlank — requiredness is the module's job.
+        // … and required no longer injects a server-side NotBlank — requiredness is the module's job.
         foreach ($constraints as $constraint) {
             $this->assertNotInstanceOf(\Symfony\Component\Validator\Constraints\NotBlank::class, $constraint);
         }
