@@ -17,27 +17,26 @@ class CallPrefixTest extends TestCase
     /**
      * @dataProvider validCallPrefixProvider
      */
-    public function testItAcceptsDigitsOnlyValues(int|string $callPrefix, int $expectedValue): void
+    public function testItAcceptsNonNegativeIntegers(int $callPrefix): void
     {
-        $this->assertSame($expectedValue, (new CallPrefix($callPrefix))->getValue());
+        $this->assertSame($callPrefix, (new CallPrefix($callPrefix))->getValue());
     }
 
     /**
-     * @return iterable<array{int|string, int}>
+     * @return iterable<array{int}>
      */
     public static function validCallPrefixProvider(): iterable
     {
-        yield 'single digit string' => ['0', 0];
-        yield 'multiple digits string' => ['33', 33];
-        yield 'leading zero string' => ['099', 99];
-        yield 'integer value (API contract)' => [33, 33];
-        yield 'zero integer' => [0, 0];
+        yield 'zero' => [0];
+        yield 'single digit' => [1];
+        yield 'two digits' => [33];
+        yield 'three digits' => [262];
     }
 
     /**
      * @dataProvider invalidCallPrefixProvider
      */
-    public function testItRejectsNonDigitValues(string $callPrefix): void
+    public function testItRejectsNegativeIntegers(int $callPrefix): void
     {
         $this->expectException(CountryConstraintException::class);
         $this->expectExceptionCode(CountryConstraintException::INVALID_CALL_PREFIX);
@@ -46,15 +45,11 @@ class CallPrefixTest extends TestCase
     }
 
     /**
-     * @return iterable<array{string}>
+     * @return iterable<array{int}>
      */
     public static function invalidCallPrefixProvider(): iterable
     {
-        yield 'leading plus sign' => ['+99'];
-        yield 'leading minus sign' => ['-5'];
-        yield 'trailing letter' => ['9a'];
-        yield 'empty string' => [''];
-        yield 'surrounding spaces' => [' 9 '];
-        yield 'decimal value' => ['9.5'];
+        yield 'negative value' => [-1];
+        yield 'large negative value' => [-99];
     }
 }

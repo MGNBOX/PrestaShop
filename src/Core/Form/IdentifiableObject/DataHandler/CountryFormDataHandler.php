@@ -43,7 +43,7 @@ class CountryFormDataHandler implements FormDataHandlerInterface
         $addCountryCommand = new AddCountryCommand(
             $data['name'],
             (string) $data['iso_code'],
-            (string) $data['call_prefix'],
+            (int) $data['call_prefix'],
             (int) $data['default_currency'],
             (int) $data['zone'],
             $data['need_zip_code'],
@@ -75,7 +75,7 @@ class CountryFormDataHandler implements FormDataHandlerInterface
         }
 
         if (null !== $data['call_prefix']) {
-            $editCountryCommand->setCallPrefix((string) $data['call_prefix']);
+            $editCountryCommand->setCallPrefix((int) $data['call_prefix']);
         }
 
         if (null !== $data['address_format']) {

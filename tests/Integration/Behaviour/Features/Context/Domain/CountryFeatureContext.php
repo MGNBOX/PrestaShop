@@ -113,7 +113,7 @@ class CountryFeatureContext extends AbstractDomainFeatureContext
             $countryId = $this->getCommandBus()->handle(new AddCountryCommand(
                 $data['name'],
                 (string) $data['iso_code'],
-                (string) $data['call_prefix'],
+                (int) $data['call_prefix'],
                 (int) $data['default_currency'],
                 (int) $data['zone'],
                 PrimitiveUtils::castStringBooleanIntoBoolean($data['need_zip_code']),
@@ -153,7 +153,7 @@ class CountryFeatureContext extends AbstractDomainFeatureContext
             }
 
             if (isset($data['call_prefix'])) {
-                $command->setCallPrefix((string) $data['call_prefix']);
+                $command->setCallPrefix((int) $data['call_prefix']);
             }
 
             if (isset($data['default_currency'])) {
