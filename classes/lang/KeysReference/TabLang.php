@@ -121,6 +121,7 @@ trans('Traffic & SEO', 'Admin.Navigation.Menu');
 trans('Translations', 'Admin.Navigation.Menu');
 trans('Webservice', 'Admin.Navigation.Menu');
 trans('Admin API', 'Admin.Navigation.Menu');
+trans('Extra Properties', 'Admin.Navigation.Menu');
 trans('Zones', 'Admin.Navigation.Menu');
 trans('Module Selections', 'Admin.Navigation.Menu');
 trans('New & Experimental Features', 'Admin.Navigation.Menu');
