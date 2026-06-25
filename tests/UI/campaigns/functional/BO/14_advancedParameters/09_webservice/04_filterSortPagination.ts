@@ -219,11 +219,13 @@ describe('BO - Advanced Parameters - Webservice : Filter, Sort and pagination we
 
       await boWebservicesPage.filterWebserviceTable(page, 'input', 'description', 'todelete');
 
-      const numberOfWebserviceKeysAfterFilter = await boWebservicesPage.resetAndGetNumberOfLines(page);
+      const numberOfWebserviceKeysAfterFilter = await boWebservicesPage.getNumberOfElementInGrid(page);
       expect(numberOfWebserviceKeysAfterFilter).to.be.greaterThanOrEqual(11);
 
-      const key = await boWebservicesPage.getTextColumnFromTable(page, 1, 'description');
-      expect(key).to.contains('todelete');
+      for (let i = 1; i <= numberOfWebserviceKeysAfterFilter; i++) {
+        const key = await boWebservicesPage.getTextColumnFromTable(page, i, 'description');
+        expect(key).to.contains('todelete');
+      }
     });
 
     it('should delete webservice keys created', async function () {
