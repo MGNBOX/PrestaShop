@@ -241,7 +241,9 @@ class ExtraPropertyConstraintMapperTest extends TestCase
         $constraints = ExtraPropertyConstraintMapper::fromNames('Choice([01, 02, 3])');
 
         $this->assertNotNull($constraints);
-        $this->assertSame([1, 2, 3], $constraints[0]->choices);
+        /** @var Assert\Choice $constraint */
+        $constraint = $constraints[0];
+        $this->assertSame([1, 2, 3], $constraint->choices);
     }
 
     public function testQuotedListItemsStayStrings(): void
@@ -250,7 +252,9 @@ class ExtraPropertyConstraintMapperTest extends TestCase
         $constraints = ExtraPropertyConstraintMapper::fromNames('Choice(["01", "02", 3])');
 
         $this->assertNotNull($constraints);
-        $this->assertSame(['01', '02', 3], $constraints[0]->choices);
+        /** @var Assert\Choice $constraint */
+        $constraint = $constraints[0];
+        $this->assertSame(['01', '02', 3], $constraint->choices);
     }
 
     public function testSingleAndDoubleQuotedStringListItemsAreEquivalent(): void
@@ -260,8 +264,12 @@ class ExtraPropertyConstraintMapperTest extends TestCase
 
         $this->assertNotNull($single);
         $this->assertNotNull($double);
-        $this->assertSame(['a', 'b', 'c'], $single[0]->choices);
-        $this->assertSame(['a', 'b', 'c'], $double[0]->choices);
+        /** @var Assert\Choice $singleConstraint */
+        $singleConstraint = $single[0];
+        /** @var Assert\Choice $doubleConstraint */
+        $doubleConstraint = $double[0];
+        $this->assertSame(['a', 'b', 'c'], $singleConstraint->choices);
+        $this->assertSame(['a', 'b', 'c'], $doubleConstraint->choices);
     }
 
     public function testAQuotedScalarValueStaysAString(): void
@@ -271,8 +279,12 @@ class ExtraPropertyConstraintMapperTest extends TestCase
 
         $this->assertNotNull($quoted);
         $this->assertNotNull($bare);
-        $this->assertSame('5', $quoted[0]->value);
-        $this->assertSame(5, $bare[0]->value);
+        /** @var Assert\EqualTo $quotedConstraint */
+        $quotedConstraint = $quoted[0];
+        /** @var Assert\EqualTo $bareConstraint */
+        $bareConstraint = $bare[0];
+        $this->assertSame('5', $quotedConstraint->value);
+        $this->assertSame(5, $bareConstraint->value);
     }
 
     public function testADoubleQuotedScalarValueIsAccepted(): void
@@ -293,8 +305,12 @@ class ExtraPropertyConstraintMapperTest extends TestCase
 
         $this->assertNotNull($single);
         $this->assertNotNull($double);
-        $this->assertSame('hello', $single[0]->value);
-        $this->assertSame('hello', $double[0]->value);
+        /** @var Assert\EqualTo $singleConstraint */
+        $singleConstraint = $single[0];
+        /** @var Assert\EqualTo $doubleConstraint */
+        $doubleConstraint = $double[0];
+        $this->assertSame('hello', $singleConstraint->value);
+        $this->assertSame('hello', $doubleConstraint->value);
     }
 
     public function testTheTokenizerDoesNotSplitOnSeparatorsInsideAQuotedValue(): void
@@ -304,7 +320,9 @@ class ExtraPropertyConstraintMapperTest extends TestCase
 
         $this->assertNotNull($constraints);
         $this->assertCount(2, $constraints);
-        $this->assertSame(['a,b', 'c]d'], $constraints[0]->choices);
+        /** @var Assert\Choice $constraint */
+        $constraint = $constraints[0];
+        $this->assertSame(['a,b', 'c]d'], $constraint->choices);
         $this->assertInstanceOf(Assert\NotBlank::class, $constraints[1]);
     }
 
@@ -324,7 +342,9 @@ class ExtraPropertyConstraintMapperTest extends TestCase
         $constraints = ExtraPropertyConstraintMapper::fromNames('LessThan(5.5)');
 
         $this->assertNotNull($constraints);
-        $this->assertSame(5.5, $constraints[0]->value);
+        /** @var Assert\LessThan $constraint */
+        $constraint = $constraints[0];
+        $this->assertSame(5.5, $constraint->value);
     }
 
     public function testFromNamesKeepsANonNumericComparisonValueAsString(): void
@@ -332,7 +352,9 @@ class ExtraPropertyConstraintMapperTest extends TestCase
         $constraints = ExtraPropertyConstraintMapper::fromNames('EqualTo(hello)');
 
         $this->assertNotNull($constraints);
-        $this->assertSame('hello', $constraints[0]->value);
+        /** @var Assert\EqualTo $constraint */
+        $constraint = $constraints[0];
+        $this->assertSame('hello', $constraint->value);
     }
 
     public function testTheCoercedNumericValueSatisfiesAStrictComparison(): void
@@ -341,8 +363,10 @@ class ExtraPropertyConstraintMapperTest extends TestCase
         $constraints = ExtraPropertyConstraintMapper::fromNames('IdenticalTo(10)');
 
         $this->assertNotNull($constraints);
-        $this->assertSame(10, $constraints[0]->value);
-        $this->assertCount(0, Validation::createValidator()->validate(10, $constraints[0]));
+        /** @var Assert\IdenticalTo $constraint */
+        $constraint = $constraints[0];
+        $this->assertSame(10, $constraint->value);
+        $this->assertCount(0, Validation::createValidator()->validate(10, $constraint));
     }
 
     // -- toNames(): basics -------------------------------------------------------------------

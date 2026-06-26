@@ -72,10 +72,10 @@ final class ExtraPropertyDefinitionFormDataProvider implements FormDataProviderI
             ],
             'advanced' => [
                 'form_field_type' => $definition->getFormFieldType(),
-                'form_options' => null !== $definition->getFormOptions() ? json_encode($definition->getFormOptions()) : null,
-                'associated_forms' => null !== $definition->getAssociatedForms() ? json_encode($definition->getAssociatedForms()) : null,
-                'associated_grids' => null !== $definition->getAssociatedGrids() ? json_encode($definition->getAssociatedGrids()) : null,
-                'associated_apis' => null !== $definition->getAssociatedApis() ? json_encode($definition->getAssociatedApis()) : null,
+                'form_options' => null !== $definition->getFormOptions() ? json_encode($definition->getFormOptions(), JSON_UNESCAPED_SLASHES) : null,
+                'associated_forms' => null !== $definition->getAssociatedForms() ? json_encode($definition->getAssociatedForms(), JSON_UNESCAPED_SLASHES) : null,
+                'associated_grids' => null !== $definition->getAssociatedGrids() ? json_encode($definition->getAssociatedGrids(), JSON_UNESCAPED_SLASHES) : null,
+                'associated_apis' => null !== $definition->getAssociatedApis() ? json_encode($definition->getAssociatedApis(), JSON_UNESCAPED_SLASHES) : null,
             ],
         ];
     }

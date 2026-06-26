@@ -41,13 +41,13 @@ class ExtraPropertyDefinitionAdvancedType extends TranslatorAwareType
             ])
             ->add('associated_forms', TextareaType::class, [
                 'label' => $this->trans('Associated forms (JSON)', 'Admin.Advparameters.Feature'),
-                'help' => $this->trans('JSON array of form placement entries. Each entry: "formId", "formId.path", "formId.path:before", or "formId.path:after". Example: ["product_combination.combination_details.reference:after"].', 'Admin.Advparameters.Help'),
+                'help' => $this->trans('JSON array of form placement entries. Each entry: "formId", "formId:path", "formId:path:before", or "formId:path:after". Example: ["product_combination:combination_details.reference:after"].', 'Admin.Advparameters.Help'),
                 'required' => false,
                 'attr' => ['rows' => 3],
             ])
             ->add('associated_grids', TextareaType::class, [
                 'label' => $this->trans('Associated grids (JSON)', 'Admin.Advparameters.Feature'),
-                'help' => $this->trans('JSON array of grid placement entries. Each entry: "gridId", "gridId.columnId", "gridId.columnId:before", or "gridId.columnId:after". Example: ["product.reference:after"].', 'Admin.Advparameters.Help'),
+                'help' => $this->trans('JSON array of grid placement entries. Each entry: "gridId", "gridId:columnId", "gridId:columnId:before", or "gridId:columnId:after". Example: ["product:reference:after"].', 'Admin.Advparameters.Help'),
                 'required' => false,
                 'attr' => ['rows' => 3],
             ])
