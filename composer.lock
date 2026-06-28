@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "289ad4da9b89731edd32108c32142228",
+    "content-hash": "95a71dd97e02f35f52a3724f5717db52",
     "packages": [
         {
             "name": "api-platform/core",
@@ -5082,21 +5082,21 @@
         },
         {
             "name": "prestashop/hummingbird",
-            "version": "v2.0.0",
+            "version": "v2.1.0-beta.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/PrestaShop/hummingbird.git",
-                "reference": "b481f9d67dbf2852df34ab6de9b89882d8154886"
+                "reference": "238dd265b4c73cbaa35c84e7340d9f62d97eaf76"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/PrestaShop/hummingbird/zipball/b481f9d67dbf2852df34ab6de9b89882d8154886",
-                "reference": "b481f9d67dbf2852df34ab6de9b89882d8154886",
+                "url": "https://api.github.com/repos/PrestaShop/hummingbird/zipball/238dd265b4c73cbaa35c84e7340d9f62d97eaf76",
+                "reference": "238dd265b4c73cbaa35c84e7340d9f62d97eaf76",
                 "shasum": ""
             },
             "require-dev": {
-                "symfony/console": "~4.4 || ^5.0 || ^6.4",
-                "symfony/yaml": "~4.4 || ^5.0 || ^6.4"
+                "prestashop/autoindex": "^2.1",
+                "prestashop/header-stamp": "^3.1"
             },
             "type": "prestashop-theme",
             "notification-url": "https://packagist.org/downloads/",
@@ -5116,9 +5116,9 @@
             "description": "Hummingbird development theme for PrestaShop",
             "support": {
                 "issues": "https://github.com/PrestaShop/hummingbird/issues",
-                "source": "https://github.com/PrestaShop/hummingbird/tree/v2.0.0"
+                "source": "https://github.com/PrestaShop/hummingbird/tree/v2.1.0-beta.2"
             },
-            "time": "2026-02-11T08:38:15+00:00"
+            "time": "2026-06-26T13:01:05+00:00"
         },
         {
             "name": "prestashop/pagesnotfound",
@@ -18440,9 +18440,9 @@
         "ext-simplexml": "*",
         "ext-zip": "*"
     },
-    "platform-dev": {},
+    "platform-dev": [],
     "platform-overrides": {
         "php": "8.1.0"
     },
-    "plugin-api-version": "2.9.0"
+    "plugin-api-version": "2.3.0"
 }
